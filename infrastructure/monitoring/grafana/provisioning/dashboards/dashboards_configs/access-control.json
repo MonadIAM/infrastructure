@@ -1,44 +1,127 @@
 {
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": []
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "links": [],
   "liveNow": false,
   "panels": [
     {
-      "title": "HTTP Requests Rate (per sec)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "API Performance Metrics",
+      "type": "row"
+    },
+    {
+      "title": "Top 10 Endpoints by RPS",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
       "targets": [
-        { "expr": "rate(http_request_duration_seconds_count[1m])", "legendFormat": "{{method}} {{route}}" }
-      ]
+        {
+          "expr": "topk(10, sum(rate(http_requests_total{route=~\"$endpoint\"}[1m])) by (method, route, status))",
+          "legendFormat": "{{method}} {{route}} ({{status}})"
+        }
+      ],
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "last"] }
+      }
+    },
+    {
+      "title": "Top 10 Slowest Endpoints (P95 Latency)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "expr": "topk(10, histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route=~\"$endpoint\"}[5m])) by (le, method, route)))",
+          "legendFormat": "{{method}} {{route}} (P95)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "id": 2,
+      "title": "System Resources",
+      "type": "row"
     },
     {
       "title": "Memory Usage (MB)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
       "targets": [
-        { "expr": "nodejs_heap_size_used_bytes / 1024 / 1024", "legendFormat": "Used Heap" }
-      ]
+        {
+          "expr": "nodejs_heap_size_used_bytes / 1024 / 1024",
+          "legendFormat": "Used Heap"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "decbytes" }
+      }
     },
     {
+      "title": "CPU Usage (%)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "targets": [
+        {
+          "expr": "rate(process_cpu_seconds_total[1m]) * 100",
+          "legendFormat": "CPU Load"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "percent" }
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "id": 3,
       "title": "Application Logs",
+      "type": "row"
+    },
+    {
+      "title": "Full-Width Logs",
       "type": "logs",
       "datasource": { "type": "loki", "uid": "Loki-Access-Control" },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 19 },
       "targets": [
         { "expr": "{job=\"access-control-service\"}", "refId": "A" }
-      ]
+      ],
+      "options": {
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      }
     }
   ],
   "refresh": "5s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["nestjs", "fastify"],
-  "templating": { "list": [] },
+  "templating": {
+    "list": [
+      {
+        "name": "endpoint",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+        "definition": "label_values(http_requests_total, route)",
+        "includeAll": true,
+        "multi": true,
+        "query": "label_values(http_requests_total, route)",
+        "refresh": 1,
+        "label": "Filter by Route"
+      }
+    ]
+  },
   "time": { "from": "now-15m", "to": "now" },
-  "title": "Access Control Service Health"
+  "title": "Access Control Service Health (Compact)"
 }
