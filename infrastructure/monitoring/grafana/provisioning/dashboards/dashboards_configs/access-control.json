@@ -1,0 +1,44 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "HTTP Requests Rate (per sec)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "rate(http_request_duration_seconds_count[1m])", "legendFormat": "{{method}} {{route}}" }
+      ]
+    },
+    {
+      "title": "Memory Usage (MB)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "nodejs_heap_size_used_bytes / 1024 / 1024", "legendFormat": "Used Heap" }
+      ]
+    },
+    {
+      "title": "Application Logs",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "Loki-Access-Control" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "{job=\"access-control-service\"}", "refId": "A" }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["nestjs", "fastify"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "title": "Access Control Service Health"
+}

@@ -1,0 +1,120 @@
+version: "3.9"
+
+x-base: &base
+  restart: on-failure
+
+name: kafka-infrastructure
+
+services:
+  zookeeper:
+    <<: *base
+    image: ${ZOOKEEPER_IMAGE:-confluentinc/cp-zookeeper:latest}
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT:-2181}
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+
+  kafka:
+    <<: *base
+    image: ${KAFKA_IMAGE:-confluentinc/cp-kafka:latest}
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "${KAFKA_EXTERNAL_PORT}:${KAFKA_EXTERNAL_PORT}"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:${ZOOKEEPER_CLIENT_PORT:-2181}
+      KAFKA_ADVERTISED_LISTENERS: >
+        PLAINTEXT://localhost:${KAFKA_EXTERNAL_PORT},
+        PLAINTEXT_INTERNAL://kafka:${KAFKA_INTERNAL_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+  kafka-ui:
+    <<: *base
+    image: ${KAFKA_UI_IMAGE:-provectuslabs/kafka-ui:latest}
+    container_name: kafka-ui
+    ports:
+      - "${KAFKA_UI_PORT:-8080}:8080"
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:${KAFKA_INTERNAL_PORT}
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:${ZOOKEEPER_CLIENT_PORT}
+
+  grafana:
+    <<: *base
+    image: ${GRAFANA_IMAGE}
+    container_name: grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    volumes:
+      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring-shared
+      - default
+
+  prom-access-control:
+    <<: *base
+    image: ${PROMETHEUS_IMAGE}
+    container_name: prom-access-control
+    volumes:
+      - ./infrastructure/monitoring/prometheus/access-control.yml:/etc/prometheus/prometheus.yml
+      - prom_access_control_data:/prometheus
+    networks:
+      - monitoring-shared
+
+  loki-access-control:
+    <<: *base
+    image: ${LOKI_IMAGE}
+    ports:
+      - "3100:3100"
+    container_name: loki-access-control
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_access_control_data:/loki
+    networks:
+      - monitoring-shared
+
+  prom-identity:
+    <<: *base
+    image: ${PROMETHEUS_IMAGE}
+    container_name: prom-identity
+    volumes:
+      - ./infrastructure/monitoring/prometheus/identity.yml:/etc/prometheus/prometheus.yml
+      - prom_identity_data:/prometheus
+
+  loki-identity:
+    <<: *base
+    image: ${LOKI_IMAGE}
+    container_name: loki-identity
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_identity_data:/loki
+
+volumes:
+  zookeeper_data:
+  zookeeper_log:
+  kafka_data:
+  grafana_data:
+  prom_access_control_data:
+  prom_identity_data:
+  loki_access_control_data:
+  loki_identity_data:
+
+networks:
+  default:
+    external:
+      name: ${DOCKER_NETWORK_NAME:-kafka-net}
+  monitoring-shared:
+    external: true
+    name: monitoring-network

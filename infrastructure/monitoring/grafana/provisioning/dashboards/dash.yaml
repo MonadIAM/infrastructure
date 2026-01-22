@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: "Standard Dashboards"
+    orgId: 1
+    folder: "Services"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

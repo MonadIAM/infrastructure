@@ -1,0 +1,39 @@
+# Зависимости и артефакты (если появятся скрипты на Node.js/Python)
+node_modules
+dist
+build
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Переменные окружения и секреты
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Данные контейнеров (чтобы не копировать гигабайты логов при сборке)
+zookeeper_data/
+zookeeper_log/
+kafka_data/
+*.db
+
+# Метаданные Git
+.git
+.gitignore
+.gitattributes
+
+# Конфигурации IDE и системные файлы
+.vscode
+.idea
+.history
+.swp
+.DS_Store
+Thumbs.db
+
+# Документация и скрипты управления
+README.md
+Makefile
+scripts/
