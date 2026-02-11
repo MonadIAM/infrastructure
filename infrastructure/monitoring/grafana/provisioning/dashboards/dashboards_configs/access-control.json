@@ -125,7 +125,7 @@
       "gridPos": { "h": 3, "w": 4, "x": 16, "y": 1 },
       "targets": [
         { 
-          "expr": "sum(increase(app_unhandled_errors_total{type=~\"(?i)throttling|rate\"}[6h:1s]))" 
+          "expr": "sum(increase(app_unhandled_errors_total{type=~\"(?i)throttling|rate\"}[6h]))" 
         }
       ],
       "fieldConfig": {
@@ -153,7 +153,7 @@
       "gridPos": { "h": 3, "w": 4, "x": 20, "y": 1 },
       "targets": [
         { 
-          "expr": "sum(increase(app_unhandled_errors_total{type=~\"(?i)database|db\"}[6h:1s]))" 
+          "expr": "sum(increase(app_unhandled_errors_total{type=~\"(?i)database|db\"}[6h]))" 
         }
       ],
       "fieldConfig": {
@@ -274,7 +274,7 @@
       "gridPos": { "h": 3, "w": 4, "x": 20, "y": 4 },
       "targets": [
         { 
-          "expr": "sum(increase(app_unhandled_errors_total{type!~\"(?i)database|db|throttling|rate\"}[6h:1s]))" 
+          "expr": "sum(increase(app_unhandled_errors_total{type!~\"(?i)database|db|throttling|rate\"}[6h]))" 
         }
       ],
       "fieldConfig": {
