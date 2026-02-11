@@ -1,22 +1,30 @@
 apiVersion: 1
+
 datasources:
   - name: Loki-Access-Control
     type: loki
     uid: Loki-Access-Control
     url: http://loki-access-control:3100
     access: proxy
+    orgId: 1
+
   - name: Loki-Identity
     type: loki
     uid: Loki-Identity
     url: http://loki-identity:3100
     access: proxy
+    orgId: 1
+
   - name: Prom-Access-Control
     type: prometheus
     uid: Prom-Access-Control
     url: http://prom-access-control:9090
     access: proxy
+    orgId: 1
+
   - name: Prom-Identity
     type: prometheus
     uid: Prom-Identity
     url: http://prom-identity:9090
     access: proxy
+    orgId: 1

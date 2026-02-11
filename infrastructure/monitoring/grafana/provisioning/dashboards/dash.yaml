@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: "Standard Dashboards"
+  - name: "LIAM Dashboards"
     orgId: 1
-    folder: "Services"
+    folder: "LIAM"
     type: file
     disableDeletion: false
     editable: true
