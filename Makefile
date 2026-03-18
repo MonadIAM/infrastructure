@@ -1,3 +1,5 @@
+env:
+	[ -f .env.example ] && cp -f .env.example .env || echo '.env.example not found'
 up:
 	docker-compose up -d
 stop:
