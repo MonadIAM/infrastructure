@@ -15,3 +15,9 @@ set -e
   --config retention.ms=900000 \
   --config min.cleanable.dirty.ratio=0.01 \
   --config segment.ms=100
+
+/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092 --create --if-not-exists \
+  --topic account-dlq \
+  --partitions 1 \
+  --replication-factor 1 \
+  --config retention.ms=604800000
