@@ -1,9 +1,7 @@
-version: "3.9"
-
 x-base: &base
   restart: on-failure
 
-name: kafka-infrastructure
+name: infra
 
 services:
   kafka:
@@ -137,8 +135,8 @@ volumes:
 
 networks:
   default:
-    external:
-      name: ${DOCKER_NETWORK_NAME:-kafka-net}
+    external: true
+    name: ${DOCKER_NETWORK_NAME:-kafka-net}
   monitoring-shared:
     external: true
     name: monitoring-network
