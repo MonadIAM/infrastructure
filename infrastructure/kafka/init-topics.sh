@@ -5,6 +5,13 @@ KAFKA="/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092"
 RETENTION_MAIN="--config retention.ms=259200000"   # 3 days
 RETENTION_DLQ="--config retention.ms=604800000"    # 7 days
 
+# projection-journal: access-control internal projection redis synchronization
+$KAFKA --create --if-not-exists --topic projection-journal \
+  --partitions 1 --replication-factor 1 $RETENTION_MAIN
+
+$KAFKA --create --if-not-exists --topic projection-journal-dlq \
+  --partitions 1 --replication-factor 1 $RETENTION_DLQ
+
 # identifier: identity -> notification
 $KAFKA --create --if-not-exists --topic identifier \
   --partitions 1 --replication-factor 1 $RETENTION_MAIN
