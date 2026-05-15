@@ -19,13 +19,6 @@ $KAFKA --create --if-not-exists --topic access-cache-invalidation \
 $KAFKA --create --if-not-exists --topic access-cache-invalidation-dlq \
   --partitions 1 --replication-factor 1 $RETENTION_DLQ
 
-# access-cache-snapshot: access-control -> services
-$KAFKA --create --if-not-exists --topic access-cache-snapshot \
-  --partitions 1 --replication-factor 1 $RETENTION_MAIN
-
-$KAFKA --create --if-not-exists --topic access-cache-snapshot-dlq \
-  --partitions 1 --replication-factor 1 $RETENTION_DLQ
-
 # identifier: identity -> notification
 $KAFKA --create --if-not-exists --topic identifier \
   --partitions 1 --replication-factor 1 $RETENTION_MAIN
