@@ -2,48 +2,52 @@
 set -e
 
 KAFKA="/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092"
-RETENTION_MAIN="--config retention.ms=259200000"   # 3 days
-RETENTION_DLQ="--config retention.ms=604800000"    # 7 days
 
-# projection-journal: access-control internal projection redis synchronization
-$KAFKA --create --if-not-exists --topic projection-journal \
-  --partitions 1 --replication-factor 1 $RETENTION_MAIN
+# Tunables
+PARTITIONS=1
+REPLICATION_FACTOR=1
 
-$KAFKA --create --if-not-exists --topic projection-journal-dlq \
-  --partitions 1 --replication-factor 1 $RETENTION_DLQ
+# Retention
+RETENTION_MAIN="--config retention.ms=259200000"   # 3  days
+RETENTION_RETRY="--config retention.ms=604800000"  # 7  days
+RETENTION_DEAD="--config retention.ms=2592000000"  # 30 days
+RETENTION_BLACKLIST="--config retention.ms=900000" # 15 min
 
-# access-cache-invalidation: access-control -> services
-$KAFKA --create --if-not-exists --topic access-cache-invalidation \
-  --partitions 1 --replication-factor 1 $RETENTION_MAIN
+# Common flags
+CREATE="$KAFKA --create --if-not-exists --partitions $PARTITIONS --replication-factor $REPLICATION_FACTOR"
 
-$KAFKA --create --if-not-exists --topic access-cache-invalidation-dlq \
-  --partitions 1 --replication-factor 1 $RETENTION_DLQ
+# account: identity -> all services
+$CREATE --topic account       $RETENTION_MAIN
+$CREATE --topic account-retry $RETENTION_RETRY
+$CREATE --topic account-dead  $RETENTION_DEAD
 
 # identifier: identity -> notification
-$KAFKA --create --if-not-exists --topic identifier \
-  --partitions 1 --replication-factor 1 $RETENTION_MAIN
+$CREATE --topic identifier       $RETENTION_MAIN
+$CREATE --topic identifier-retry $RETENTION_RETRY
+$CREATE --topic identifier-dead  $RETENTION_DEAD
 
-$KAFKA --create --if-not-exists --topic identifier-dlq \
-  --partitions 1 --replication-factor 1 $RETENTION_DLQ
+# notification: all services -> notification
+$CREATE --topic notification       $RETENTION_MAIN
+$CREATE --topic notification-retry $RETENTION_RETRY
+$CREATE --topic notification-dead  $RETENTION_DEAD
 
-# notification: all other services -> notification
-$KAFKA --create --if-not-exists --topic notification \
-  --partitions 1 --replication-factor 1 $RETENTION_MAIN
+# projection-journal: access-control internal (redis sync)
+$CREATE --topic projection-journal       $RETENTION_MAIN
+$CREATE --topic projection-journal-retry $RETENTION_RETRY
+$CREATE --topic projection-journal-dead  $RETENTION_DEAD
 
-$KAFKA --create --if-not-exists --topic notification-dlq \
-  --partitions 1 --replication-factor 1 $RETENTION_DLQ
+# access-cache-invalidation: access-control -> all services
+$CREATE --topic access-cache-invalidation       $RETENTION_MAIN
+$CREATE --topic access-cache-invalidation-retry $RETENTION_RETRY
+$CREATE --topic access-cache-invalidation-dead  $RETENTION_DEAD
 
-# account: identity -> all other services
-$KAFKA --create --if-not-exists --topic account \
-  --partitions 1 --replication-factor 1 $RETENTION_MAIN
-
-$KAFKA --create --if-not-exists --topic account-dlq \
-  --partitions 1 --replication-factor 1 $RETENTION_DLQ
-
-# blacklist: access token invalidation
-$KAFKA --create --if-not-exists --topic blacklist \
-  --partitions 1 --replication-factor 1 \
+# blacklist: session revocation
+# compact + delete: deduplication by session key + TTL-eviction
+$CREATE --topic blacklist \
   --config cleanup.policy=compact,delete \
   --config retention.ms=900000 \
   --config min.cleanable.dirty.ratio=0.01 \
-  --config segment.ms=100
+  --config segment.ms=60000
+
+# No retry required the data is temporary. Dead for failure analysis only.
+$CREATE --topic blacklist-dead $RETENTION_RETRY
