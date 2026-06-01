@@ -41,6 +41,11 @@ $CREATE --topic access-cache-invalidation       $RETENTION_MAIN
 $CREATE --topic access-cache-invalidation-retry $RETENTION_RETRY
 $CREATE --topic access-cache-invalidation-dead  $RETENTION_DEAD
 
+# elevated-access: identity -> all services
+$CREATE --topic elevated-access       --config retention.ms=1800000  # 30 min
+$CREATE --topic elevated-access-retry $RETENTION_RETRY
+$CREATE --topic elevated-access-dead  $RETENTION_DEAD
+
 # blacklist: session revocation
 # compact + delete: deduplication by session key + TTL-eviction
 $CREATE --topic blacklist \
