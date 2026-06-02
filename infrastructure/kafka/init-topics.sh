@@ -21,6 +21,11 @@ $CREATE --topic account       $RETENTION_MAIN
 $CREATE --topic account-retry $RETENTION_RETRY
 $CREATE --topic account-dead  $RETENTION_DEAD
 
+# membership: access-control -> identity
+$CREATE --topic membership       $RETENTION_MAIN
+$CREATE --topic membership-retry $RETENTION_RETRY
+$CREATE --topic membership-dead  $RETENTION_DEAD
+
 # identifier: identity -> notification
 $CREATE --topic identifier       $RETENTION_MAIN
 $CREATE --topic identifier-retry $RETENTION_RETRY
