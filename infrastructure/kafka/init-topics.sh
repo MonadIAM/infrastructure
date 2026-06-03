@@ -36,15 +36,15 @@ $CREATE --topic notification       $RETENTION_MAIN
 $CREATE --topic notification-retry $RETENTION_RETRY
 $CREATE --topic notification-dead  $RETENTION_DEAD
 
+# access-cache: access-control -> all services
+$CREATE --topic access-cache       $RETENTION_MAIN
+$CREATE --topic access-cache-retry $RETENTION_RETRY
+$CREATE --topic access-cache-dead  $RETENTION_DEAD
+
 # projection-journal: access-control internal (redis sync)
 $CREATE --topic projection-journal       $RETENTION_MAIN
 $CREATE --topic projection-journal-retry $RETENTION_RETRY
 $CREATE --topic projection-journal-dead  $RETENTION_DEAD
-
-# access-cache-invalidation: access-control -> all services
-$CREATE --topic access-cache-invalidation       $RETENTION_MAIN
-$CREATE --topic access-cache-invalidation-retry $RETENTION_RETRY
-$CREATE --topic access-cache-invalidation-dead  $RETENTION_DEAD
 
 # elevated-access: identity -> all services
 $CREATE --topic elevated-access       --config retention.ms=1800000  # 30 min
