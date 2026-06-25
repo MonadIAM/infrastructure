@@ -16,6 +16,11 @@ RETENTION_BLACKLIST="--config retention.ms=900000" # 15 min
 # Common flags
 CREATE="$KAFKA --create --if-not-exists --partitions $PARTITIONS --replication-factor $REPLICATION_FACTOR"
 
+# realm: access-control -> identity
+$CREATE --topic realm       $RETENTION_MAIN
+$CREATE --topic realm-retry $RETENTION_RETRY
+$CREATE --topic realm-dead  $RETENTION_DEAD
+
 # account: identity -> all services
 $CREATE --topic account       $RETENTION_MAIN
 $CREATE --topic account-retry $RETENTION_RETRY
