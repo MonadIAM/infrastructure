@@ -26,6 +26,8 @@ services:
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka_data:/var/lib/kafka/data
+    networks:
+      kafka_net:
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 29092 || exit 1"]
       interval: 10s
@@ -43,7 +45,7 @@ services:
       - ./infrastructure/kafka/init-topics.sh:/init-topics.sh:ro
     entrypoint: ["bash", "/init-topics.sh"]
     networks:
-      - default
+      kafka_net:
 
   kafka-ui:
     <<: *base
@@ -57,6 +59,29 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:${KAFKA_INTERNAL_PORT}
+    networks:
+      kafka_net:
+
+  vault:
+    <<: *base
+    image: ${VAULT_IMAGE:?}
+    container_name: vault
+    environment:
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:${VAULT_PORT}"
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN}
+    command: server -dev
+    ports:
+      - "${VAULT_PUBLISHED_PORT}:${VAULT_PORT}"
+    cap_add:
+      - IPC_LOCK
+    networks:
+      vault_net:
+    healthcheck:
+      test: ["CMD", "vault", "status", "-address=http://127.0.0.1:${VAULT_PORT}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   grafana:
     <<: *base
@@ -74,8 +99,8 @@ services:
       - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
     networks:
-      - monitoring-shared
-      - default
+      monitoring_net:
+      kafka_net:
 
   prom-access-control:
     <<: *base
@@ -87,7 +112,7 @@ services:
       - ./infrastructure/monitoring/prometheus/access-control.yml:/etc/prometheus/prometheus.yml
       - prom_access_control_data:/prometheus
     networks:
-      - monitoring-shared
+      monitoring_net:
 
   loki-access-control:
     <<: *base
@@ -99,7 +124,7 @@ services:
     volumes:
       - loki_access_control_data:/loki
     networks:
-      - monitoring-shared
+      monitoring_net:
 
   prom-identity:
     <<: *base
@@ -111,7 +136,7 @@ services:
       - ./infrastructure/monitoring/prometheus/identity.yml:/etc/prometheus/prometheus.yml
       - prom_identity_data:/prometheus
     networks:
-      - monitoring-shared
+      monitoring_net:
 
   loki-identity:
     <<: *base
@@ -123,7 +148,7 @@ services:
     volumes:
       - loki_identity_data:/loki
     networks:
-      - monitoring-shared
+      monitoring_net:
 
 volumes:
   kafka_data:
@@ -134,9 +159,12 @@ volumes:
   loki_identity_data:
 
 networks:
-  default:
+  monitoring_net:
     external: true
-    name: ${DOCKER_NETWORK_NAME:-kafka-net}
-  monitoring-shared:
+    name: ${DOCKER_NETWORK_MONITORING}
+  kafka_net:
     external: true
-    name: monitoring-network
+    name: ${DOCKER_NETWORK_KAFKA}
+  vault_net:
+    external: true
+    name: ${DOCKER_NETWORK_VAULT}
