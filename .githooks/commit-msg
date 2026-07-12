@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+ESC=$(printf "\033")
+RED="${ESC}[31m"
+BG_RED="${ESC}[41m"
+RESET="${ESC}[0m"
+
+PREFIXES="feat|fix|docs|refactor|perf|test|build|ci|chore|revert"
+MAX_LENGTH=70
+
+PATTERN="^($PREFIXES)(\([a-zA-Z0-9-]+\))?(!)?: .+$"
+
+COMMIT_MESSAGE=$(cat "$1")
+HEADER=$(echo "$COMMIT_MESSAGE" | head -n1)
+HEADER_LEN=${#HEADER}
+
+if [ -z "$HEADER" ]; then
+    printf "\n${BG_RED}COMMIT FAILED:${RESET}${RED} Commit message cannot be empty!${RESET}\n"
+    exit 1
+fi
+
+if ! echo "$HEADER" | grep -qE "$PATTERN"; then
+    printf "\n${BG_RED}COMMIT FAILED:${RESET}${RED} Invalid commit message format!${RESET}\n"
+    exit 1
+fi
+
+if [ "$HEADER_LEN" -gt "$MAX_LENGTH" ]; then
+    printf "\n${BG_RED}COMMIT FAILED:${RESET}${RED} Commit header is too long!${RESET}\n"
+    printf "Current length: ${HEADER_LEN} characters (max: ${MAX_LENGTH})\n"
+    exit 1
+fi
+
+exit 0

@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+ESC=$(printf "\033")
+RED="${ESC}[31m"
+BG_RED="${ESC}[41m"
+RESET="${ESC}[0m"
+
+PREFIXES="feat|fix|docs|refactor|perf|test|build|ci|chore|revert"
+MAX_LENGTH=50
+
+PATTERN="^($PREFIXES)(/[a-zA-Z0-9-]+)?/[a-zA-Z0-9_-]+$"
+WHITELIST="^(dev|main|master)$"
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+BRANCH_LEN=${#CURRENT_BRANCH}
+
+if echo "$CURRENT_BRANCH" | grep -qE "$WHITELIST"; then
+    exit 0
+fi
+
+if ! echo "$CURRENT_BRANCH" | grep -qE "$PATTERN"; then
+    printf "\n${BG_RED}PUSH FAILED:${RESET}${RED} Invalid branch name format!${RESET}\n"
+    exit 1
+fi
+
+if [ "$BRANCH_LEN" -gt "$MAX_LENGTH" ]; then
+    printf "\n${BG_RED}PUSH FAILED:${RESET}${RED} Branch name is too long!${RESET}\n"
+    printf "Current length: ${BRANCH_LEN} characters (max: ${MAX_LENGTH})\n"
+    exit 1
+fi
+
+exit 0
