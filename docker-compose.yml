@@ -83,6 +83,95 @@ services:
       retries: 10
       start_period: 5s
 
+  vault-init:
+    image: ${VAULT_IMAGE:?}
+    container_name: vault-init
+    depends_on:
+      vault:
+        condition: service_healthy
+    env_file:
+      - .env
+      - .vault.env
+    environment:
+      VAULT_ADDR: "http://vault:${VAULT_PORT}"
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+    volumes:
+      - ./infrastructure/vault/secrets-policy.hcl:/secrets-policy.hcl:ro
+      - ./infrastructure/vault/init.sh:/init.sh:ro
+      - vault_secrets_token:/vault/token
+    entrypoint: ["sh", "/init.sh"]
+    networks:
+      vault_net:
+
+  vault-secrets-init:
+    image: ${VAULT_IMAGE:?}
+    container_name: vault-secrets-init
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    environment:
+      VAULT_ADDR: "http://vault:${VAULT_PORT}"
+      VAULT_KV_MOUNT: ${VAULT_KV_MOUNT:?}
+      VAULT_KV_CLICKHOUSE_PATH: ${VAULT_KV_CLICKHOUSE_PATH:?}
+    volumes:
+      - ./infrastructure/vault/render-secrets.sh:/render-secrets.sh:ro
+      - vault_secrets_token:/vault/token
+      - clickhouse_secrets:/secrets
+    entrypoint: ["sh", "/render-secrets.sh"]
+    networks:
+      vault_net:
+
+  clickhouse:
+    <<: *base
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse
+    depends_on:
+      vault-secrets-init:
+        condition: service_completed_successfully
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:?}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT:?}
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT}:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_secrets:/vault/secrets:ro
+      - ./infrastructure/clickhouse/entrypoint.sh:/entrypoint-wrapper.sh:ro
+    entrypoint: ["sh", "/entrypoint-wrapper.sh"]
+    networks:
+      kafka_net:
+      monitoring_net:
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "clickhouse-client --user \"$$CLICKHOUSE_USER\" --password \"$$(cat /vault/secrets/clickhouse_password)\" --query 'SELECT 1'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  clickhouse-init:
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse-init
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?}
+      CLICKHOUSE_WRITER_USER: ${CLICKHOUSE_WRITER_USER:?}
+      CLICKHOUSE_READER_USER: ${CLICKHOUSE_READER_USER:?}
+    volumes:
+      - ./infrastructure/clickhouse/init.sh:/init.sh:ro
+      - ./infrastructure/clickhouse/schema:/schema:ro
+      - clickhouse_secrets:/vault/secrets:ro
+    entrypoint: ["bash", "/init.sh"]
+    networks:
+      kafka_net:
+
   grafana:
     <<: *base
     image: ${GRAFANA_IMAGE:?}
@@ -152,6 +241,9 @@ services:
 
 volumes:
   kafka_data:
+  vault_secrets_token:
+  clickhouse_data:
+  clickhouse_secrets:
   grafana_data:
   prom_access_control_data:
   prom_identity_data:
