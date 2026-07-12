@@ -9,17 +9,10 @@ CLICKHOUSE="clickhouse-client --host clickhouse --user ${CLICKHOUSE_USER} --pass
 
 for file in /schema/*.sql; do
     echo "Applying $file"
-    $CLICKHOUSE < "$file"
+    sed \
+        -e "s|{{writer_user}}|${CLICKHOUSE_WRITER_USER}|g" \
+        -e "s|{{writer_password}}|${CLICKHOUSE_WRITER_PASSWORD}|g" \
+        -e "s|{{reader_user}}|${CLICKHOUSE_READER_USER}|g" \
+        -e "s|{{reader_password}}|${CLICKHOUSE_READER_PASSWORD}|g" \
+        "$file" | $CLICKHOUSE
 done
-
-echo "Applying users/grants"
-$CLICKHOUSE <<EOF
-CREATE USER IF NOT EXISTS ${CLICKHOUSE_WRITER_USER} IDENTIFIED WITH sha256_password BY '${CLICKHOUSE_WRITER_PASSWORD}';
-CREATE USER IF NOT EXISTS ${CLICKHOUSE_READER_USER} IDENTIFIED WITH sha256_password BY '${CLICKHOUSE_READER_PASSWORD}';
-
-GRANT INSERT, SELECT ON audit.audit_log TO ${CLICKHOUSE_WRITER_USER};
-GRANT INSERT, SELECT ON audit.change_log TO ${CLICKHOUSE_WRITER_USER};
-
-GRANT SELECT ON audit.audit_log TO ${CLICKHOUSE_READER_USER};
-GRANT SELECT ON audit.change_log TO ${CLICKHOUSE_READER_USER};
-EOF

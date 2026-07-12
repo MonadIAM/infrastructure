@@ -66,3 +66,8 @@ $CREATE --topic blacklist \
 
 # No retry required the data is temporary. Dead for failure analysis only.
 $CREATE --topic blacklist-dead $RETENTION_RETRY
+
+# audit-log-archive / change-log-archive: identity + access-control -> ClickHouse
+# Pure fan-out consumption, no retries: if ClickHouse is down, messages just wait out the retention.
+$CREATE --topic audit-log-archive  $RETENTION_MAIN
+$CREATE --topic change-log-archive $RETENTION_MAIN

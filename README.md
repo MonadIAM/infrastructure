@@ -103,25 +103,36 @@ Dev mode is in-memory: all secrets/mounts are lost on restart, which is why ever
 <details>
 <summary><strong>ClickHouse</strong></summary>
 
-Single shared ClickHouse instance, run from this repository, on `kafka-net` (consumes archive events from Kafka) and `monitoring-network` (metrics scraping). Intended as the append-only long-term store for `AuditLog`/`ChangeLog` records replicated from each service's Postgres (`docs/BACKLOG.md`, п.14).
-
-Schema (`audit.audit_log`, `audit.change_log`) is one shared table per entity across all services, not one per service — applied idempotently on every startup by `clickhouse-init` from `infrastructure/clickhouse/schema/*.sql`, the same pattern as `kafka-init`/`init-topics.sh`. Both tables carry a `service` discriminator column and a 365-day `TTL`. Kafka-engine ingestion tables (`docs/BACKLOG.md` п.14) are set up in a later step, not yet present at this stage.
+Single shared ClickHouse instance, run from this repository, on `kafka-net` (Kafka ingestion) and `monitoring-network` (metrics). Append-only long-term store for `AuditLog`/`ChangeLog`, replicated from each service's Postgres.
 
 - *Address (Docker network):* `clickhouse:9000` (native), `clickhouse:8123` (HTTP)
-- *Address (host machine):* `localhost:9000` (native), `http://localhost:8123` (HTTP), `http://localhost:8123/play` (built-in query UI)
-- *Default database:* `CLICKHOUSE_DB` in this repo's `.env`.
+- *Address (host machine):* `localhost:9000` (native), `http://localhost:8123` (HTTP), `http://localhost:8123/play`
+- *Default database:* `CLICKHOUSE_DB` in `.env`
+
+Schema applied in filename order by `clickhouse-init`, from `infrastructure/clickhouse/schema/*.sql`:
+
+| File        | What                                                                                  |
+|:------------|:--------------------------------------------------------------------------------------|
+| `001`/`002` | `audit.audit_log`/`audit.change_log` — shared tables, `service` column, 365-day `TTL` |
+| `003`       | `audit_writer`/`audit_reader` users + grants                                          |
+| `004`       | Kafka-engine queue tables (`audit-log-archive`/`change-log-archive`)                  |
+| `005`       | Materialized views, `DEFINER = audit_writer`                                          |
+
+`003`–`005` use `{{writer_user}}`-style placeholders, substituted via `sed` before running — same convention as the Vault HCL policies.
+
+Payload contract for producers: field names match the columns in `001`/`002`, `input`/`delta` as an already-serialized JSON string.
 
 Three identities, not one shared login:
 
-| User                     | Grants                      | Purpose                       |
-|:-------------------------|:----------------------------|:------------------------------|
-| `CLICKHOUSE_USER`        | admin, `access_management`  | schema DDL, break-glass only  |
-| `CLICKHOUSE_WRITER_USER` | `INSERT`, `SELECT`          | Kafka-engine ingestion        |
-| `CLICKHOUSE_READER_USER` | `SELECT`                    | Grafana / ad-hoc queries      |
+| User                     | Grants              | Purpose                      |
+|:-------------------------|:--------------------|:-----------------------------|
+| `CLICKHOUSE_USER`        | admin               | schema DDL, break-glass only |
+| `CLICKHOUSE_WRITER_USER` | `INSERT`, `SELECT`  | Kafka ingestion              |
+| `CLICKHOUSE_READER_USER` | `SELECT`            | Grafana / ad-hoc queries     |
 
-Grants are on `audit.audit_log`/`audit.change_log`. Admin is for `clickhouse-init`/operator use only, not app or query traffic. Neither `audit_writer` nor `audit_reader` was ever granted `ALTER`/`DROP`/`DELETE`/`UPDATE` — ClickHouse's access control is default-deny, so this isn't a revoke, it's simply never having granted it. This is what actually enforces WORM: the storage engine itself doesn't prevent mutations, permissions do.
+No `ALTER`/`DROP`/`DELETE`/`UPDATE` for writer/reader — never granted, not revoked. That's what enforces WORM, not the storage engine.
 
-All three passwords come from Vault, not from `.env`: seeded once from `.vault.env` (gitignored, see `.vault.env.example`) by `vault-init`, then fetched and written to `/vault/secrets/*` files by `vault-secrets-init` — `clickhouse` and `clickhouse-init` read them from there (`docker/postgres/entrypoint.sh` in `identity-service` is the same pattern this mirrors). Usernames aren't secrets and stay plain in `.env`.
+Passwords come from Vault, not `.env` (see Vault section) — mounted into `clickhouse`/`clickhouse-init` at `/vault/secrets/*`. Usernames stay plain in `.env`.
 
 </details>
 
