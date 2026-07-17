@@ -16,4 +16,7 @@ write_secret "$VAULT_KV_CLICKHOUSE_PATH" clickhouse_password /secrets/clickhouse
 write_secret "$VAULT_KV_CLICKHOUSE_PATH" clickhouse_writer_password /secrets/clickhouse_writer_password
 write_secret "$VAULT_KV_CLICKHOUSE_PATH" clickhouse_reader_password /secrets/clickhouse_reader_password
 
+write_secret "$VAULT_KV_MINIO_PATH" minio_root_password /secrets-minio/minio_root_password
+write_secret "$VAULT_KV_MINIO_PATH" minio_archiver_secret_key /secrets-minio/minio_archiver_secret_key
+
 rm -f /vault/token/secrets

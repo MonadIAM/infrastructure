@@ -1,6 +1,6 @@
-# infra
+# @monadiam/infra
 
-Shared infrastructure for MonadIAM services: Apache Kafka for inter-service messaging, HashiCorp Vault for shared secrets/crypto, ClickHouse as the WORM-style archive store for audit/change logs, and Grafana + Prometheus + Loki for monitoring. Deployed once per environment and shared by every service repo through three external Docker networks.
+Shared infrastructure for MonadIAM services: Apache Kafka for inter-service messaging, HashiCorp Vault for shared secrets/crypto, ClickHouse as the WORM-style mid-term archive store for audit/change logs, MinIO as the COLD long-term archive those logs age out into, and Grafana + Prometheus + Loki for monitoring. Deployed once per environment and shared by every service repo through three external Docker networks.
 
 ----
 
@@ -15,19 +15,15 @@ make network name="monitoring-network"
 make network name="kafka-net"
 make network name="vault-net"
 ```
-2. Generate `.env` from example:
+2. Generate `.env` and `.vault.env` from example (the latter seeds secrets for this repo's own `vault-init` — see the ClickHouse/MinIO sections below) and fill in real values:
 ```sh
 make env
 ```
-3. Generate `.vault.env` from example (seed secrets for this repo's own `vault-init` — see the ClickHouse section below) and fill in real values:
-```sh
-cp .vault.env.example .vault.env
-```
-4. Start all services in detached mode:
+3. Start all services in detached mode:
 ```sh
 make up
 ```
-5. Verify Kafka is running:
+4. Verify Kafka is running:
 ```sh
 make logs
 ```
@@ -113,12 +109,15 @@ Schema applied in filename order by `clickhouse-init`, from `infrastructure/clic
 
 | File        | What                                                                                  |
 |:------------|:--------------------------------------------------------------------------------------|
-| `001`/`002` | `audit.audit_log`/`audit.change_log` — shared tables, `service` column, 365-day `TTL` |
+| `001`/`002` | `audit.audit_log`/`audit.change_log` — shared tables, `service` column, 180-day `TTL` |
 | `003`       | `audit_writer`/`audit_reader` users + grants                                          |
 | `004`       | Kafka-engine queue tables (`audit-log-archive`/`change-log-archive`)                  |
 | `005`       | Materialized views, `DEFINER = audit_writer`                                          |
+| `006`       | `audit.archive_log` — bookkeeping table for `clickhouse-archiver` (see MinIO section) |
 
-`003`–`005` use `{{writer_user}}`-style placeholders, substituted via `sed` before running — same convention as the Vault HCL policies.
+`003`–`006` use `{{writer_user}}`-style placeholders, substituted via `sed` before running — same convention as the Vault HCL policies.
+
+TTL is 180 days, not the retention period itself — ClickHouse is the mid-term investigation surface (WORM via RBAC below), not the final resting place. `clickhouse-archiver` copies each partition into MinIO well before the TTL would reclaim it (see MinIO section); the TTL is a backstop, not the primary deletion path in normal operation.
 
 Producers write to their own `system.outbox` table (transactional outbox pattern) — Debezium's `EventRouter` wraps every row as `{ actionType, payload: {...} }` before it reaches Kafka, same convention as `realm`/`membership`/`blacklist`. `004`'s queue tables ingest that envelope as-is (`actionType String, payload String`); `005`'s MV unwraps `payload` into the real columns via `JSONExtractString`. Producer-side field names inside `payload` match the columns in `001`/`002` exactly (snake_case); `input`/`delta` arrive pre-serialized as a JSON string, not a nested object.
 
@@ -133,6 +132,45 @@ Three identities, not one shared login:
 No `ALTER`/`DROP`/`DELETE`/`UPDATE` for writer/reader — never granted, not revoked. That's what enforces WORM, not the storage engine.
 
 Passwords come from Vault, not `.env` (see Vault section) — mounted into `clickhouse`/`clickhouse-init` at `/vault/secrets/*`. Usernames stay plain in `.env`.
+
+</details>
+
+----
+
+<details>
+<summary><strong>MinIO</strong></summary>
+
+COLD archive for `audit.audit_log`/`audit.change_log` — where data ends up after it ages out of ClickHouse's 180-day hot window, as Parquet. Single shared MinIO instance, run from this repository, on `kafka-net`.
+
+- *Address (Docker network):* `minio:9000` (S3 API), `minio:9090` (console)
+- *Address (host machine):* `http://localhost:${MINIO_API_PORT}` (S3 API), `http://localhost:${MINIO_CONSOLE_PORT}` (console)
+- *Buckets:* `MINIO_AUDIT_LOG_BUCKET` (default `audit-archive`), `MINIO_CHANGE_LOG_BUCKET` (default `change-log-archive`) — one per ClickHouse table, both services land in the same bucket (`service` column already discriminates inside the Parquet file, same as in ClickHouse)
+
+Buckets are created by `minio-init` (`infrastructure/minio/init.sh`, `minio/mc` image) with Object Lock enabled at creation time — retrofitting Object Lock onto an existing bucket isn't possible, which is why bucket creation and lock configuration happen in the same script, once. Default retention is set in **COMPLIANCE** mode (not GOVERNANCE): nobody, including root, can shorten it or delete an object early. Retention length equals lifecycle expiry — objects age out of the bucket exactly when WORM protection itself lapses, not before:
+
+| Bucket                    | Retention (`MINIO_*_RETENTION_DAYS`) |
+|:---------------------------|:-------------------------------------|
+| `audit-archive`            | 1095 days (3 years)                  |
+| `change-log-archive`       | 365 days (1 year)                    |
+
+`minio-init` also provisions a least-privilege `archiver` identity (`MINIO_ARCHIVER_ACCESS_KEY`, policy in `infrastructure/minio/archiver-policy.json`) scoped to `s3:PutObject`/`s3:GetObject` on just these two buckets — no delete, no list, no admin. This is the only credential `clickhouse-archiver` ever sees.
+
+Root credentials (`MINIO_ROOT_USER`, password from Vault) exist solely to bootstrap buckets/policy/user in `minio-init` — nothing else uses them.
+
+</details>
+
+----
+
+<details>
+<summary><strong>clickhouse-archiver</strong></summary>
+
+Daily job (`infrastructure/archiver/`, plain shell loop — no cron daemon, no NestJS: the job is platform-level, not owned by identity-service or access-control-service) that exports ClickHouse partitions into MinIO as Parquet once they're older than `ARCHIVE_AFTER_DAYS` (default 150 — a 30-day margin before the 180-day ClickHouse `TTL`), verifies the export by row count, and records success in `audit.archive_log`.
+
+It never issues `DROP PARTITION` or any other destructive statement against ClickHouse — deletion stays exactly where it already was, the table `TTL`. If the archiver falls behind or breaks, the worst case is a few extra days of ClickHouse storage, not a race against data loss; the margin exists specifically so a stalled job has time to be noticed and fixed before the TTL would otherwise catch up.
+
+Uses `CLICKHOUSE_IMAGE` unmodified (`clickhouse-client` only, no extra tooling) — export, read-back verification, and the eventual queries against archived Parquet from ClickHouse Play UI (`s3()` table function, works for both writing and reading MinIO) all go through the same one binary.
+
+> `mc ilm`/`mc retention` flag names in `infrastructure/minio/init.sh` have shifted across `mc` releases — double-check them against the exact pinned `MINIO_MC_IMAGE` tag before relying on this in production.
 
 </details>
 
@@ -161,12 +199,13 @@ Passwords come from Vault, not `.env` (see Vault section) — mounted into `clic
 <details>
 <summary><strong>UI Links</strong></summary>
 
-| Service            | URL                        |
-|:-------------------|:---------------------------|
-| Grafana            | http://localhost:3000      |
-| Kafka UI           | http://localhost:8080      |
-| Vault UI           | http://localhost:8200/ui   |
-| ClickHouse Play UI | http://localhost:8123/play |
+| Service            | URL                          |
+|:-------------------|:-----------------------------|
+| Grafana            | http://localhost:3000        |
+| Kafka UI           | http://localhost:8080        |
+| Vault UI           | http://localhost:8200/ui     |
+| ClickHouse Play UI | http://localhost:8123/play   |
+| MinIO Console      | http://localhost:9011        |
 
 </details>
 

@@ -21,9 +21,15 @@ vault kv get "$VAULT_KV_MOUNT/$VAULT_KV_CLICKHOUSE_PATH" >/dev/null 2>&1 ||
         clickhouse_writer_password="$CLICKHOUSE_WRITER_PASSWORD" \
         clickhouse_reader_password="$CLICKHOUSE_READER_PASSWORD"
 
+vault kv get "$VAULT_KV_MOUNT/$VAULT_KV_MINIO_PATH" >/dev/null 2>&1 ||
+    vault kv put "$VAULT_KV_MOUNT/$VAULT_KV_MINIO_PATH" \
+        minio_root_password="$MINIO_ROOT_PASSWORD" \
+        minio_archiver_secret_key="$MINIO_ARCHIVER_SECRET_KEY"
+
 sed \
     -e "s|{{kv_mount}}|$VAULT_KV_MOUNT|g" \
     -e "s|{{clickhouse_path}}|$VAULT_KV_CLICKHOUSE_PATH|g" \
+    -e "s|{{minio_path}}|$VAULT_KV_MINIO_PATH|g" \
     /secrets-policy.hcl > /tmp/secrets-policy.hcl
 
 vault policy write infra-secrets /tmp/secrets-policy.hcl

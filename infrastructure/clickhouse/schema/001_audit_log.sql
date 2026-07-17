@@ -20,4 +20,4 @@ CREATE TABLE IF NOT EXISTS audit.audit_log
 ENGINE = MergeTree
 PARTITION BY toYYYYMM(created_at)
 ORDER BY (service, entity_type, action_type, created_at, id)
-TTL toDateTime(created_at) + INTERVAL 365 DAY;
+TTL toDateTime(created_at) + INTERVAL 180 DAY;

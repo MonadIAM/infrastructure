@@ -113,10 +113,12 @@ services:
       VAULT_ADDR: "http://vault:${VAULT_PORT}"
       VAULT_KV_MOUNT: ${VAULT_KV_MOUNT:?}
       VAULT_KV_CLICKHOUSE_PATH: ${VAULT_KV_CLICKHOUSE_PATH:?}
+      VAULT_KV_MINIO_PATH: ${VAULT_KV_MINIO_PATH:?}
     volumes:
       - ./infrastructure/vault/render-secrets.sh:/render-secrets.sh:ro
       - vault_secrets_token:/vault/token
       - clickhouse_secrets:/secrets
+      - minio_secrets:/secrets-minio
     entrypoint: ["sh", "/render-secrets.sh"]
     networks:
       vault_net:
@@ -169,6 +171,71 @@ services:
       - ./infrastructure/clickhouse/schema:/schema:ro
       - clickhouse_secrets:/vault/secrets:ro
     entrypoint: ["bash", "/init.sh"]
+    networks:
+      kafka_net:
+
+  minio:
+    <<: *base
+    image: ${MINIO_IMAGE:?}
+    container_name: minio
+    depends_on:
+      vault-secrets-init:
+        condition: service_completed_successfully
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ROOT_PASSWORD_FILE: /vault/secrets/minio_root_password
+    command: server /data --console-address ":9090"
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9090"
+    volumes:
+      - minio_data:/data
+      - minio_secrets:/vault/secrets:ro
+    networks:
+      kafka_net:
+
+  minio-init:
+    image: ${MINIO_MC_IMAGE:?}
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ARCHIVER_ACCESS_KEY: ${MINIO_ARCHIVER_ACCESS_KEY:?}
+      MINIO_AUDIT_LOG_BUCKET: ${MINIO_AUDIT_LOG_BUCKET:?}
+      MINIO_CHANGE_LOG_BUCKET: ${MINIO_CHANGE_LOG_BUCKET:?}
+      MINIO_AUDIT_LOG_RETENTION_DAYS: ${MINIO_AUDIT_LOG_RETENTION_DAYS:?}
+      MINIO_CHANGE_LOG_RETENTION_DAYS: ${MINIO_CHANGE_LOG_RETENTION_DAYS:?}
+    volumes:
+      - ./infrastructure/minio/init.sh:/init.sh:ro
+      - minio_secrets:/vault/secrets:ro
+    entrypoint: ["sh", "/init.sh"]
+    networks:
+      kafka_net:
+
+  clickhouse-archiver:
+    <<: *base
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse-archiver
+    depends_on:
+      clickhouse-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      CLICKHOUSE_WRITER_USER: ${CLICKHOUSE_WRITER_USER:?}
+      MINIO_ARCHIVER_ACCESS_KEY: ${MINIO_ARCHIVER_ACCESS_KEY:?}
+      MINIO_AUDIT_LOG_BUCKET: ${MINIO_AUDIT_LOG_BUCKET:?}
+      MINIO_CHANGE_LOG_BUCKET: ${MINIO_CHANGE_LOG_BUCKET:?}
+      ARCHIVE_AFTER_DAYS: ${ARCHIVE_AFTER_DAYS:?}
+      ARCHIVE_INTERVAL_SECONDS: "86400"
+    volumes:
+      - ./infrastructure/archiver/entrypoint.sh:/entrypoint.sh:ro
+      - ./infrastructure/archiver/archive.sh:/archive.sh:ro
+      - clickhouse_secrets:/vault/secrets/clickhouse:ro
+      - minio_secrets:/vault/secrets/minio:ro
+    entrypoint: ["sh", "/entrypoint.sh"]
     networks:
       kafka_net:
 
@@ -244,6 +311,8 @@ volumes:
   vault_secrets_token:
   clickhouse_data:
   clickhouse_secrets:
+  minio_data:
+  minio_secrets:
   grafana_data:
   prom_access_control_data:
   prom_identity_data:

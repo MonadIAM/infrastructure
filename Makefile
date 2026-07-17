@@ -1,5 +1,6 @@
 env:
 	[ -f .env.example ] && cp -f .env.example .env || echo '.env.example not found'
+	[ -f .vault.env.example ] && cp -f .vault.env.example .vault.env || echo '.vault.env.example not found'
 up:
 	docker compose up -d
 stop:
