@@ -120,7 +120,7 @@ Schema applied in filename order by `clickhouse-init`, from `infrastructure/clic
 
 `003`–`005` use `{{writer_user}}`-style placeholders, substituted via `sed` before running — same convention as the Vault HCL policies.
 
-Payload contract for producers: field names match the columns in `001`/`002`, `input`/`delta` as an already-serialized JSON string.
+Producers write to their own `system.outbox` table (transactional outbox pattern) — Debezium's `EventRouter` wraps every row as `{ actionType, payload: {...} }` before it reaches Kafka, same convention as `realm`/`membership`/`blacklist`. `004`'s queue tables ingest that envelope as-is (`actionType String, payload String`); `005`'s MV unwraps `payload` into the real columns via `JSONExtractString`. Producer-side field names inside `payload` match the columns in `001`/`002` exactly (snake_case); `input`/`delta` arrive pre-serialized as a JSON string, not a nested object.
 
 Three identities, not one shared login:
 
