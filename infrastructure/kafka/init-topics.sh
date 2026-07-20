@@ -36,6 +36,16 @@ $CREATE --topic identifier       $RETENTION_MAIN
 $CREATE --topic identifier-retry $RETENTION_RETRY
 $CREATE --topic identifier-dead  $RETENTION_DEAD
 
+# service-client: identity -> certificate-service only
+$CREATE --topic service-client       $RETENTION_MAIN
+$CREATE --topic service-client-retry $RETENTION_RETRY
+$CREATE --topic service-client-dead  $RETENTION_DEAD
+
+# interface-client: identity -> access-control, notification
+$CREATE --topic interface-client       $RETENTION_MAIN
+$CREATE --topic interface-client-retry $RETENTION_RETRY
+$CREATE --topic interface-client-dead  $RETENTION_DEAD
+
 # notification: all services -> notification
 $CREATE --topic notification       $RETENTION_MAIN
 $CREATE --topic notification-retry $RETENTION_RETRY
