@@ -258,51 +258,27 @@ services:
       monitoring_net:
       kafka_net:
 
-  prom-access-control:
+  prometheus:
     <<: *base
     image: ${PROMETHEUS_IMAGE:?}
-    container_name: prom-access-control
+    container_name: prometheus
     ports:
-      - "${PROMETHEUS_ACCESS_CONTROL_PORT}:9090"
+      - "${PROMETHEUS_PORT}:9090"
     volumes:
-      - ./infrastructure/monitoring/prometheus/access-control.yml:/etc/prometheus/prometheus.yml
-      - prom_access_control_data:/prometheus
+      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
     networks:
       monitoring_net:
 
-  loki-access-control:
+  loki:
     <<: *base
     image: ${LOKI_IMAGE:?}
-    container_name: loki-access-control
+    container_name: loki
     ports:
-      - "${LOKI_ACCESS_CONTROL_PORT}:3100"
+      - "${LOKI_PORT}:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - loki_access_control_data:/loki
-    networks:
-      monitoring_net:
-
-  prom-identity:
-    <<: *base
-    image: ${PROMETHEUS_IMAGE:?}
-    container_name: prom-identity
-    ports:
-      - "${PROMETHEUS_IDENTITY_PORT}:9090"
-    volumes:
-      - ./infrastructure/monitoring/prometheus/identity.yml:/etc/prometheus/prometheus.yml
-      - prom_identity_data:/prometheus
-    networks:
-      monitoring_net:
-
-  loki-identity:
-    <<: *base
-    image: ${LOKI_IMAGE:?}
-    container_name: loki-identity
-    ports:
-      - "${LOKI_IDENTITY_PORT}:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - loki_identity_data:/loki
+      - loki_data:/loki
     networks:
       monitoring_net:
 
@@ -314,10 +290,8 @@ volumes:
   minio_data:
   minio_secrets:
   grafana_data:
-  prom_access_control_data:
-  prom_identity_data:
-  loki_access_control_data:
-  loki_identity_data:
+  prometheus_data:
+  loki_data:
 
 networks:
   monitoring_net:

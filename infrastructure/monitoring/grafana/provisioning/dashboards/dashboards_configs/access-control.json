@@ -26,10 +26,10 @@
     {
       "title": "Current uptime",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 0, "y": 1 },
       "targets": [
-        { "expr": "time() - process_start_time_seconds" }
+        { "expr": "time() - process_start_time_seconds{job=\"access-control-service\"}" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -47,11 +47,11 @@
     {
       "title": "Monthly uptime",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 4, "y": 1 },
       "targets": [
         {
-          "expr": "(sum_over_time(up[30d:1m]) or on() vector(0)) / 43200 * 100",
+          "expr": "(sum_over_time(up{job=\"access-control-service\"}[30d:1m]) or on() vector(0)) / 43200 * 100",
           "instant": true
         }
       ],
@@ -73,10 +73,10 @@
     {
       "title": "CPU",
       "type": "gauge",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 6, "w": 4, "x": 8, "y": 1 },
       "targets": [
-        { "expr": "rate(process_cpu_seconds_total[1m]) * 100" }
+        { "expr": "rate(process_cpu_seconds_total{job=\"access-control-service\"}[1m]) * 100" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -99,10 +99,10 @@
     {
       "title": "Event Loop LAG",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 12, "y": 1 },
       "targets": [
-        { "expr": "nodejs_eventloop_lag_seconds" }
+        { "expr": "nodejs_eventloop_lag_seconds{job=\"access-control-service\"}" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -121,11 +121,11 @@
     {
       "title": "Throttling errors (6h)",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 16, "y": 1 },
       "targets": [
         {
-          "expr": "sum(increase(app_unhandled_errors_total{type=~\"(?i)throttling|rate\"}[6h]))"
+          "expr": "sum(increase(app_unhandled_errors_total{type=~\"(?i)throttling|rate\", job=\"access-control-service\"}[6h]))"
         }
       ],
       "fieldConfig": {
@@ -149,11 +149,11 @@
     {
       "title": "Database errors (6h)",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 20, "y": 1 },
       "targets": [
         {
-          "expr": "sum(increase(app_unhandled_errors_total{type=~\"(?i)database|db\"}[6h]))"
+          "expr": "sum(increase(app_unhandled_errors_total{type=~\"(?i)database|db\", job=\"access-control-service\"}[6h]))"
         }
       ],
       "fieldConfig": {
@@ -177,10 +177,10 @@
     {
       "title": "",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 0, "y": 4 },
       "targets": [
-        { "expr": "up" }
+        { "expr": "up{job=\"access-control-service\"}" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -205,11 +205,11 @@
     {
       "title": "Weekly uptime",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 4, "y": 4 },
       "targets": [
         {
-          "expr": "(sum_over_time(up[7d:1m]) or on() vector(0)) / 10080 * 100",
+          "expr": "(sum_over_time(up{job=\"access-control-service\"}[7d:1m]) or on() vector(0)) / 10080 * 100",
           "instant": true
         }
       ],
@@ -231,10 +231,10 @@
     {
       "title": "RAM",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 12, "y": 4 },
       "targets": [
-        { "expr": "nodejs_heap_size_used_bytes" }
+        { "expr": "nodejs_heap_size_used_bytes{job=\"access-control-service\"}" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -250,10 +250,10 @@
     {
       "title": "Total RPS",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 16, "y": 4 },
       "targets": [
-        { "expr": "sum(rate(http_requests_total[1m]))" }
+        { "expr": "sum(rate(http_requests_total{job=\"access-control-service\"}[1m]))" }
       ],
       "fieldConfig": {
         "defaults": {
@@ -270,11 +270,11 @@
     {
       "title": "Internal errors (6h)",
       "type": "stat",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 3, "w": 4, "x": 20, "y": 4 },
       "targets": [
         {
-          "expr": "sum(increase(app_unhandled_errors_total{type!~\"(?i)database|db|throttling|rate\"}[6h]))"
+          "expr": "sum(increase(app_unhandled_errors_total{type!~\"(?i)database|db|throttling|rate\", job=\"access-control-service\"}[6h]))"
         }
       ],
       "fieldConfig": {
@@ -305,11 +305,11 @@
     {
       "title": "Most Loaded Endpoints (RPS)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
       "targets": [
         {
-          "expr": "topk(10, sum by (method, route, status) (rate(http_requests_total[1m]))) or (sum by (method, route, status) (rate(http_requests_total[1m])) * 0)",
+          "expr": "topk(10, sum by (method, route, status) (rate(http_requests_total{job=\"access-control-service\"}[1m]))) or (sum by (method, route, status) (rate(http_requests_total{job=\"access-control-service\"}[1m])) * 0)",
           "legendFormat": "{{method}} {{route}} ({{status}})"
         }
       ],
@@ -348,11 +348,11 @@
     {
       "title": "Slowest Endpoints (P95)",
       "type": "timeseries",
-      "datasource": { "type": "prometheus", "uid": "Prom-Access-Control" },
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 },
       "targets": [
         {
-          "expr": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket[5m])))) or (sum by (route) (rate(http_request_duration_seconds_bucket[5m])) * 0)",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, route) (rate(http_request_duration_seconds_bucket{job=\"access-control-service\"}[5m])))) or (sum by (route) (rate(http_request_duration_seconds_bucket{job=\"access-control-service\"}[5m])) * 0)",
           "legendFormat": "{{route}}"
         }
       ],
@@ -397,7 +397,7 @@
     {
       "title": "Logs",
       "type": "logs",
-      "datasource": { "type": "loki", "uid": "Loki-Access-Control" },
+      "datasource": { "type": "loki", "uid": "Loki" },
       "gridPos": { "h": 10, "w": 24, "x": 0, "y": 18 },
       "targets": [
         { "expr": "{job=\"access-control-service\"}" }

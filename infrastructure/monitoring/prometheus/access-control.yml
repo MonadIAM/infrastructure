@@ -1,9 +1,0 @@
-global:
-  scrape_interval: 5s
-  evaluation_interval: 5s
-
-scrape_configs:
-  - job_name: "access-control-service"
-    metrics_path: "/api/v1/metrics"
-    static_configs:
-      - targets: ["access-control-service:5002"]
