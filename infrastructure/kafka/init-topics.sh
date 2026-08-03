@@ -51,6 +51,11 @@ $CREATE --topic notification       $RETENTION_MAIN
 $CREATE --topic notification-retry $RETENTION_RETRY
 $CREATE --topic notification-dead  $RETENTION_DEAD
 
+# message-dispatch: notification internal (SES/SNS dispatch)
+$CREATE --topic message-dispatch       $RETENTION_MAIN
+$CREATE --topic message-dispatch-retry $RETENTION_RETRY
+$CREATE --topic message-dispatch-dead  $RETENTION_DEAD
+
 # access-cache: access-control -> all services
 $CREATE --topic access-cache       $RETENTION_MAIN
 $CREATE --topic access-cache-retry $RETENTION_RETRY
