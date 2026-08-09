@@ -14,3 +14,10 @@ datasources:
     url: http://prometheus:9090
     access: proxy
     orgId: 1
+
+  - name: Tempo
+    type: tempo
+    uid: Tempo
+    url: http://tempo:3200
+    access: proxy
+    orgId: 1

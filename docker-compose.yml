@@ -282,6 +282,36 @@ services:
     networks:
       monitoring_net:
 
+  otel-collector:
+    <<: *base
+    image: ${OTEL_COLLECTOR_IMAGE:?}
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector/config.yaml"]
+    ports:
+      - "${OTEL_COLLECTOR_GRPC_PORT}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT}:4318"
+    volumes:
+      - ./infrastructure/monitoring/otel-collector/config.yaml:/etc/otel-collector/config.yaml:ro
+    networks:
+      monitoring_net:
+        aliases:
+          - otel-collector
+
+  tempo:
+    <<: *base
+    image: ${TEMPO_IMAGE:?}
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    ports:
+      - "${TEMPO_HTTP_PORT}:3200"
+    volumes:
+      - ./infrastructure/monitoring/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    networks:
+      monitoring_net:
+        aliases:
+          - tempo
+
 volumes:
   kafka_data:
   vault_secrets_token:
@@ -292,6 +322,7 @@ volumes:
   grafana_data:
   prometheus_data:
   loki_data:
+  tempo_data:
 
 networks:
   monitoring_net:
