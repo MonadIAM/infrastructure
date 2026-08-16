@@ -1,6 +1,5 @@
 env:
 	[ -f .env.example ] && cp -f .env.example .env || echo '.env.example not found'
-	[ -f .vault.env.example ] && cp -f .vault.env.example .vault.env || echo '.vault.env.example not found'
 up:
 	docker compose up -d
 stop:
@@ -16,3 +15,6 @@ networks:
 	docker network ls
 exec:
 	docker exec -it kafka /bin/bash
+provisioner-token:
+	cat terraform/.output/provisioner-token-$(service) | pbcopy
+	echo "VAULT_PROVISIONER_TOKEN for $(service) copied to clipboard"

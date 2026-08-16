@@ -83,53 +83,82 @@ services:
       retries: 10
       start_period: 5s
 
-  vault-init:
-    image: ${VAULT_IMAGE:?}
-    container_name: vault-init
+  terraform-apply:
+    image: ${TERRAFORM_IMAGE:?}
+    container_name: terraform-apply
     depends_on:
       vault:
         condition: service_healthy
-    env_file:
-      - .env
-      - .vault.env
+    environment:
+      TF_VAR_vault_address: "http://vault:${VAULT_PORT}"
+      TF_VAR_vault_bootstrap_token: ${VAULT_ROOT_TOKEN}
+      TF_VAR_identity_oauth_google_client_secret: ${OAUTH_GOOGLE_CLIENT_SECRET:-}
+      TF_VAR_identity_oauth_github_client_secret: ${OAUTH_GITHUB_CLIENT_SECRET:-}
+      TF_VAR_notification_aws_root_access_key_id: ${AWS_ROOT_ACCESS_KEY_ID:-}
+      TF_VAR_notification_aws_root_secret_access_key: ${AWS_ROOT_SECRET_ACCESS_KEY:-}
+    entrypoint: ["sh", "/terraform-apply.sh"]
+    volumes:
+      - ./terraform:/workspace
+      - ./infrastructure/vault/terraform-apply.sh:/terraform-apply.sh:ro
+    networks:
+      vault_net:
+
+  vault-bootstrap:
+    image: ${VAULT_IMAGE:?}
+    container_name: vault-bootstrap
+    depends_on:
+      terraform-apply:
+        condition: service_completed_successfully
     environment:
       VAULT_ADDR: "http://vault:${VAULT_PORT}"
       VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
     volumes:
-      - ./infrastructure/vault/secrets-policy.hcl:/secrets-policy.hcl:ro
-      - ./infrastructure/vault/init.sh:/init.sh:ro
-      - vault_secrets_token:/vault/token
-    entrypoint: ["sh", "/init.sh"]
+      - ./infrastructure/vault/bootstrap.sh:/bootstrap.sh:ro
+      - vault_agent_config:/vault/config
+      - vault_agent_bootstrap:/vault/agent-bootstrap
+    entrypoint: ["sh", "/bootstrap.sh"]
     networks:
       vault_net:
 
-  vault-secrets-init:
+  vault-agent:
     image: ${VAULT_IMAGE:?}
-    container_name: vault-secrets-init
+    container_name: vault-agent
+    restart: always
     depends_on:
-      vault-init:
+      vault-bootstrap:
         condition: service_completed_successfully
     environment:
       VAULT_ADDR: "http://vault:${VAULT_PORT}"
-      VAULT_KV_MOUNT: ${VAULT_KV_MOUNT:?}
-      VAULT_KV_CLICKHOUSE_PATH: ${VAULT_KV_CLICKHOUSE_PATH:?}
-      VAULT_KV_MINIO_PATH: ${VAULT_KV_MINIO_PATH:?}
+    entrypoint: ["vault"]
+    command: ["agent", "-config=/agent.hcl"]
     volumes:
-      - ./infrastructure/vault/render-secrets.sh:/render-secrets.sh:ro
-      - vault_secrets_token:/vault/token
-      - clickhouse_secrets:/secrets
-      - minio_secrets:/secrets-minio
-    entrypoint: ["sh", "/render-secrets.sh"]
+      - ./infrastructure/vault/agent.hcl:/agent.hcl:ro
+      - vault_agent_config:/vault/config:ro
+      - vault_agent_bootstrap:/vault/agent-bootstrap
+      - vault_agent_token:/vault/token
+      - clickhouse_secrets:/secrets/clickhouse
+      - minio_secrets:/secrets/minio
+      - grafana_secrets:/secrets/grafana
     networks:
       vault_net:
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "test -f /secrets/clickhouse/clickhouse_password && test -f /secrets/minio/minio_root_password && test -f /secrets/grafana/admin_password",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
 
   clickhouse:
     <<: *base
     image: ${CLICKHOUSE_IMAGE:?}
     container_name: clickhouse
     depends_on:
-      vault-secrets-init:
-        condition: service_completed_successfully
+      vault-agent:
+        condition: service_healthy
     environment:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:?}
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:?}
@@ -179,8 +208,8 @@ services:
     image: ${MINIO_IMAGE:?}
     container_name: minio
     depends_on:
-      vault-secrets-init:
-        condition: service_completed_successfully
+      vault-agent:
+        condition: service_healthy
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
       MINIO_ROOT_PASSWORD_FILE: /vault/secrets/minio_root_password
@@ -243,17 +272,21 @@ services:
     <<: *base
     image: ${GRAFANA_IMAGE:?}
     container_name: grafana
+    depends_on:
+      vault-agent:
+        condition: service_healthy
     ports:
       - "${GRAFANA_PORT}:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/admin_password
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_AUTH_ANONYMOUS_ORG_NAME=${GF_AUTH_ANONYMOUS_ORG_NAME}
     volumes:
       - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
+      - grafana_secrets:/run/secrets:ro
     networks:
       monitoring_net:
       kafka_net:
@@ -313,16 +346,19 @@ services:
           - tempo
 
 volumes:
-  kafka_data:
-  vault_secrets_token:
-  clickhouse_data:
+  vault_agent_bootstrap:
+  vault_agent_config:
   clickhouse_secrets:
-  minio_data:
+  vault_agent_token:
+  prometheus_data:
+  grafana_secrets:
+  clickhouse_data:
   minio_secrets:
   grafana_data:
-  prometheus_data:
-  loki_data:
+  kafka_data:
   tempo_data:
+  minio_data:
+  loki_data:
 
 networks:
   monitoring_net:

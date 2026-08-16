@@ -41,11 +41,19 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
-.vault.env
+*.csv
 
 # temp directory
 .temp
 .tmp
+
+# Terraform
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/.output/
+terraform/*.auto.tfvars
+terraform/*.auto.tfvars.json
 
 # Runtime data
 pids
