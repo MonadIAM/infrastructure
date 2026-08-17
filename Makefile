@@ -10,7 +10,7 @@ restart: down up
 logs:
 	docker compose logs -f kafka
 network:
-	docker network create --name=$(name)
+	docker network create $(name)
 networks:
 	docker network ls
 exec:

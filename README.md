@@ -12,6 +12,7 @@ Make sure Docker and Docker Compose V2 are installed on your system before proce
 1. Create shared Docker networks:
 ```sh
 make network name="monitoring-network"
+make network name="consul-net"
 make network name="kafka-net"
 make network name="vault-net"
 ```
@@ -44,27 +45,31 @@ Each run copies that service's token straight to the clipboard (macOS `pbcopy`) 
 <details>
 <summary><strong>Networks</strong></summary>
 
-Three external networks are created once and shared by every consuming service - this repo attaches to them, it doesn't own their lifecycle.
+Four external networks are created once and shared by every consuming service - this repo attaches to them, it doesn't own their lifecycle.
 
-| Network              | Env var                     | Default              | Used by                                                                                                                                                         |
-|:---------------------|:----------------------------|:---------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `kafka-net`          | `DOCKER_NETWORK_KAFKA`      | `kafka-net`          | Kafka, service app                                                                                                                                              |
-| `monitoring-network` | `DOCKER_NETWORK_MONITORING` | `monitoring-network` | Grafana, Prometheus, Loki, service app                                                                                                                          |
-| `vault-net`          | `DOCKER_NETWORK_VAULT`      | `vault-net`          | Vault, each service's `bootstrap`/`vault-agent`, and now each service's own Postgres primary (reachable by Vault's Database Secrets Engine - see Vault section) |
+| Network              | Env var                     | Default              | Used by                                                                                                                                                               |
+|:---------------------|:----------------------------|:---------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `kafka-net`          | `DOCKER_NETWORK_KAFKA`      | `kafka-net`          | Kafka, service app                                                                                                                                                    |
+| `monitoring-network` | `DOCKER_NETWORK_MONITORING` | `monitoring-network` | Grafana, Prometheus, Loki, service app                                                                                                                                |
+| `vault-net`          | `DOCKER_NETWORK_VAULT`      | `vault-net`          | Vault, each service's `bootstrap`/`vault-agent`, and now each service's own HAProxy write-frontend (reachable by Vault's Database Secrets Engine - see Vault section) |
+| `consul-net`         | `DOCKER_NETWORK_CONSUL`     | `consul-net`         | Consul (shared DCS for Patroni), each service's Patroni-managed Postgres nodes and HAProxy instances                                                                  |
 
 **Connecting a consuming service:**
 Add the ones it needs to that service's own `docker-compose.yml`:
 ```yaml
 networks:
-  kafka_net:
-    external: true
-    name: ${DOCKER_NETWORK_KAFKA:-kafka-net}
-  vault_net:
-    external: true
-    name: ${DOCKER_NETWORK_VAULT:-vault-net}
-  monitoring_net:
-    external: true
-    name: ${DOCKER_NETWORK_MONITORING:-monitoring-network}
+    monitoring_net:
+        external: true
+        name: ${DOCKER_NETWORK_MONITORING:-monitoring-network}
+    consul_net:
+        external: true
+        name: ${DOCKER_NETWORK_CONSUL:-consul-net}
+    kafka_net:
+        external: true
+        name: ${DOCKER_NETWORK_KAFKA:-kafka-net}
+    vault_net:
+        external: true
+        name: ${DOCKER_NETWORK_VAULT:-vault-net}
 ```
 
 </details>
@@ -106,6 +111,22 @@ A single shared Vault instance is run from this repository and used by all servi
 Dev mode is in-memory: all secrets/mounts are lost when the `vault` container restarts, which is why `terraform-apply` re-applies (idempotently) on every `make up`.
 
 **Known gaps, not addressed by this configuration** (see the service's own README / repo decision log for the full list): TLS between services and Vault, hardened (non-dev-mode) Vault for stands/prod, and how a *human* authenticates to Vault to use the `developer-readonly` role (OIDC/LDAP/userpass - not yet decided).
+
+</details>
+
+----
+
+<details>
+<summary><strong>Consul</strong></summary>
+
+Single shared Consul instance (one server, `-bootstrap-expect=1`), run from this repository, on `consul-net`. Acts as the DCS (Distributed Configuration Store) for every service's Patroni-managed PostgreSQL cluster - one shared instance rather than one per service, same "single shared instance, decomposed by namespace" model already used for Vault.
+
+- *Address (Docker network):* `consul:8500`
+- *Address (host machine):* `http://localhost:${CONSUL_UI_PORT}` (default `8500`), UI at `/ui`
+
+Each service's Patroni nodes register themselves directly into Consul's service catalog (tagged `master`/`replica` depending on role); each service's HAProxy instances read that catalog via `consul-template` to build their backend list, so adding or removing a Postgres node never requires touching HAProxy config by hand.
+
+**Known gaps, not addressed by this configuration:** no TLS/mTLS, no ACLs, single node (no quorum - Consul itself is a SPOF for failover, though PostgreSQL keeps serving reads/writes on whichever node was last elected leader even if Consul is briefly unreachable).
 
 </details>
 
@@ -194,18 +215,18 @@ Uses `CLICKHOUSE_IMAGE` unmodified (`clickhouse-client` only, no extra tooling) 
 <details>
 <summary><strong>Commands</strong></summary>
 
-| Command                                       | Makefile                | Description                                                                  |
-|:----------------------------------------------|:------------------------|:-----------------------------------------------------------------------------|
-| `docker compose up -d`                        | `make up`               | Start all services in detached mode.                                         |
-| `docker compose stop`                         | `make stop`             | Stop containers without removing them.                                       |
-| `docker compose down`                         | `make down`             | Stop and remove containers and networks.                                     |
-| `docker compose down && docker-compose up -d` | `make restart`          | Restart the entire infrastructure.                                           |
-| `docker compose logs -f kafka`                | `make logs`             | Stream Kafka logs in real time.                                              |
-| `docker exec -it kafka /bin/bash`             | `make exec`             | Open a shell inside the Kafka container.                                     |
-| `docker compose down -v`                      | `make clean`            | Remove containers along with volumes.                                        |
-| `docker system prune -f`                      | `make prune`            | Global cleanup of unused Docker resources.                                   |
-| `docker network create --name=$(name)`        | `make network name="*"` | Create a new docker network.                                                 |
-| `docker network ls`                           | `make networks`         | List networks (verify `kafka-net`, `monitoring-network`, `vault-net` exist). |
+| Command                                       | Makefile                | Description                                                                                |
+|:----------------------------------------------|:------------------------|:-------------------------------------------------------------------------------------------|
+| `docker compose up -d`                        | `make up`               | Start all services in detached mode.                                                       |
+| `docker compose stop`                         | `make stop`             | Stop containers without removing them.                                                     |
+| `docker compose down`                         | `make down`             | Stop and remove containers and networks.                                                   |
+| `docker compose down && docker-compose up -d` | `make restart`          | Restart the entire infrastructure.                                                         |
+| `docker compose logs -f kafka`                | `make logs`             | Stream Kafka logs in real time.                                                            |
+| `docker exec -it kafka /bin/bash`             | `make exec`             | Open a shell inside the Kafka container.                                                   |
+| `docker compose down -v`                      | `make clean`            | Remove containers along with volumes.                                                      |
+| `docker system prune -f`                      | `make prune`            | Global cleanup of unused Docker resources.                                                 |
+| `docker network create --name=$(name)`        | `make network name="*"` | Create a new docker network.                                                               |
+| `docker network ls`                           | `make networks`         | List networks (verify `kafka-net`, `monitoring-network`, `vault-net`, `consul-net` exist). |
 
 </details>
 
@@ -219,6 +240,7 @@ Uses `CLICKHOUSE_IMAGE` unmodified (`clickhouse-client` only, no extra tooling) 
 | Grafana            | http://localhost:3000        |
 | Kafka UI           | http://localhost:8080        |
 | Vault UI           | http://localhost:8200/ui     |
+| Consul UI          | http://localhost:8500/ui     |
 | ClickHouse Play UI | http://localhost:8123/play   |
 | MinIO Console      | http://localhost:9011        |
 
