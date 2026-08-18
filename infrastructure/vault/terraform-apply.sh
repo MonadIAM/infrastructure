@@ -3,6 +3,9 @@ set -eu
 
 cd /workspace
 
+TF_VAR_vault_bootstrap_token="$(cat /vault/init-keys/root-token)"
+export TF_VAR_vault_bootstrap_token
+
 terraform init -input=false
 terraform apply -auto-approve -input=false
 

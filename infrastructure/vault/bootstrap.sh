@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+VAULT_TOKEN="$(cat /vault/init-keys/root-token)"
+export VAULT_TOKEN
+
 i=0
 until vault status >/dev/null 2>&1; do
     i=$((i + 1))

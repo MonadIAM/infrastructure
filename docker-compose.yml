@@ -84,26 +84,60 @@ services:
       retries: 20
       start_period: 5s
 
+  vault-tls:
+    image: ${VAULT_TLS_IMAGE:-alpine/openssl:3.5.7}
+    container_name: vault-tls
+    entrypoint: ["sh", "/generate-tls.sh"]
+    volumes:
+      - ./infrastructure/vault/generate-tls.sh:/generate-tls.sh:ro
+      - ./infrastructure/vault/tls:/vault/tls
+      - vault_ca:/vault/ca
+
   vault:
     <<: *base
     image: ${VAULT_IMAGE:?}
     container_name: vault
+    depends_on:
+      vault-tls:
+        condition: service_completed_successfully
     environment:
-      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:${VAULT_PORT}"
-      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN}
-    command: server -dev
+      VAULT_ADDR: "https://127.0.0.1:${VAULT_PORT}"
+      VAULT_CACERT: /vault/tls/ca.crt
+    command: server -config=/vault/vault.hcl
     ports:
       - "${VAULT_PUBLISHED_PORT}:${VAULT_PORT}"
     cap_add:
       - IPC_LOCK
+    volumes:
+      - ./infrastructure/vault/vault.hcl:/vault/vault.hcl:ro
+      - ./infrastructure/vault/tls:/vault/tls:ro
+      - vault_data:/vault/file
     networks:
       vault_net:
     healthcheck:
-      test: ["CMD", "vault", "status", "-address=http://127.0.0.1:${VAULT_PORT}"]
+      test: ["CMD", "vault", "status"]
       interval: 5s
       timeout: 3s
-      retries: 10
-      start_period: 5s
+      retries: 40
+      start_period: 10s
+
+  vault-init-unseal:
+    image: ${VAULT_IMAGE:?}
+    container_name: vault-init-unseal
+    restart: always
+    depends_on:
+      vault:
+        condition: service_started
+    environment:
+      VAULT_ADDR: "https://vault:${VAULT_PORT}"
+      VAULT_CACERT: /vault/tls/ca.crt
+    volumes:
+      - ./infrastructure/vault/init-unseal.sh:/init-unseal.sh:ro
+      - vault_ca:/vault/tls:ro
+      - ./infrastructure/vault/init-keys:/vault/init-keys
+    entrypoint: ["sh", "/init-unseal.sh"]
+    networks:
+      vault_net:
 
   terraform-apply:
     image: ${TERRAFORM_IMAGE:?}
@@ -112,8 +146,8 @@ services:
       vault:
         condition: service_healthy
     environment:
-      TF_VAR_vault_address: "http://vault:${VAULT_PORT}"
-      TF_VAR_vault_bootstrap_token: ${VAULT_ROOT_TOKEN}
+      TF_VAR_vault_address: "https://vault:${VAULT_PORT}"
+      VAULT_CACERT: /vault/tls/ca.crt
       TF_VAR_identity_oauth_google_client_secret: ${OAUTH_GOOGLE_CLIENT_SECRET:-}
       TF_VAR_identity_oauth_github_client_secret: ${OAUTH_GITHUB_CLIENT_SECRET:-}
       TF_VAR_notification_aws_root_access_key_id: ${AWS_ROOT_ACCESS_KEY_ID:-}
@@ -122,6 +156,8 @@ services:
     volumes:
       - ./terraform:/workspace
       - ./infrastructure/vault/terraform-apply.sh:/terraform-apply.sh:ro
+      - vault_ca:/vault/tls:ro
+      - ./infrastructure/vault/init-keys:/vault/init-keys:ro
     networks:
       vault_net:
 
@@ -132,10 +168,12 @@ services:
       terraform-apply:
         condition: service_completed_successfully
     environment:
-      VAULT_ADDR: "http://vault:${VAULT_PORT}"
-      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      VAULT_ADDR: "https://vault:${VAULT_PORT}"
+      VAULT_CACERT: /vault/tls/ca.crt
     volumes:
       - ./infrastructure/vault/bootstrap.sh:/bootstrap.sh:ro
+      - vault_ca:/vault/tls:ro
+      - ./infrastructure/vault/init-keys:/vault/init-keys:ro
       - vault_agent_config:/vault/config
       - vault_agent_bootstrap:/vault/agent-bootstrap
     entrypoint: ["sh", "/bootstrap.sh"]
@@ -150,11 +188,13 @@ services:
       vault-bootstrap:
         condition: service_completed_successfully
     environment:
-      VAULT_ADDR: "http://vault:${VAULT_PORT}"
+      VAULT_ADDR: "https://vault:${VAULT_PORT}"
+      VAULT_CACERT: /vault/tls/ca.crt
     entrypoint: ["vault"]
     command: ["agent", "-config=/agent.hcl"]
     volumes:
       - ./infrastructure/vault/agent.hcl:/agent.hcl:ro
+      - vault_ca:/vault/tls:ro
       - vault_agent_config:/vault/config:ro
       - vault_agent_bootstrap:/vault/agent-bootstrap
       - vault_agent_token:/vault/token
@@ -368,6 +408,9 @@ services:
           - tempo
 
 volumes:
+  vault_data:
+  vault_ca:
+    name: ${DOCKER_VOLUME_VAULT_CA:-vault_ca}
   vault_agent_bootstrap:
   vault_agent_config:
   clickhouse_secrets:

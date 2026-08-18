@@ -1,5 +1,10 @@
 pid_file = "/tmp/pidfile"
 
+vault {
+    address     = "https://vault:8200"
+    tls_ca_file = "/vault/tls/ca.crt"
+}
+
 auto_auth {
     method "approle" {
         mount_path = "auth/approle"

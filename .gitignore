@@ -55,6 +55,10 @@ terraform/.output/
 terraform/*.auto.tfvars
 terraform/*.auto.tfvars.json
 
+# Vault - generated locally on first `make up`, never committed:
+infrastructure/vault/tls/
+infrastructure/vault/init-keys/
+
 # Runtime data
 pids
 *.pid
