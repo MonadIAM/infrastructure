@@ -4,27 +4,73 @@ x-base: &base
 name: infra
 
 services:
+  consul-envoy-image:
+    build:
+      context: ./infrastructure/consul/envoy
+      args:
+        CONSUL_IMAGE: ${CONSUL_IMAGE:?}
+        ENVOY_IMAGE: ${ENVOY_IMAGE:?}
+    image: ${CONSUL_ENVOY_IMAGE:-monadiam-consul-envoy:local}
+    profiles:
+      - build
+    command: ["--version"]
+
   consul:
     <<: *base
     image: ${CONSUL_IMAGE:?}
     container_name: consul
-    command: >
-      agent -server -ui
-      -bootstrap-expect=1
-      -client=0.0.0.0
-      -data-dir=/consul/data
+    command: agent -config-file=/consul/config/consul.hcl
     ports:
       - "${CONSUL_UI_PORT}:8500"
     volumes:
+      - ./infrastructure/consul/consul.hcl:/consul/config/consul.hcl:ro
+      - vault_ca:/vault/tls:ro
       - consul_data:/consul/data
     networks:
       consul_net:
+      vault_net:
     healthcheck:
       test: ["CMD", "consul", "members"]
       interval: 5s
       timeout: 3s
       retries: 20
       start_period: 5s
+
+  consul-connect-ca:
+    image: ${CONSUL_IMAGE:?}
+    container_name: consul-connect-ca
+    depends_on:
+      consul:
+        condition: service_healthy
+      terraform-apply:
+        condition: service_completed_successfully
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+      VAULT_ADDR: "https://vault:${VAULT_PORT}"
+    volumes:
+      - ./infrastructure/consul/connect-ca-config.sh:/connect-ca-config.sh:ro
+      - ./infrastructure/terraform/.output:/terraform-output:ro
+      - vault_ca:/vault/tls:ro
+    entrypoint: ["sh", "/connect-ca-config.sh"]
+    networks:
+      consul_net:
+      vault_net:
+
+  consul-intentions:
+    image: ${CONSUL_IMAGE:?}
+    container_name: consul-intentions
+    depends_on:
+      consul:
+        condition: service_healthy
+      consul-connect-ca:
+        condition: service_completed_successfully
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+    volumes:
+      - ./infrastructure/consul/intentions.sh:/intentions.sh:ro
+    entrypoint: ["sh", "/intentions.sh"]
+    networks:
+      consul_net:
 
   vault-tls:
     image: ${VAULT_TLS_IMAGE:-alpine/openssl:3.5.7}

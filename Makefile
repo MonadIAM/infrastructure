@@ -19,7 +19,9 @@ POSTGRES_SCALE = --scale identity-postgresql=$(IDENTITY_POSTGRES_REPLICAS) \
 
 env:
 	[ -f .env.example ] && cp -f .env.example .env || echo '.env.example not found'
-up:
+build-consul-envoy:
+	$(COMPOSE) build consul-envoy-image
+up: build-consul-envoy
 	$(COMPOSE) up -d $(POSTGRES_SCALE)
 stop:
 	$(COMPOSE) stop

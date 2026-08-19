@@ -14,3 +14,5 @@ for service in identity-service access-control-service notification-service; do
     key="$(printf '%s' "$service" | tr '-' '_')"
     terraform output -raw "${key}_provisioner_token" > ".output/provisioner-token-${service}"
 done
+
+terraform output -raw consul_connect_ca_token > .output/consul-connect-ca-token

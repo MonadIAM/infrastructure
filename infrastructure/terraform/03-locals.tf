@@ -3,6 +3,8 @@ locals {
     infra_kv_mount = "infra-kv"
     database_mount = "database"
     transit_mount  = "transit"
+    pki_root_mount = "pki-root"
+    pki_mount      = "pki"
     aws_mount      = "aws"
 
     services = {

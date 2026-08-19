@@ -69,7 +69,7 @@ Six external networks are created once and shared by every consuming service - t
 | `kafka-net`          | `DOCKER_NETWORK_KAFKA`      | `kafka-net`          | Kafka, service app                                                                                                                                                    |
 | `monitoring-network` | `DOCKER_NETWORK_MONITORING` | `monitoring-network` | Grafana, Prometheus, Loki, service app                                                                                                                                |
 | `vault-net`          | `DOCKER_NETWORK_VAULT`      | `vault-net`          | Vault, each service's `bootstrap`/`vault-agent`, and centralized Postgres HAProxy for Vault's Database Secrets Engine                                                 |
-| `consul-net`         | `DOCKER_NETWORK_CONSUL`     | `consul-net`         | Consul (shared DCS for Patroni), infra-owned Patroni/Postgres nodes, centralized Postgres HAProxy                                                                     |
+| `consul-net`         | `DOCKER_NETWORK_CONSUL`     | `consul-net`         | Consul (shared DCS for Patroni and Connect control plane), infra-owned Patroni/Postgres nodes, centralized Postgres HAProxy, service sidecars                         |
 | `postgres-net`       | `DOCKER_NETWORK_POSTGRES`   | `postgres-net`       | Centralized `pgbouncer-write`/`pgbouncer-read`, service app                                                                                                           |
 | `redis-net`          | `DOCKER_NETWORK_REDIS`      | `redis-net`          | Infra-owned service Redis nodes, service app                                                                                                                          |
 
@@ -136,7 +136,7 @@ A single shared Vault instance is run from this repository and used by all servi
 - *Address (Docker network):* `vault:8200` (TLS, see below)
 - *Address (host machine):* `https://localhost:8200`
 - *Storage:* Raft (Integrated Storage), persistent volume `vault_data` - Vault no longer loses its state on restart.
-- *TLS:* self-signed, generated once locally by the one-shot `vault-tls` service into `infrastructure/vault/tls/` (gitignored). The service uses the pinned `VAULT_TLS_IMAGE` OpenSSL helper image, so certificate generation does not install packages at container startup. Only the public CA cert (`ca.crt`) is copied into the shared Docker volume `DOCKER_VOLUME_VAULT_CA` (`monadiam_vault_ca` by default) and mounted read-only by consumers; Vault server private keys stay in this repo's local `infrastructure/vault/tls/` directory. This is explicitly the minimal TLS needed to get off `server -dev`, not the target end state; full mTLS via Consul + Vault PKI remains a planned follow-up.
+- *TLS:* self-signed, generated once locally by the one-shot `vault-tls` service into `infrastructure/vault/tls/` (gitignored). The service uses the pinned `VAULT_TLS_IMAGE` OpenSSL helper image, so certificate generation does not install packages at container startup. Only the public CA cert (`ca.crt`) is copied into the shared Docker volume `DOCKER_VOLUME_VAULT_CA` (`monadiam_vault_ca` by default) and mounted read-only by consumers; Vault server private keys stay in this repo's local `infrastructure/vault/tls/` directory. This certificate covers the Vault listener itself. Platform workload certificates are issued separately by the Vault PKI mounts in Terraform (`pki-root`/`pki`) and are managed by Consul Connect sidecars rather than by application code.
 - *Unseal:* auto-unseal via the `vault-init-unseal` service (a long-lived watcher, not a one-shot job - this is what makes it survive a `vault` restart without a manual step). It initializes Vault on first boot (Shamir, `-key-shares=1 -key-threshold=1` - splitting the key serves no purpose here since one script reads it back from one local file) and unseals automatically afterwards. The unseal key and initial root token are written to `infrastructure/vault/init-keys/` (gitignored, local only, never committed) - **this is a deliberate, temporary simplification**, not the target state. Cloud KMS auto-unseal is the intended replacement for stand once that's unblocked.
 - *Root token (dev only):* `infrastructure/vault/init-keys/root-token`, generated locally at init time - used **only** by `terraform-apply` and `vault-bootstrap`, both in this repo. It is never copied into any service's `.env`.
 - *Full reset:* `make clean` removes named Docker volumes (including `vault_data` and the shared Vault CA volume) and the host-bind-mounted Vault bootstrap state in `infrastructure/vault/tls/` and `infrastructure/vault/init-keys/`. If you run `docker compose down -v` by hand without removing those directories, `vault-init-unseal` will refuse to blindly re-init because old key files would point at now-gone Raft state. Run `make vault-reset` for a Vault-only reset.
@@ -145,7 +145,7 @@ A single shared Vault instance is run from this repository and used by all servi
 
 **Dynamic Postgres credentials** (see `infrastructure/terraform/08-database.tf`): the application no longer connects with a static password. Vault's Database Secrets Engine issues a short-lived username+password pair per connection (`database/creds/<service>-app`, ~1h TTL, auto-renewed by that service's Vault Agent) that inherits the admin user's privileges via Postgres role membership (`IN ROLE`). A separate `database/creds/<service>-developer-readonly` role (SELECT-only, ~30m TTL) exists for ad hoc human access - e.g. pulling a fresh, temporary credential into DBeaver. The admin/root Postgres password itself is Terraform-generated, never typed by a human, and used only by Postgres's own bootstrap and by Vault's connection config - not by the application.
 
-**Known gaps, not addressed by this configuration:** full mTLS across the platform (Consul + Vault PKI - the self-signed CA above only covers the Vault listener itself), cloud KMS auto-unseal for stand, and how a *human* authenticates to Vault to use the `developer-readonly` role (OIDC/LDAP/userpass - not yet decided).
+**Known gaps, not addressed by this configuration:** full mTLS across PostgreSQL/Redis/Kafka (only the `access-control-service` gRPC channel is on Consul Connect so far), cloud KMS auto-unseal for stand, and how a *human* authenticates to Vault to use the `developer-readonly` role (OIDC/LDAP/userpass - not yet decided).
 
 </details>
 
@@ -154,14 +154,17 @@ A single shared Vault instance is run from this repository and used by all servi
 <details>
 <summary><strong>Consul</strong></summary>
 
-Single shared Consul instance (one server, `-bootstrap-expect=1`), run from this repository, on `consul-net`. Acts as the DCS (Distributed Configuration Store) for every infra-owned Patroni/PostgreSQL cluster - one shared instance rather than one per service, decomposed by Patroni scope.
+Single shared Consul instance (one server, `bootstrap_expect = 1`), run from this repository, on `consul-net`. Acts as the DCS (Distributed Configuration Store) for every infra-owned Patroni/PostgreSQL cluster and as the local service mesh control plane for Consul Connect/Envoy.
 
 - *Address (Docker network):* `consul:8500`
+- *gRPC/xDS address (Docker network):* `http://consul:8502`
 - *Address (host machine):* `http://localhost:${CONSUL_UI_PORT}` (default `8500`), UI at `/ui`
 
 Each Patroni cluster has its own scope (`identity-service`, `access-control-service`, `notification-service`). Patroni nodes register themselves directly into Consul's service catalog (tagged `master`/`replica` depending on role); the centralized `postgres-haproxy` reads that catalog via `consul-template`, and PgBouncer exposes stable write/read entrypoints to service containers.
 
-**Known gaps, not addressed by this configuration:** no TLS/mTLS, no ACLs, single node (no quorum - Consul itself is a SPOF for failover, though PostgreSQL keeps serving reads/writes on whichever node was last elected leader even if Consul is briefly unreachable).
+For service mesh, Consul is bootstrapped with Vault as the CA provider by `consul-connect-ca`. This repo also builds `CONSUL_ENVOY_IMAGE` and applies platform intentions through `consul-intentions` (`* -> *` deny plus explicit client-to-ACS allows). Service repositories register their own local `docker/consul/service.hcl` definitions through their own `consul-register`, then run a colocated Envoy sidecar using `network_mode: service:service`. The gRPC path to `access-control-service` is `127.0.0.1:15051` from the client app into its local sidecar, mTLS between sidecars, then `127.0.0.1:50051` inside the access-control container namespace.
+
+**Known gaps, not addressed by this configuration:** Consul control plane has no ACLs/TLS yet, PostgreSQL/Redis/Kafka are not on mesh/native TLS yet, multi-VM deployment still needs Consul client agents and host-routable advertised sidecar addresses, and the single Consul node has no quorum - Consul itself is a SPOF for failover, though PostgreSQL keeps serving reads/writes on whichever node was last elected leader even if Consul is briefly unreachable.
 
 </details>
 
