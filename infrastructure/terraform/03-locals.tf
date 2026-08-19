@@ -7,10 +7,10 @@ locals {
 
     services = {
         identity-service = {
-            postgres_host       = "identity-service-haproxy-write"
-            postgres_port       = 5432
+            postgres_host       = "postgres-haproxy"
+            postgres_port       = 6011
             postgres_db         = "identity-service"
-            postgres_admin_user = "user"
+            postgres_admin_user = "identity_owner"
 
             kv_runtime_path     = "identity-service/runtime"
             kv_replication_path = "identity-service/postgresql-replication"
@@ -26,10 +26,10 @@ locals {
         }
 
         access-control-service = {
-            postgres_host       = "access-control-service-haproxy-write"
-            postgres_port       = 5432
+            postgres_host       = "postgres-haproxy"
+            postgres_port       = 6021
             postgres_db         = "access-control-service"
-            postgres_admin_user = "user"
+            postgres_admin_user = "access_control_owner"
 
             kv_runtime_path     = "access-control-service/runtime"
             kv_replication_path = "access-control-service/postgresql-replication"
@@ -45,10 +45,10 @@ locals {
         }
 
         notification-service = {
-            postgres_host       = "notification-service-haproxy-write"
-            postgres_port       = 5432
+            postgres_host       = "postgres-haproxy"
+            postgres_port       = 6031
             postgres_db         = "notification-service"
-            postgres_admin_user = "user"
+            postgres_admin_user = "notification_owner"
 
             kv_runtime_path     = "notification-service/runtime"
             kv_replication_path = "notification-service/postgresql-replication"

@@ -58,3 +58,57 @@ template {
     destination = "/secrets/grafana/admin_password"
     perms       = "0440"
 }
+
+template {
+    contents    = "{{ with secret \"kv/data/identity-service/runtime\" }}{{ .Data.data.postgresql_password }}{{ end }}"
+    destination = "/secrets/postgresql/identity/postgresql_password"
+    perms       = "0440"
+}
+
+template {
+    contents    = "{{ with secret \"kv/data/identity-service/runtime\" }}{{ .Data.data.redis_password }}{{ end }}"
+    destination = "/secrets/redis/identity/redis_password"
+    perms       = "0440"
+}
+
+template {
+    contents    = "{{ with secret \"kv/data/identity-service/postgresql-replication\" }}{{ .Data.data.postgresql_replication_password }}{{ end }}"
+    destination = "/secrets/postgresql/identity/postgresql_replication_password"
+    perms       = "0440"
+}
+
+template {
+    contents    = "{{ with secret \"kv/data/access-control-service/runtime\" }}{{ .Data.data.postgresql_password }}{{ end }}"
+    destination = "/secrets/postgresql/access-control/postgresql_password"
+    perms       = "0440"
+}
+
+template {
+    contents    = "{{ with secret \"kv/data/access-control-service/runtime\" }}{{ .Data.data.redis_password }}{{ end }}"
+    destination = "/secrets/redis/access-control/redis_password"
+    perms       = "0440"
+}
+
+template {
+    contents    = "{{ with secret \"kv/data/access-control-service/postgresql-replication\" }}{{ .Data.data.postgresql_replication_password }}{{ end }}"
+    destination = "/secrets/postgresql/access-control/postgresql_replication_password"
+    perms       = "0440"
+}
+
+template {
+    contents    = "{{ with secret \"kv/data/notification-service/runtime\" }}{{ .Data.data.postgresql_password }}{{ end }}"
+    destination = "/secrets/postgresql/notification/postgresql_password"
+    perms       = "0440"
+}
+
+template {
+    contents    = "{{ with secret \"kv/data/notification-service/runtime\" }}{{ .Data.data.redis_password }}{{ end }}"
+    destination = "/secrets/redis/notification/redis_password"
+    perms       = "0440"
+}
+
+template {
+    contents    = "{{ with secret \"kv/data/notification-service/postgresql-replication\" }}{{ .Data.data.postgresql_replication_password }}{{ end }}"
+    destination = "/secrets/postgresql/notification/postgresql_replication_password"
+    perms       = "0440"
+}

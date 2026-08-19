@@ -1,0 +1,112 @@
+x-base: &base
+  restart: on-failure
+
+services:
+  postgres-haproxy:
+    <<: *base
+    build:
+      context: ./infrastructure/routing/haproxy
+      args:
+        HAPROXY_BASE_IMAGE: ${HAPROXY_IMAGE:?}
+    container_name: postgres-haproxy
+    env_file:
+      - .env
+    command:
+      - "-consul-addr=consul:8500"
+      - "-template=/etc/haproxy-templates/haproxy.ctmpl:/usr/local/etc/haproxy/haproxy.cfg"
+      - "-exec=haproxy -f /usr/local/etc/haproxy/haproxy.cfg -db"
+    depends_on:
+      consul:
+        condition: service_healthy
+    networks:
+      postgres_net:
+      consul_net:
+      vault_net:
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:7000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  pgbouncer-write:
+    <<: *base
+    build:
+      context: ./infrastructure/routing/pgbouncer
+      args:
+        PGBOUNCER_BASE_IMAGE: ${PGBOUNCER_BASE_IMAGE:?}
+    container_name: pgbouncer-write
+    env_file:
+      - .env
+    environment:
+      IDENTITY_POSTGRES_TARGET_PORT: ${IDENTITY_POSTGRES_WRITE_PORT:?}
+      ACCESS_CONTROL_POSTGRES_TARGET_PORT: ${ACCESS_CONTROL_POSTGRES_WRITE_PORT:?}
+      NOTIFICATION_POSTGRES_TARGET_PORT: ${NOTIFICATION_POSTGRES_WRITE_PORT:?}
+    ports:
+      - "${PGBOUNCER_WRITE_PUBLISHED_PORT}:${PGBOUNCER_LISTEN_PORT}"
+    depends_on:
+      postgres-haproxy:
+        condition: service_healthy
+      vault-agent:
+        condition: service_healthy
+    volumes:
+      - identity_postgresql_secrets:/secrets/identity:ro
+      - access_control_postgresql_secrets:/secrets/access-control:ro
+      - notification_postgresql_secrets:/secrets/notification:ro
+    networks:
+      postgres_net:
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 ${PGBOUNCER_LISTEN_PORT} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  pgbouncer-read:
+    <<: *base
+    build:
+      context: ./infrastructure/routing/pgbouncer
+      args:
+        PGBOUNCER_BASE_IMAGE: ${PGBOUNCER_BASE_IMAGE:?}
+    container_name: pgbouncer-read
+    env_file:
+      - .env
+    environment:
+      IDENTITY_POSTGRES_TARGET_PORT: ${IDENTITY_POSTGRES_READ_PORT:?}
+      ACCESS_CONTROL_POSTGRES_TARGET_PORT: ${ACCESS_CONTROL_POSTGRES_READ_PORT:?}
+      NOTIFICATION_POSTGRES_TARGET_PORT: ${NOTIFICATION_POSTGRES_READ_PORT:?}
+    ports:
+      - "${PGBOUNCER_READ_PUBLISHED_PORT}:${PGBOUNCER_LISTEN_PORT}"
+    depends_on:
+      postgres-haproxy:
+        condition: service_healthy
+      vault-agent:
+        condition: service_healthy
+    volumes:
+      - identity_postgresql_secrets:/secrets/identity:ro
+      - access_control_postgresql_secrets:/secrets/access-control:ro
+      - notification_postgresql_secrets:/secrets/notification:ro
+    networks:
+      postgres_net:
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 ${PGBOUNCER_LISTEN_PORT} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  identity_postgresql_secrets:
+  access_control_postgresql_secrets:
+  notification_postgresql_secrets:
+
+networks:
+  postgres_net:
+    external: true
+    name: ${DOCKER_NETWORK_POSTGRES}
+  consul_net:
+    external: true
+    name: ${DOCKER_NETWORK_CONSUL}
+  vault_net:
+    external: true
+    name: ${DOCKER_NETWORK_VAULT}

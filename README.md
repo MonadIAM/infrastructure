@@ -1,6 +1,6 @@
 # @monadiam/infra
 
-Shared infrastructure for MonadIAM services: Apache Kafka for inter-service messaging, HashiCorp Vault for shared secrets/crypto, ClickHouse as the WORM-style mid-term archive store for audit/change logs, MinIO as the COLD long-term archive those logs age out into, and Grafana + Prometheus + Loki for monitoring. Deployed once per environment and shared by every service repo through external Docker networks plus a shared Vault CA Docker volume.
+Shared infrastructure for MonadIAM services: Apache Kafka for inter-service messaging, HashiCorp Vault for shared secrets/crypto, service-owned PostgreSQL/Redis dev infrastructure, ClickHouse as the WORM-style mid-term archive store for audit/change logs, MinIO as the COLD long-term archive those logs age out into, and Grafana + Prometheus + Loki for monitoring. Deployed once per environment and shared by every service repo through external Docker networks plus a shared Vault CA Docker volume.
 
 ----
 
@@ -14,6 +14,8 @@ Make sure Docker and Docker Compose V2 are installed on your system before proce
 make network name="monitoring-network"
 make network name="consul-net"
 make network name="kafka-net"
+make network name="postgres-net"
+make network name="redis-net"
 make network name="vault-net"
 ```
 The shared Vault CA volume (`vault_ca` by default) is created and populated by this repo on first `make up`; consuming services mount it as an external read-only volume.
@@ -27,6 +29,19 @@ make env
 make up
 ```
 On a genuinely first boot this also: generates a local self-signed CA + Vault server certificate (`vault-tls`, written to `infrastructure/vault/tls/` - gitignored), initializes Vault and unseals it (`vault-init-unseal`, writes the root token and Shamir unseal key to `infrastructure/vault/init-keys/` - also gitignored, see the Vault section for why this is a deliberate, temporary simplification), then runs `terraform-apply`, which provisions the shared Vault instance (mounts, policies, AppRole roles, Transit keys, Database Secrets Engine, generated passwords). First boot takes longer than before while Terraform downloads providers and pulls the OpenSSL helper image if it is not already present.
+
+Compose is split by responsibility:
+
+| File                                  | Owns                                                      |
+|:--------------------------------------|:----------------------------------------------------------|
+| `docker-compose.yml`                  | Consul, Vault, Terraform apply, Vault agent               |
+| `docker-compose.identity.yml`         | Identity Patroni/Postgres cluster, Redis                  |
+| `docker-compose.access-control.yml`   | AccessControl Patroni/Postgres cluster, Redis             |
+| `docker-compose.notification.yml`     | Notification Patroni/Postgres cluster, Redis              |
+| `docker-compose.routing.yml`          | Centralized Postgres HAProxy + PgBouncer                  |
+| `docker-compose.kafka.yml`            | Kafka, Kafka UI, Kafka Connect, Debezium init             |
+| `docker-compose.observability.yml`    | Grafana, Prometheus, Loki, OpenTelemetry Collector, Tempo |
+| `docker-compose.audit-archive.yml`    | ClickHouse, MinIO, audit archive init/jobs                |
 
 4. Verify Kafka is running:
 ```sh
@@ -47,20 +62,22 @@ Each run copies that service's token straight to the clipboard (macOS `pbcopy`) 
 <details>
 <summary><strong>Shared Docker Resources</strong></summary>
 
-Four external networks are created once and shared by every consuming service - this repo attaches to them, it doesn't own their lifecycle.
+Six external networks are created once and shared by every consuming service - this repo attaches to them, it doesn't own their lifecycle.
 
 | Network              | Env var                     | Default              | Used by                                                                                                                                                               |
 |:---------------------|:----------------------------|:---------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `kafka-net`          | `DOCKER_NETWORK_KAFKA`      | `kafka-net`          | Kafka, service app                                                                                                                                                    |
 | `monitoring-network` | `DOCKER_NETWORK_MONITORING` | `monitoring-network` | Grafana, Prometheus, Loki, service app                                                                                                                                |
-| `vault-net`          | `DOCKER_NETWORK_VAULT`      | `vault-net`          | Vault, each service's `bootstrap`/`vault-agent`, and now each service's own HAProxy write-frontend (reachable by Vault's Database Secrets Engine - see Vault section) |
-| `consul-net`         | `DOCKER_NETWORK_CONSUL`     | `consul-net`         | Consul (shared DCS for Patroni), each service's Patroni-managed Postgres nodes and HAProxy instances                                                                  |
+| `vault-net`          | `DOCKER_NETWORK_VAULT`      | `vault-net`          | Vault, each service's `bootstrap`/`vault-agent`, and centralized Postgres HAProxy for Vault's Database Secrets Engine                                                 |
+| `consul-net`         | `DOCKER_NETWORK_CONSUL`     | `consul-net`         | Consul (shared DCS for Patroni), infra-owned Patroni/Postgres nodes, centralized Postgres HAProxy                                                                     |
+| `postgres-net`       | `DOCKER_NETWORK_POSTGRES`   | `postgres-net`       | Centralized `pgbouncer-write`/`pgbouncer-read`, service app                                                                                                           |
+| `redis-net`          | `DOCKER_NETWORK_REDIS`      | `redis-net`          | Infra-owned service Redis nodes, service app                                                                                                                          |
 
 One named Docker volume is owned by this repo and mounted read-only by consuming services:
 
 | Volume              | Env var                  | Default              | Used by                                |
 |:--------------------|:-------------------------|:---------------------|:---------------------------------------|
-| `vault_ca` | `DOCKER_VOLUME_VAULT_CA` | `vault_ca` | Public Vault CA certificate (`ca.crt`) |
+| `vault_ca`          | `DOCKER_VOLUME_VAULT_CA` | `vault_ca`           | Public Vault CA certificate (`ca.crt`) |
 
 **Connecting a consuming service:**
 Add the ones it needs to that service's own `docker-compose.yml`:
@@ -69,12 +86,15 @@ networks:
     monitoring_net:
         external: true
         name: ${DOCKER_NETWORK_MONITORING:-monitoring-network}
-    consul_net:
-        external: true
-        name: ${DOCKER_NETWORK_CONSUL:-consul-net}
     kafka_net:
         external: true
         name: ${DOCKER_NETWORK_KAFKA:-kafka-net}
+    postgres_net:
+        external: true
+        name: ${DOCKER_NETWORK_POSTGRES:-postgres-net}
+    redis_net:
+        external: true
+        name: ${DOCKER_NETWORK_REDIS:-redis-net}
     vault_net:
         external: true
         name: ${DOCKER_NETWORK_VAULT:-vault-net}
@@ -111,7 +131,7 @@ If your service runs inside its own Docker container, on `kafka-net`:
 <details>
 <summary><strong>Vault</strong></summary>
 
-A single shared Vault instance is run from this repository and used by all services, on `vault-net`. **This repository owns all provisioning** - mounts, policies, AppRole/Kubernetes auth roles, Transit keys, Database Secrets Engine connections/roles, the AWS Secrets Engine role, and every generated password - declared once in `terraform/` and applied by the `terraform-apply` container on every `make up`. A service repository no longer creates its own policies or KV entries; it only ever *consumes* what this repo already provisioned for it. `terraform/03-locals.tf` is the single manifest of what every service needs, kept in sync by hand with each service repo (a PR here, whenever a service's secret needs change - no automated sync exists at this stage).
+A single shared Vault instance is run from this repository and used by all services, on `vault-net`. **This repository owns all provisioning** - mounts, policies, AppRole/Kubernetes auth roles, Transit keys, Database Secrets Engine connections/roles, the AWS Secrets Engine role, and every generated password - declared once in `infrastructure/terraform/` and applied by the `terraform-apply` container on every `make up`. A service repository no longer creates its own policies or KV entries; it only ever *consumes* what this repo already provisioned for it. `infrastructure/terraform/03-locals.tf` is the single manifest of what every service needs, kept in sync by hand with each service repo (a PR here, whenever a service's secret needs change - no automated sync exists at this stage).
 
 - *Address (Docker network):* `vault:8200` (TLS, see below)
 - *Address (host machine):* `https://localhost:8200`
@@ -121,9 +141,9 @@ A single shared Vault instance is run from this repository and used by all servi
 - *Root token (dev only):* `infrastructure/vault/init-keys/root-token`, generated locally at init time - used **only** by `terraform-apply` and `vault-bootstrap`, both in this repo. It is never copied into any service's `.env`.
 - *Full reset:* `make clean` removes named Docker volumes (including `vault_data` and the shared Vault CA volume) and the host-bind-mounted Vault bootstrap state in `infrastructure/vault/tls/` and `infrastructure/vault/init-keys/`. If you run `docker compose down -v` by hand without removing those directories, `vault-init-unseal` will refuse to blindly re-init because old key files would point at now-gone Raft state. Run `make vault-reset` for a Vault-only reset.
 
-**How a service authenticates to Vault** (see `terraform/05-auth.tf`): AppRole in plain docker-compose dev, Kubernetes auth (via Vault Agent Injector) on k3s stands - same policies either way, only the auth backend differs. Each service's own `docker/vault/bootstrap.sh` mints a one-time-use `secret_id` for its AppRole role using `VAULT_PROVISIONER_TOKEN` (copied from `terraform/.output/provisioner-token-<service>` after apply - see step 5 above), then a `vault-agent` sidecar in that service's `docker-compose.yml` logs in with it and renders secrets to disk, auto-renewing. Each service gets its own `VAULT_PROVISIONER_TOKEN`, scoped by policy to mint `secret_id`s only for that service's own AppRole role (and, for identity-service, its `identity-service-key-trim` role too) - it cannot read or write any actual secret, and it cannot impersonate another service's role.
+**How a service authenticates to Vault** (see `infrastructure/terraform/05-auth.tf`): AppRole in plain docker-compose dev, Kubernetes auth (via Vault Agent Injector) on k3s stands - same policies either way, only the auth backend differs. Each service's own `docker/vault/bootstrap.sh` mints a one-time-use `secret_id` for its AppRole role using `VAULT_PROVISIONER_TOKEN` (copied from `infrastructure/terraform/.output/provisioner-token-<service>` after apply - see step 5 above), then a `vault-agent` sidecar in that service's `docker-compose.yml` logs in with it and renders secrets to disk, auto-renewing. Each service gets its own `VAULT_PROVISIONER_TOKEN`, scoped by policy to mint `secret_id`s only for that service's own AppRole role (and, for identity-service, its `identity-service-key-trim` role too) - it cannot read or write any actual secret, and it cannot impersonate another service's role.
 
-**Dynamic Postgres credentials** (see `terraform/08-database.tf`): the application no longer connects with a static password. Vault's Database Secrets Engine issues a short-lived username+password pair per connection (`database/creds/<service>-app`, ~1h TTL, auto-renewed by that service's Vault Agent) that inherits the admin user's privileges via Postgres role membership (`IN ROLE`). A separate `database/creds/<service>-developer-readonly` role (SELECT-only, ~30m TTL) exists for ad hoc human access - e.g. pulling a fresh, temporary credential into DBeaver. The admin/root Postgres password itself is Terraform-generated, never typed by a human, and used only by Postgres's own bootstrap and by Vault's connection config - not by the application.
+**Dynamic Postgres credentials** (see `infrastructure/terraform/08-database.tf`): the application no longer connects with a static password. Vault's Database Secrets Engine issues a short-lived username+password pair per connection (`database/creds/<service>-app`, ~1h TTL, auto-renewed by that service's Vault Agent) that inherits the admin user's privileges via Postgres role membership (`IN ROLE`). A separate `database/creds/<service>-developer-readonly` role (SELECT-only, ~30m TTL) exists for ad hoc human access - e.g. pulling a fresh, temporary credential into DBeaver. The admin/root Postgres password itself is Terraform-generated, never typed by a human, and used only by Postgres's own bootstrap and by Vault's connection config - not by the application.
 
 **Known gaps, not addressed by this configuration:** full mTLS across the platform (Consul + Vault PKI - the self-signed CA above only covers the Vault listener itself), cloud KMS auto-unseal for stand, and how a *human* authenticates to Vault to use the `developer-readonly` role (OIDC/LDAP/userpass - not yet decided).
 
@@ -134,12 +154,12 @@ A single shared Vault instance is run from this repository and used by all servi
 <details>
 <summary><strong>Consul</strong></summary>
 
-Single shared Consul instance (one server, `-bootstrap-expect=1`), run from this repository, on `consul-net`. Acts as the DCS (Distributed Configuration Store) for every service's Patroni-managed PostgreSQL cluster - one shared instance rather than one per service, same "single shared instance, decomposed by namespace" model already used for Vault.
+Single shared Consul instance (one server, `-bootstrap-expect=1`), run from this repository, on `consul-net`. Acts as the DCS (Distributed Configuration Store) for every infra-owned Patroni/PostgreSQL cluster - one shared instance rather than one per service, decomposed by Patroni scope.
 
 - *Address (Docker network):* `consul:8500`
 - *Address (host machine):* `http://localhost:${CONSUL_UI_PORT}` (default `8500`), UI at `/ui`
 
-Each service's Patroni nodes register themselves directly into Consul's service catalog (tagged `master`/`replica` depending on role); each service's HAProxy instances read that catalog via `consul-template` to build their backend list, so adding or removing a Postgres node never requires touching HAProxy config by hand.
+Each Patroni cluster has its own scope (`identity-service`, `access-control-service`, `notification-service`). Patroni nodes register themselves directly into Consul's service catalog (tagged `master`/`replica` depending on role); the centralized `postgres-haproxy` reads that catalog via `consul-template`, and PgBouncer exposes stable write/read entrypoints to service containers.
 
 **Known gaps, not addressed by this configuration:** no TLS/mTLS, no ACLs, single node (no quorum - Consul itself is a SPOF for failover, though PostgreSQL keeps serving reads/writes on whichever node was last elected leader even if Consul is briefly unreachable).
 
@@ -156,7 +176,7 @@ Single shared ClickHouse instance, run from this repository, on `kafka-net` (Kaf
 - *Address (host machine):* `localhost:9000` (native), `http://localhost:8123` (HTTP), `http://localhost:8123/play`
 - *Default database:* `CLICKHOUSE_DB` in `.env`
 
-Schema applied in filename order by `clickhouse-init`, from `infrastructure/clickhouse/schema/*.sql`:
+Schema applied in filename order by `clickhouse-init`, from `infrastructure/audit-archive/clickhouse/schema/*.sql`:
 
 | File        | What                                                                                  |
 |:------------|:--------------------------------------------------------------------------------------|
@@ -197,14 +217,14 @@ COLD archive for `audit.audit_log`/`audit.change_log` — where data ends up aft
 - *Address (host machine):* `http://localhost:${MINIO_API_PORT}` (S3 API), `http://localhost:${MINIO_CONSOLE_PORT}` (console)
 - *Buckets:* `MINIO_AUDIT_LOG_BUCKET` (default `audit-archive`), `MINIO_CHANGE_LOG_BUCKET` (default `change-log-archive`) — one per ClickHouse table, both services land in the same bucket (`service` column already discriminates inside the Parquet file, same as in ClickHouse)
 
-Buckets are created by `minio-init` (`infrastructure/minio/init.sh`, `minio/mc` image) with Object Lock enabled at creation time — retrofitting Object Lock onto an existing bucket isn't possible, which is why bucket creation and lock configuration happen in the same script, once. Default retention is set in **COMPLIANCE** mode (not GOVERNANCE): nobody, including root, can shorten it or delete an object early. Retention length equals lifecycle expiry — objects age out of the bucket exactly when WORM protection itself lapses, not before:
+Buckets are created by `minio-init` (`infrastructure/audit-archive/minio/init.sh`, `minio/mc` image) with Object Lock enabled at creation time — retrofitting Object Lock onto an existing bucket isn't possible, which is why bucket creation and lock configuration happen in the same script, once. Default retention is set in **COMPLIANCE** mode (not GOVERNANCE): nobody, including root, can shorten it or delete an object early. Retention length equals lifecycle expiry — objects age out of the bucket exactly when WORM protection itself lapses, not before:
 
-| Bucket                    | Retention (`MINIO_*_RETENTION_DAYS`) |
+| Bucket                     | Retention (`MINIO_*_RETENTION_DAYS`) |
 |:---------------------------|:-------------------------------------|
 | `audit-archive`            | 1095 days (3 years)                  |
 | `change-log-archive`       | 365 days (1 year)                    |
 
-`minio-init` also provisions a least-privilege `archiver` identity (`MINIO_ARCHIVER_ACCESS_KEY`, policy in `infrastructure/minio/archiver-policy.json`) scoped to `s3:PutObject`/`s3:GetObject` on just these two buckets — no delete, no list, no admin. This is the only credential `clickhouse-archiver` ever sees.
+`minio-init` also provisions a least-privilege `archiver` identity (`MINIO_ARCHIVER_ACCESS_KEY`) scoped to `s3:PutObject`/`s3:GetObject` on just these two buckets — no delete, no list, no admin. This is the only credential `clickhouse-archiver` ever sees.
 
 Root credentials (`MINIO_ROOT_USER`, password from Vault) exist solely to bootstrap buckets/policy/user in `minio-init` — nothing else uses them.
 
@@ -215,13 +235,13 @@ Root credentials (`MINIO_ROOT_USER`, password from Vault) exist solely to bootst
 <details>
 <summary><strong>clickhouse-archiver</strong></summary>
 
-Daily job (`infrastructure/archiver/`, plain shell loop — no cron daemon, no NestJS: the job is platform-level, not owned by identity-service or access-control-service) that exports ClickHouse partitions into MinIO as Parquet once they're older than `ARCHIVE_AFTER_DAYS` (default 150 — a 30-day margin before the 180-day ClickHouse `TTL`), verifies the export by row count, and records success in `audit.archive_log`.
+Daily job (`infrastructure/audit-archive/archiver/`, plain shell loop — no cron daemon, no NestJS: the job is platform-level, not owned by identity-service or access-control-service) that exports ClickHouse partitions into MinIO as Parquet once they're older than `ARCHIVE_AFTER_DAYS` (default 150 — a 30-day margin before the 180-day ClickHouse `TTL`), verifies the export by row count, and records success in `audit.archive_log`.
 
 It never issues `DROP PARTITION` or any other destructive statement against ClickHouse — deletion stays exactly where it already was, the table `TTL`. If the archiver falls behind or breaks, the worst case is a few extra days of ClickHouse storage, not a race against data loss; the margin exists specifically so a stalled job has time to be noticed and fixed before the TTL would otherwise catch up.
 
 Uses `CLICKHOUSE_IMAGE` unmodified (`clickhouse-client` only, no extra tooling) — export, read-back verification, and the eventual queries against archived Parquet from ClickHouse Play UI (`s3()` table function, works for both writing and reading MinIO) all go through the same one binary.
 
-> `mc ilm`/`mc retention` flag names in `infrastructure/minio/init.sh` have shifted across `mc` releases — double-check them against the exact pinned `MINIO_MC_IMAGE` tag before relying on this in production.
+> `mc ilm`/`mc retention` flag names in `infrastructure/audit-archive/minio/init.sh` have shifted across `mc` releases — double-check them against the exact pinned `MINIO_MC_IMAGE` tag before relying on this in production.
 
 </details>
 
@@ -230,19 +250,23 @@ Uses `CLICKHOUSE_IMAGE` unmodified (`clickhouse-client` only, no extra tooling) 
 <details>
 <summary><strong>Commands</strong></summary>
 
-| Command                                       | Makefile                | Description                                                                                |
-|:----------------------------------------------|:------------------------|:-------------------------------------------------------------------------------------------|
-| `docker compose up -d`                        | `make up`               | Start all services in detached mode.                                                       |
-| `docker compose stop`                         | `make stop`             | Stop containers without removing them.                                                     |
-| `docker compose down`                         | `make down`             | Stop and remove containers and networks.                                                   |
-| `docker compose down && docker-compose up -d` | `make restart`          | Restart the entire infrastructure.                                                         |
-| `docker compose logs -f kafka`                | `make logs`             | Stream Kafka logs in real time.                                                            |
-| `docker exec -it kafka /bin/bash`             | `make exec`             | Open a shell inside the Kafka container.                                                   |
-| `docker compose down -v` + Vault state cleanup | `make clean`            | Remove containers, volumes, Vault TLS material, and Vault init/unseal keys.                 |
-| *(see Makefile)*                              | `make vault-reset`      | Vault-only reset: removes `vault_data`, the shared Vault CA volume, `infrastructure/vault/tls/`, and `infrastructure/vault/init-keys/`. |
-| `docker system prune -f`                      | `make prune`            | Global cleanup of unused Docker resources.                                                 |
-| `docker network create --name=$(name)`        | `make network name="*"` | Create a new docker network.                                                               |
-| `docker network ls`                           | `make networks`         | List networks (verify `kafka-net`, `monitoring-network`, `vault-net`, `consul-net` exist). |
+| Command                                       | Makefile                         | Description                                                                                                                             |
+|:----------------------------------------------|:---------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------|
+| `docker compose up -d`                        | `make up`                        | Start all services in detached mode.                                                                                                    |
+| `docker compose stop`                         | `make stop`                      | Stop containers without removing them.                                                                                                  |
+| `docker compose down`                         | `make down`                      | Stop and remove containers and networks.                                                                                                |
+| `docker compose down && docker-compose up -d` | `make restart`                   | Restart the entire infrastructure.                                                                                                      |
+| `docker compose logs -f kafka`                | `make logs`                      | Stream Kafka logs in real time.                                                                                                         |
+| `docker exec -it kafka /bin/bash`             | `make exec`                      | Open a shell inside the Kafka container.                                                                                                |
+| `docker compose down -v`                      | `make clean`                     | Remove containers, volumes, Vault TLS material, and Vault init/unseal keys.                                                             |
+| *(see Makefile)*                              | `make vault-reset`               | Vault-only reset: removes `vault_data`, the shared Vault CA volume, `infrastructure/vault/tls/`, and `infrastructure/vault/init-keys/`. |
+| *(see Makefile)*                              | `make pg-reset service=identity` | Reset one Patroni/Postgres cluster and its anonymous node volumes.                                                                      |
+| *(see Makefile)*                              | `make pg-reset-all`              | Reset all infra-owned Patroni/Postgres clusters.                                                                                        |
+| *(see Makefile)*                              | `make pg-list service=identity`  | Show Patroni cluster status through `patronictl`.                                                                                       |
+| `docker compose ... config`                   | `make config`                    | Render the merged compose model from all infra compose files.                                                                           |
+| `docker system prune -f`                      | `make prune`                     | Global cleanup of unused Docker resources.                                                                                              |
+| `docker network create --name=$(name)`        | `make network name="*"`          | Create a new docker network.                                                                                                            |
+| `docker network ls`                           | `make networks`                  | List networks (verify `kafka-net`, `monitoring-network`, `vault-net`, `consul-net`, `postgres-net` exist).                              |
 
 </details>
 
@@ -255,7 +279,7 @@ Uses `CLICKHOUSE_IMAGE` unmodified (`clickhouse-client` only, no extra tooling) 
 |:-------------------|:-----------------------------|
 | Grafana            | http://localhost:3000        |
 | Kafka UI           | http://localhost:8080        |
-| Vault UI           | https://localhost:8200/ui (self-signed cert - browser warning expected) |
+| Vault UI           | https://localhost:8200/ui    |
 | Consul UI          | http://localhost:8500/ui     |
 | ClickHouse Play UI | http://localhost:8123/play   |
 | MinIO Console      | http://localhost:9011        |

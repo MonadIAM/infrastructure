@@ -1,0 +1,55 @@
+global
+    maxconn 600
+
+defaults
+    mode tcp
+    retries 2
+    timeout client 30m
+    timeout connect 4s
+    timeout server 30m
+    timeout check 5s
+
+listen stats
+    mode http
+    bind *:7000
+    stats enable
+    stats uri /
+
+listen identity_write
+    bind *:{{ env "IDENTITY_POSTGRES_WRITE_PORT" }}
+{{ range service "master.identity-service" }}
+    server {{ .Address }} {{ .Address }}:{{ .Port }} maxconn 100 check
+{{ end }}
+
+listen identity_read
+    bind *:{{ env "IDENTITY_POSTGRES_READ_PORT" }}
+    balance roundrobin
+{{ range service "replica.identity-service" }}
+    server {{ .Address }} {{ .Address }}:{{ .Port }} maxconn 100 check
+{{ end }}
+
+listen access_control_write
+    bind *:{{ env "ACCESS_CONTROL_POSTGRES_WRITE_PORT" }}
+{{ range service "master.access-control-service" }}
+    server {{ .Address }} {{ .Address }}:{{ .Port }} maxconn 100 check
+{{ end }}
+
+listen access_control_read
+    bind *:{{ env "ACCESS_CONTROL_POSTGRES_READ_PORT" }}
+    balance roundrobin
+{{ range service "replica.access-control-service" }}
+    server {{ .Address }} {{ .Address }}:{{ .Port }} maxconn 100 check
+{{ end }}
+
+listen notification_write
+    bind *:{{ env "NOTIFICATION_POSTGRES_WRITE_PORT" }}
+{{ range service "master.notification-service" }}
+    server {{ .Address }} {{ .Address }}:{{ .Port }} maxconn 100 check
+{{ end }}
+
+listen notification_read
+    bind *:{{ env "NOTIFICATION_POSTGRES_READ_PORT" }}
+    balance roundrobin
+{{ range service "replica.notification-service" }}
+    server {{ .Address }} {{ .Address }}:{{ .Port }} maxconn 100 check
+{{ end }}

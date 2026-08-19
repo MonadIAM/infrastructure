@@ -48,12 +48,12 @@ lerna-debug.log*
 .tmp
 
 # Terraform
-terraform/.terraform/
-terraform/terraform.tfstate
-terraform/terraform.tfstate.backup
-terraform/.output/
-terraform/*.auto.tfvars
-terraform/*.auto.tfvars.json
+infrastructure/terraform/.terraform/
+infrastructure/terraform/terraform.tfstate
+infrastructure/terraform/terraform.tfstate.backup
+infrastructure/terraform/.output/
+infrastructure/terraform/*.auto.tfvars
+infrastructure/terraform/*.auto.tfvars.json
 
 # Vault - generated locally on first `make up`, never committed:
 infrastructure/vault/tls/

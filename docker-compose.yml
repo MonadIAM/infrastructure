@@ -4,64 +4,6 @@ x-base: &base
 name: infra
 
 services:
-  kafka:
-    <<: *base
-    image: ${KAFKA_IMAGE:?}
-    container_name: kafka
-    ports:
-      - "${KAFKA_EXTERNAL_PORT}:${KAFKA_EXTERNAL_PORT}"
-    environment:
-      CLUSTER_ID: ${KAFKA_CLUSTER_ID:?}
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:${KAFKA_INTERNAL_PORT},EXTERNAL://0.0.0.0:${KAFKA_EXTERNAL_PORT},CONTROLLER://kafka:${KAFKA_CONTROLLER_PORT}
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:${KAFKA_INTERNAL_PORT},EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT}
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:${KAFKA_CONTROLLER_PORT}
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:?}
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:?}
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:?}
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-    volumes:
-      - kafka_data:/var/lib/kafka/data
-    networks:
-      kafka_net:
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 29092 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
-  kafka-init:
-    image: ${KAFKA_IMAGE:?}
-    container_name: kafka-init
-    depends_on:
-      kafka:
-        condition: service_healthy
-    volumes:
-      - ./infrastructure/kafka/init-topics.sh:/init-topics.sh:ro
-    entrypoint: ["bash", "/init-topics.sh"]
-    networks:
-      kafka_net:
-
-  kafka-ui:
-    <<: *base
-    image: ${KAFKA_UI_IMAGE:?}
-    container_name: kafka-ui
-    ports:
-      - "${KAFKA_UI_PORT}:8080"
-    depends_on:
-      kafka:
-        condition: service_healthy
-    environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:${KAFKA_INTERNAL_PORT}
-    networks:
-      kafka_net:
-
   consul:
     <<: *base
     image: ${CONSUL_IMAGE:?}
@@ -154,7 +96,7 @@ services:
       TF_VAR_notification_aws_root_secret_access_key: ${AWS_ROOT_SECRET_ACCESS_KEY:-}
     entrypoint: ["sh", "/terraform-apply.sh"]
     volumes:
-      - ./terraform:/workspace
+      - ./infrastructure/terraform:/workspace
       - ./infrastructure/vault/terraform-apply.sh:/terraform-apply.sh:ro
       - vault_ca:/vault/tls:ro
       - ./infrastructure/vault/init-keys:/vault/init-keys:ro
@@ -198,6 +140,12 @@ services:
       - vault_agent_config:/vault/config:ro
       - vault_agent_bootstrap:/vault/agent-bootstrap
       - vault_agent_token:/vault/token
+      - identity_postgresql_secrets:/secrets/postgresql/identity
+      - access_control_postgresql_secrets:/secrets/postgresql/access-control
+      - notification_postgresql_secrets:/secrets/postgresql/notification
+      - identity_redis_secrets:/secrets/redis/identity
+      - access_control_redis_secrets:/secrets/redis/access-control
+      - notification_redis_secrets:/secrets/redis/notification
       - clickhouse_secrets:/secrets/clickhouse
       - minio_secrets:/secrets/minio
       - grafana_secrets:/secrets/grafana
@@ -207,205 +155,12 @@ services:
       test:
         [
           "CMD-SHELL",
-          "test -f /secrets/clickhouse/clickhouse_password && test -f /secrets/minio/minio_root_password && test -f /secrets/grafana/admin_password",
+          "test -f /secrets/postgresql/identity/postgresql_password && test -f /secrets/postgresql/identity/postgresql_replication_password && test -f /secrets/postgresql/access-control/postgresql_password && test -f /secrets/postgresql/access-control/postgresql_replication_password && test -f /secrets/postgresql/notification/postgresql_password && test -f /secrets/postgresql/notification/postgresql_replication_password && test -f /secrets/redis/identity/redis_password && test -f /secrets/redis/access-control/redis_password && test -f /secrets/redis/notification/redis_password && test -f /secrets/clickhouse/clickhouse_password && test -f /secrets/minio/minio_root_password && test -f /secrets/grafana/admin_password",
         ]
       interval: 5s
       timeout: 3s
       retries: 30
       start_period: 5s
-
-  clickhouse:
-    <<: *base
-    image: ${CLICKHOUSE_IMAGE:?}
-    container_name: clickhouse
-    depends_on:
-      vault-agent:
-        condition: service_healthy
-    environment:
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?}
-      CLICKHOUSE_DB: ${CLICKHOUSE_DB:?}
-      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT:?}
-    ports:
-      - "${CLICKHOUSE_HTTP_PORT}:8123"
-      - "${CLICKHOUSE_NATIVE_PORT}:9000"
-    volumes:
-      - clickhouse_data:/var/lib/clickhouse
-      - clickhouse_secrets:/vault/secrets:ro
-      - ./infrastructure/clickhouse/entrypoint.sh:/entrypoint-wrapper.sh:ro
-    entrypoint: ["sh", "/entrypoint-wrapper.sh"]
-    networks:
-      kafka_net:
-      monitoring_net:
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "clickhouse-client --user \"$$CLICKHOUSE_USER\" --password \"$$(cat /vault/secrets/clickhouse_password)\" --query 'SELECT 1'",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
-  clickhouse-init:
-    image: ${CLICKHOUSE_IMAGE:?}
-    container_name: clickhouse-init
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-    environment:
-      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?}
-      CLICKHOUSE_WRITER_USER: ${CLICKHOUSE_WRITER_USER:?}
-      CLICKHOUSE_READER_USER: ${CLICKHOUSE_READER_USER:?}
-    volumes:
-      - ./infrastructure/clickhouse/init.sh:/init.sh:ro
-      - ./infrastructure/clickhouse/schema:/schema:ro
-      - clickhouse_secrets:/vault/secrets:ro
-    entrypoint: ["bash", "/init.sh"]
-    networks:
-      kafka_net:
-
-  minio:
-    <<: *base
-    image: ${MINIO_IMAGE:?}
-    container_name: minio
-    depends_on:
-      vault-agent:
-        condition: service_healthy
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
-      MINIO_ROOT_PASSWORD_FILE: /vault/secrets/minio_root_password
-    command: server /data --console-address ":9090"
-    ports:
-      - "${MINIO_API_PORT}:9000"
-      - "${MINIO_CONSOLE_PORT}:9090"
-    volumes:
-      - minio_data:/data
-      - minio_secrets:/vault/secrets:ro
-    networks:
-      kafka_net:
-
-  minio-init:
-    image: ${MINIO_MC_IMAGE:?}
-    container_name: minio-init
-    depends_on:
-      minio:
-        condition: service_started
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
-      MINIO_ARCHIVER_ACCESS_KEY: ${MINIO_ARCHIVER_ACCESS_KEY:?}
-      MINIO_AUDIT_LOG_BUCKET: ${MINIO_AUDIT_LOG_BUCKET:?}
-      MINIO_CHANGE_LOG_BUCKET: ${MINIO_CHANGE_LOG_BUCKET:?}
-      MINIO_AUDIT_LOG_RETENTION_DAYS: ${MINIO_AUDIT_LOG_RETENTION_DAYS:?}
-      MINIO_CHANGE_LOG_RETENTION_DAYS: ${MINIO_CHANGE_LOG_RETENTION_DAYS:?}
-    volumes:
-      - ./infrastructure/minio/init.sh:/init.sh:ro
-      - minio_secrets:/vault/secrets:ro
-    entrypoint: ["sh", "/init.sh"]
-    networks:
-      kafka_net:
-
-  clickhouse-archiver:
-    <<: *base
-    image: ${CLICKHOUSE_IMAGE:?}
-    container_name: clickhouse-archiver
-    depends_on:
-      clickhouse-init:
-        condition: service_completed_successfully
-      minio-init:
-        condition: service_completed_successfully
-    environment:
-      CLICKHOUSE_WRITER_USER: ${CLICKHOUSE_WRITER_USER:?}
-      MINIO_ARCHIVER_ACCESS_KEY: ${MINIO_ARCHIVER_ACCESS_KEY:?}
-      MINIO_AUDIT_LOG_BUCKET: ${MINIO_AUDIT_LOG_BUCKET:?}
-      MINIO_CHANGE_LOG_BUCKET: ${MINIO_CHANGE_LOG_BUCKET:?}
-      ARCHIVE_AFTER_DAYS: ${ARCHIVE_AFTER_DAYS:?}
-      ARCHIVE_INTERVAL_SECONDS: "86400"
-    volumes:
-      - ./infrastructure/archiver/entrypoint.sh:/entrypoint.sh:ro
-      - ./infrastructure/archiver/archive.sh:/archive.sh:ro
-      - clickhouse_secrets:/vault/secrets/clickhouse:ro
-      - minio_secrets:/vault/secrets/minio:ro
-    entrypoint: ["sh", "/entrypoint.sh"]
-    networks:
-      kafka_net:
-
-  grafana:
-    <<: *base
-    image: ${GRAFANA_IMAGE:?}
-    container_name: grafana
-    depends_on:
-      vault-agent:
-        condition: service_healthy
-    ports:
-      - "${GRAFANA_PORT}:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
-      - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/admin_password
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - GF_AUTH_ANONYMOUS_ORG_NAME=${GF_AUTH_ANONYMOUS_ORG_NAME}
-    volumes:
-      - ./infrastructure/monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - grafana_data:/var/lib/grafana
-      - grafana_secrets:/run/secrets:ro
-    networks:
-      monitoring_net:
-      kafka_net:
-
-  prometheus:
-    <<: *base
-    image: ${PROMETHEUS_IMAGE:?}
-    container_name: prometheus
-    ports:
-      - "${PROMETHEUS_PORT}:9090"
-    volumes:
-      - ./infrastructure/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    networks:
-      monitoring_net:
-
-  loki:
-    <<: *base
-    image: ${LOKI_IMAGE:?}
-    container_name: loki
-    ports:
-      - "${LOKI_PORT}:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - loki_data:/loki
-    networks:
-      monitoring_net:
-
-  otel-collector:
-    <<: *base
-    image: ${OTEL_COLLECTOR_IMAGE:?}
-    container_name: otel-collector
-    command: ["--config=/etc/otel-collector/config.yaml"]
-    ports:
-      - "${OTEL_COLLECTOR_GRPC_PORT}:4317"
-      - "${OTEL_COLLECTOR_HTTP_PORT}:4318"
-    volumes:
-      - ./infrastructure/monitoring/otel-collector/config.yaml:/etc/otel-collector/config.yaml:ro
-    networks:
-      monitoring_net:
-        aliases:
-          - otel-collector
-
-  tempo:
-    <<: *base
-    image: ${TEMPO_IMAGE:?}
-    container_name: tempo
-    command: ["-config.file=/etc/tempo/tempo.yaml"]
-    ports:
-      - "${TEMPO_HTTP_PORT}:3200"
-    volumes:
-      - ./infrastructure/monitoring/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
-      - tempo_data:/var/tempo
-    networks:
-      monitoring_net:
-        aliases:
-          - tempo
 
 volumes:
   vault_data:
@@ -413,26 +168,19 @@ volumes:
     name: ${DOCKER_VOLUME_VAULT_CA:-vault_ca}
   vault_agent_bootstrap:
   vault_agent_config:
-  clickhouse_secrets:
   vault_agent_token:
-  prometheus_data:
-  grafana_secrets:
-  clickhouse_data:
+  identity_postgresql_secrets:
+  access_control_postgresql_secrets:
+  notification_postgresql_secrets:
+  identity_redis_secrets:
+  access_control_redis_secrets:
+  notification_redis_secrets:
+  clickhouse_secrets:
   minio_secrets:
-  grafana_data:
-  kafka_data:
-  tempo_data:
-  minio_data:
-  loki_data:
+  grafana_secrets:
   consul_data:
 
 networks:
-  monitoring_net:
-    external: true
-    name: ${DOCKER_NETWORK_MONITORING}
-  kafka_net:
-    external: true
-    name: ${DOCKER_NETWORK_KAFKA}
   vault_net:
     external: true
     name: ${DOCKER_NETWORK_VAULT}

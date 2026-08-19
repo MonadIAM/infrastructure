@@ -1,0 +1,133 @@
+x-base: &base
+  restart: on-failure
+
+services:
+  clickhouse:
+    <<: *base
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse
+    depends_on:
+      vault-agent:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:?}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: ${CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT:?}
+    ports:
+      - "${CLICKHOUSE_HTTP_PORT}:8123"
+      - "${CLICKHOUSE_NATIVE_PORT}:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_secrets:/vault/secrets:ro
+      - ./infrastructure/audit-archive/clickhouse/entrypoint.sh:/entrypoint-wrapper.sh:ro
+    entrypoint: ["sh", "/entrypoint-wrapper.sh"]
+    networks:
+      kafka_net:
+      monitoring_net:
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "clickhouse-client --user \"$$CLICKHOUSE_USER\" --password \"$$(cat /vault/secrets/clickhouse_password)\" --query 'SELECT 1'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  clickhouse-init:
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse-init
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:?}
+      CLICKHOUSE_WRITER_USER: ${CLICKHOUSE_WRITER_USER:?}
+      CLICKHOUSE_READER_USER: ${CLICKHOUSE_READER_USER:?}
+    volumes:
+      - ./infrastructure/audit-archive/clickhouse/init.sh:/init.sh:ro
+      - ./infrastructure/audit-archive/clickhouse/schema:/schema:ro
+      - clickhouse_secrets:/vault/secrets:ro
+    entrypoint: ["bash", "/init.sh"]
+    networks:
+      kafka_net:
+
+  minio:
+    <<: *base
+    image: ${MINIO_IMAGE:?}
+    container_name: minio
+    depends_on:
+      vault-agent:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ROOT_PASSWORD_FILE: /vault/secrets/minio_root_password
+    command: server /data --console-address ":9090"
+    ports:
+      - "${MINIO_API_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9090"
+    volumes:
+      - minio_data:/data
+      - minio_secrets:/vault/secrets:ro
+    networks:
+      kafka_net:
+
+  minio-init:
+    image: ${MINIO_MC_IMAGE:?}
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ARCHIVER_ACCESS_KEY: ${MINIO_ARCHIVER_ACCESS_KEY:?}
+      MINIO_AUDIT_LOG_BUCKET: ${MINIO_AUDIT_LOG_BUCKET:?}
+      MINIO_CHANGE_LOG_BUCKET: ${MINIO_CHANGE_LOG_BUCKET:?}
+      MINIO_AUDIT_LOG_RETENTION_DAYS: ${MINIO_AUDIT_LOG_RETENTION_DAYS:?}
+      MINIO_CHANGE_LOG_RETENTION_DAYS: ${MINIO_CHANGE_LOG_RETENTION_DAYS:?}
+    volumes:
+      - ./infrastructure/audit-archive/minio/init.sh:/init.sh:ro
+      - minio_secrets:/vault/secrets:ro
+    entrypoint: ["sh", "/init.sh"]
+    networks:
+      kafka_net:
+
+  clickhouse-archiver:
+    <<: *base
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse-archiver
+    depends_on:
+      clickhouse-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      CLICKHOUSE_WRITER_USER: ${CLICKHOUSE_WRITER_USER:?}
+      MINIO_ARCHIVER_ACCESS_KEY: ${MINIO_ARCHIVER_ACCESS_KEY:?}
+      MINIO_AUDIT_LOG_BUCKET: ${MINIO_AUDIT_LOG_BUCKET:?}
+      MINIO_CHANGE_LOG_BUCKET: ${MINIO_CHANGE_LOG_BUCKET:?}
+      ARCHIVE_AFTER_DAYS: ${ARCHIVE_AFTER_DAYS:?}
+      ARCHIVE_INTERVAL_SECONDS: "86400"
+    volumes:
+      - ./infrastructure/audit-archive/archiver/entrypoint.sh:/entrypoint.sh:ro
+      - ./infrastructure/audit-archive/archiver/archive.sh:/archive.sh:ro
+      - clickhouse_secrets:/vault/secrets/clickhouse:ro
+      - minio_secrets:/vault/secrets/minio:ro
+    entrypoint: ["sh", "/entrypoint.sh"]
+    networks:
+      kafka_net:
+
+volumes:
+  clickhouse_secrets:
+  clickhouse_data:
+  minio_secrets:
+  minio_data:
+
+networks:
+  kafka_net:
+    external: true
+    name: ${DOCKER_NETWORK_KAFKA}
+  monitoring_net:
+    external: true
+    name: ${DOCKER_NETWORK_MONITORING}

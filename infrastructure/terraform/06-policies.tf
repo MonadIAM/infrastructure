@@ -8,10 +8,6 @@ resource "vault_policy" "service_secrets" {
           capabilities = ["read"]
         }
 
-        path "${local.kv_mount}/data/${each.value.kv_replication_path}" {
-          capabilities = ["read"]
-        }
-
         path "${local.database_mount}/creds/${each.key}-app" {
           capabilities = ["read"]
         }
@@ -152,6 +148,30 @@ resource "vault_policy" "infra_secrets" {
         }
 
         path "${local.infra_kv_mount}/data/infra/grafana" {
+          capabilities = ["read"]
+        }
+
+        path "${local.kv_mount}/data/identity-service/runtime" {
+          capabilities = ["read"]
+        }
+
+        path "${local.kv_mount}/data/identity-service/postgresql-replication" {
+          capabilities = ["read"]
+        }
+
+        path "${local.kv_mount}/data/access-control-service/runtime" {
+          capabilities = ["read"]
+        }
+
+        path "${local.kv_mount}/data/access-control-service/postgresql-replication" {
+          capabilities = ["read"]
+        }
+
+        path "${local.kv_mount}/data/notification-service/runtime" {
+          capabilities = ["read"]
+        }
+
+        path "${local.kv_mount}/data/notification-service/postgresql-replication" {
           capabilities = ["read"]
         }
     EOT

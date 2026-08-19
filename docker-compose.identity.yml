@@ -1,0 +1,78 @@
+x-base: &base
+  restart: on-failure
+
+services:
+  identity-redis:
+    <<: *base
+    image: ${REDIS_IMAGE:?}
+    container_name: identity-redis
+    depends_on:
+      vault-agent:
+        condition: service_healthy
+    environment:
+      REDIS_PORT: ${REDIS_PORT:?}
+    ports:
+      - "${IDENTITY_REDIS_PUBLISHED_PORT}:${REDIS_PORT}"
+    volumes:
+      - identity_redis_data:/data
+      - identity_redis_secrets:/vault/secrets:ro
+      - ./infrastructure/services/identity/redis/entrypoint.sh:/usr/local/bin/vault-entrypoint.sh:ro
+    entrypoint: ["sh", "/usr/local/bin/vault-entrypoint.sh"]
+    networks:
+      redis_net:
+        aliases:
+          - identity-redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -p $${REDIS_PORT:-6379} -a \"$$(cat /vault/secrets/redis_password)\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  identity-postgresql:
+    <<: *base
+    build:
+      context: ./infrastructure/services/identity/postgres
+      args:
+        POSTGRES_BASE_IMAGE: ${POSTGRES_IMAGE:?}
+    env_file:
+      - .env
+    environment:
+      PATRONI_SCOPE: identity-service
+      POSTGRES_DB: ${IDENTITY_POSTGRES_DB:?}
+      POSTGRES_USER: ${IDENTITY_POSTGRES_USER:?}
+      POSTGRES_REPLICATION_USER: ${IDENTITY_POSTGRES_REPLICATION_USER:?}
+      POSTGRES_OUTBOX_SLOT: ${IDENTITY_POSTGRES_OUTBOX_SLOT:?}
+    depends_on:
+      consul:
+        condition: service_healthy
+      vault-agent:
+        condition: service_healthy
+    volumes:
+      - /var/lib/postgresql/data
+      - identity_postgresql_secrets:/vault/secrets:ro
+    networks:
+      postgres_net:
+      consul_net:
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:8008/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  identity_postgresql_secrets:
+  identity_redis_secrets:
+  identity_redis_data:
+
+networks:
+  postgres_net:
+    external: true
+    name: ${DOCKER_NETWORK_POSTGRES}
+  redis_net:
+    external: true
+    name: ${DOCKER_NETWORK_REDIS}
+  consul_net:
+    external: true
+    name: ${DOCKER_NETWORK_CONSUL}

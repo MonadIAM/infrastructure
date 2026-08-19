@@ -1,0 +1,78 @@
+x-base: &base
+  restart: on-failure
+
+services:
+  notification-redis:
+    <<: *base
+    image: ${REDIS_IMAGE:?}
+    container_name: notification-redis
+    depends_on:
+      vault-agent:
+        condition: service_healthy
+    environment:
+      REDIS_PORT: ${REDIS_PORT:?}
+    ports:
+      - "${NOTIFICATION_REDIS_PUBLISHED_PORT}:${REDIS_PORT}"
+    volumes:
+      - notification_redis_data:/data
+      - notification_redis_secrets:/vault/secrets:ro
+      - ./infrastructure/services/notification/redis/entrypoint.sh:/usr/local/bin/vault-entrypoint.sh:ro
+    entrypoint: ["sh", "/usr/local/bin/vault-entrypoint.sh"]
+    networks:
+      redis_net:
+        aliases:
+          - notification-redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -p $${REDIS_PORT:-6379} -a \"$$(cat /vault/secrets/redis_password)\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  notification-postgresql:
+    <<: *base
+    build:
+      context: ./infrastructure/services/notification/postgres
+      args:
+        POSTGRES_BASE_IMAGE: ${POSTGRES_IMAGE:?}
+    env_file:
+      - .env
+    environment:
+      PATRONI_SCOPE: notification-service
+      POSTGRES_DB: ${NOTIFICATION_POSTGRES_DB:?}
+      POSTGRES_USER: ${NOTIFICATION_POSTGRES_USER:?}
+      POSTGRES_REPLICATION_USER: ${NOTIFICATION_POSTGRES_REPLICATION_USER:?}
+      POSTGRES_OUTBOX_SLOT: ${NOTIFICATION_POSTGRES_OUTBOX_SLOT:?}
+    depends_on:
+      consul:
+        condition: service_healthy
+      vault-agent:
+        condition: service_healthy
+    volumes:
+      - /var/lib/postgresql/data
+      - notification_postgresql_secrets:/vault/secrets:ro
+    networks:
+      postgres_net:
+      consul_net:
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:8008/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  notification_postgresql_secrets:
+  notification_redis_secrets:
+  notification_redis_data:
+
+networks:
+  postgres_net:
+    external: true
+    name: ${DOCKER_NETWORK_POSTGRES}
+  redis_net:
+    external: true
+    name: ${DOCKER_NETWORK_REDIS}
+  consul_net:
+    external: true
+    name: ${DOCKER_NETWORK_CONSUL}
