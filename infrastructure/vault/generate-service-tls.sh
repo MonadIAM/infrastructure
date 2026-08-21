@@ -10,6 +10,8 @@ set -eu
 : "${PKI_MOUNT:?}"
 : "${TLS_TTL:?}"
 
+KAFKA_SECRET_GROUP_ID="${KAFKA_SECRET_GROUP_ID:-10000}"
+
 export VAULT_ADDR
 export VAULT_CACERT
 
@@ -62,7 +64,7 @@ issue_cert() {
     alt_names="$4"
     ip_sans="$5"
 
-    set -- "$PKI_MOUNT/issue/$role" "common_name=$common_name" "ttl=$TLS_TTL"
+    set -- "$PKI_MOUNT/issue/$role" "common_name=$common_name" "ttl=$TLS_TTL" "private_key_format=pkcs8"
     if [ -n "$alt_names" ]; then
         set -- "$@" "alt_names=$alt_names"
     fi
@@ -73,8 +75,17 @@ issue_cert() {
     response="$(vault write -format=json "$@")"
     printf '%s\n' "$response" | json_string_field certificate > "$SERVICE_CERT_DIR/$name.crt"
     printf '%s\n' "$response" | json_string_field private_key > "$SERVICE_CERT_DIR/$name.key"
+    cat "$SERVICE_CERT_DIR/$name.key" "$SERVICE_CERT_DIR/$name.crt" > "$SERVICE_CERT_DIR/$name.pem"
     chmod 0444 "$SERVICE_CERT_DIR/$name.crt"
     chmod 0400 "$SERVICE_CERT_DIR/$name.key"
+    chmod 0400 "$SERVICE_CERT_DIR/$name.pem"
+}
+
+grant_kafka_secret_group_read() {
+    for path in "$@"; do
+        chgrp "$KAFKA_SECRET_GROUP_ID" "$path"
+        chmod 0440 "$path"
+    done
 }
 
 mkdir -p "$SERVICE_CERT_DIR" "$SERVICE_CA_DIR"
@@ -97,6 +108,12 @@ chmod 0444 "$SERVICE_CERT_DIR/ca.crt" "$SERVICE_CA_DIR/ca.crt"
 issue_cert "pgbouncer" "pgbouncer-server" "pgbouncer" "pgbouncer-write,pgbouncer-read,localhost" "127.0.0.1"
 issue_cert "postgres" "postgres-server" "postgres" "postgres-haproxy,identity-postgresql,access-control-postgresql,notification-postgresql,localhost" "127.0.0.1"
 issue_cert "redis" "redis-server" "redis" "identity-redis,access-control-redis,notification-redis,template-redis,localhost" "127.0.0.1"
+issue_cert "kafka" "kafka-server" "kafka" "kafka,localhost" "127.0.0.1"
 issue_cert "client" "app-client" "monadiam-app-client" "" ""
+grant_kafka_secret_group_read \
+    "$SERVICE_CERT_DIR/kafka.key" \
+    "$SERVICE_CERT_DIR/kafka.pem" \
+    "$SERVICE_CERT_DIR/client.key" \
+    "$SERVICE_CERT_DIR/client.pem"
 
 echo "Service TLS material is available in $SERVICE_CERT_DIR."

@@ -199,6 +199,26 @@ resource "vault_pki_secret_backend_role" "redis_server" {
     key_bits = 2048
 }
 
+resource "vault_pki_secret_backend_role" "kafka_server" {
+    backend = vault_mount.service_pki.path
+    name    = "kafka-server"
+
+    ttl        = 31536000
+    max_ttl    = 31536000
+    issuer_ref = vault_pki_secret_backend_issuer.service_tls.issuer_id
+
+    allowed_domains    = ["kafka", "localhost"]
+    allow_bare_domains = true
+    allow_ip_sans      = true
+    require_cn         = true
+
+    server_flag = true
+    client_flag = false
+
+    key_type = "rsa"
+    key_bits = 2048
+}
+
 resource "vault_pki_secret_backend_role" "app_client" {
     backend = vault_mount.service_pki.path
     name    = "app-client"
@@ -277,6 +297,10 @@ resource "vault_policy" "service_tls_issuer" {
         }
 
         path "${local.service_pki_mount}/issue/redis-server" {
+          capabilities = ["update"]
+        }
+
+        path "${local.service_pki_mount}/issue/kafka-server" {
           capabilities = ["update"]
         }
 

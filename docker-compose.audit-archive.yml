@@ -7,6 +7,8 @@ services:
     image: ${CLICKHOUSE_IMAGE:?}
     container_name: clickhouse
     depends_on:
+      service-tls:
+        condition: service_completed_successfully
       vault-agent:
         condition: service_healthy
     environment:
@@ -19,6 +21,7 @@ services:
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_secrets:/vault/secrets:ro
+      - service_tls:/tls:ro
       - ./infrastructure/audit-archive/clickhouse/entrypoint.sh:/entrypoint-wrapper.sh:ro
     entrypoint: ["sh", "/entrypoint-wrapper.sh"]
     networks:
@@ -41,6 +44,8 @@ services:
     depends_on:
       clickhouse:
         condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:?}
       CLICKHOUSE_WRITER_USER: ${CLICKHOUSE_WRITER_USER:?}
@@ -121,6 +126,8 @@ services:
 volumes:
   clickhouse_secrets:
   clickhouse_data:
+  service_tls:
+    name: ${DOCKER_VOLUME_SERVICE_TLS:?}
   minio_secrets:
   minio_data:
 

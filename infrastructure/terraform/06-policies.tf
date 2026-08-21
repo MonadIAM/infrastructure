@@ -151,6 +151,10 @@ resource "vault_policy" "infra_secrets" {
           capabilities = ["read"]
         }
 
+        path "${local.infra_kv_mount}/data/infra/kafka" {
+          capabilities = ["read"]
+        }
+
         path "${local.kv_mount}/data/identity-service/runtime" {
           capabilities = ["read"]
         }

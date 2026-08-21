@@ -16,6 +16,12 @@ resource "random_password" "redis" {
     special  = false
 }
 
+resource "random_password" "kafka_service_sasl" {
+    for_each = local.services
+    length   = 32
+    special  = false
+}
+
 resource "vault_kv_secret_v2" "service_runtime" {
     for_each = local.services
     mount    = vault_mount.kv.path
@@ -24,6 +30,7 @@ resource "vault_kv_secret_v2" "service_runtime" {
     data_json = jsonencode({
         postgresql_password = random_password.postgres_admin[each.key].result
         redis_password      = random_password.redis[each.key].result
+        kafka_sasl_password = random_password.kafka_service_sasl[each.key].result
     })
 }
 
@@ -77,6 +84,36 @@ resource "random_password" "grafana_admin" {
     special = false
 }
 
+resource "random_password" "kafka_broker_sasl" {
+    length  = 32
+    special = false
+}
+
+resource "random_password" "kafka_admin_sasl" {
+    length  = 32
+    special = false
+}
+
+resource "random_password" "kafka_connect_sasl" {
+    length  = 32
+    special = false
+}
+
+resource "random_password" "kafka_ui_sasl" {
+    length  = 32
+    special = false
+}
+
+resource "random_password" "kafka_ui_admin" {
+    length  = 24
+    special = false
+}
+
+resource "random_password" "kafka_clickhouse_sasl" {
+    length  = 32
+    special = false
+}
+
 resource "vault_kv_secret_v2" "infra_clickhouse" {
     mount = vault_mount.infra_kv.path
     name  = "infra/clickhouse"
@@ -104,5 +141,19 @@ resource "vault_kv_secret_v2" "infra_grafana" {
 
     data_json = jsonencode({
         admin_password = random_password.grafana_admin.result
+    })
+}
+
+resource "vault_kv_secret_v2" "infra_kafka" {
+    mount = vault_mount.infra_kv.path
+    name  = "infra/kafka"
+
+    data_json = jsonencode({
+        kafka_broker_sasl_password     = random_password.kafka_broker_sasl.result
+        kafka_admin_sasl_password      = random_password.kafka_admin_sasl.result
+        kafka_connect_sasl_password    = random_password.kafka_connect_sasl.result
+        kafka_ui_sasl_password         = random_password.kafka_ui_sasl.result
+        kafka_ui_admin_password        = random_password.kafka_ui_admin.result
+        kafka_clickhouse_sasl_password = random_password.kafka_clickhouse_sasl.result
     })
 }

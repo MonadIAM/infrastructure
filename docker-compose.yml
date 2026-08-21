@@ -169,6 +169,8 @@ services:
   service-tls:
     image: ${VAULT_IMAGE:?}
     container_name: service-tls
+    group_add:
+      - "10000"
     depends_on:
       terraform-apply:
         condition: service_completed_successfully
@@ -218,6 +220,8 @@ services:
     image: ${VAULT_IMAGE:?}
     container_name: vault-agent
     restart: always
+    group_add:
+      - "10000"
     depends_on:
       vault-bootstrap:
         condition: service_completed_successfully
@@ -241,13 +245,14 @@ services:
       - clickhouse_secrets:/secrets/clickhouse
       - minio_secrets:/secrets/minio
       - grafana_secrets:/secrets/grafana
+      - kafka_secrets:/secrets/kafka
     networks:
       vault_net:
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "test -f /secrets/postgresql/identity/postgresql_password && test -f /secrets/postgresql/identity/postgresql_replication_password && test -f /secrets/postgresql/access-control/postgresql_password && test -f /secrets/postgresql/access-control/postgresql_replication_password && test -f /secrets/postgresql/notification/postgresql_password && test -f /secrets/postgresql/notification/postgresql_replication_password && test -f /secrets/redis/identity/redis_password && test -f /secrets/redis/access-control/redis_password && test -f /secrets/redis/notification/redis_password && test -f /secrets/clickhouse/clickhouse_password && test -f /secrets/minio/minio_root_password && test -f /secrets/grafana/admin_password",
+          "test -f /secrets/postgresql/identity/postgresql_password && test -f /secrets/postgresql/identity/postgresql_replication_password && test -f /secrets/postgresql/access-control/postgresql_password && test -f /secrets/postgresql/access-control/postgresql_replication_password && test -f /secrets/postgresql/notification/postgresql_password && test -f /secrets/postgresql/notification/postgresql_replication_password && test -f /secrets/redis/identity/redis_password && test -f /secrets/redis/access-control/redis_password && test -f /secrets/redis/notification/redis_password && test -f /secrets/clickhouse/clickhouse_password && test -f /secrets/clickhouse/kafka_sasl_password && test -f /secrets/minio/minio_root_password && test -f /secrets/grafana/admin_password && test -f /secrets/kafka/kafka_broker_sasl_password && test -f /secrets/kafka/kafka_admin_sasl_password && test -f /secrets/kafka/kafka_connect_sasl_password && test -f /secrets/kafka/kafka_ui_sasl_password && test -f /secrets/kafka/kafka_ui_admin_password && test -f /secrets/kafka/kafka_clickhouse_sasl_password && test -f /secrets/kafka/kafka-ui.yml && test -f /secrets/kafka/identity/kafka_sasl_password && test -f /secrets/kafka/access-control/kafka_sasl_password && test -f /secrets/kafka/notification/kafka_sasl_password",
         ]
       interval: 5s
       timeout: 3s
@@ -273,6 +278,7 @@ volumes:
   clickhouse_secrets:
   vault_agent_token:
   grafana_secrets:
+  kafka_secrets:
   minio_secrets:
   consul_data:
 

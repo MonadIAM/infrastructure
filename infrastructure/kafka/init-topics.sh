@@ -1,88 +1,176 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-KAFKA="/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092"
+: "${KAFKA_CONNECT_GROUP_ID:?}"
+: "${KAFKA_CONNECT_CONFIG_STORAGE_TOPIC:?}"
+: "${KAFKA_CONNECT_OFFSET_STORAGE_TOPIC:?}"
+: "${KAFKA_CONNECT_STATUS_STORAGE_TOPIC:?}"
 
-# Tunables
+BOOTSTRAP_SERVER="${KAFKA_BOOTSTRAP_SERVER:-kafka:29092}"
+SECRETS_DIR="${KAFKA_SECRETS_DIR:-/vault/secrets/kafka}"
+TLS_DIR="${KAFKA_TLS_DIR:-/tls}"
+ADMIN_CONFIG="/tmp/kafka-admin.properties"
+
+read_secret() {
+    local path="$1"
+    tr -d '\r\n' < "$path"
+}
+
+wait_for_file() {
+    local path="$1"
+    local i=0
+
+    until [ -s "$path" ]; do
+        i=$((i + 1))
+        if [ "$i" -ge 60 ]; then
+            echo "Timed out waiting for $path" >&2
+            exit 1
+        fi
+        sleep 1
+    done
+}
+
+wait_for_file "$TLS_DIR/ca.crt"
+wait_for_file "$TLS_DIR/client.pem"
+wait_for_file "$SECRETS_DIR/kafka_admin_sasl_password"
+
+ADMIN_PASSWORD="$(read_secret "$SECRETS_DIR/kafka_admin_sasl_password")"
+
+cat > "$ADMIN_CONFIG" <<EOF
+security.protocol=SASL_SSL
+sasl.mechanism=SCRAM-SHA-512
+sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="kafka-admin" password="${ADMIN_PASSWORD}";
+ssl.keystore.type=PEM
+ssl.keystore.location=${TLS_DIR}/client.pem
+ssl.truststore.type=PEM
+ssl.truststore.location=${TLS_DIR}/ca.crt
+ssl.endpoint.identification.algorithm=https
+EOF
+
+chmod 0400 "$ADMIN_CONFIG"
+
+KAFKA_TOPICS=(/opt/kafka/bin/kafka-topics.sh --bootstrap-server "$BOOTSTRAP_SERVER" --command-config "$ADMIN_CONFIG")
+KAFKA_ACLS=(/opt/kafka/bin/kafka-acls.sh --bootstrap-server "$BOOTSTRAP_SERVER" --command-config "$ADMIN_CONFIG")
+
 PARTITIONS=1
 REPLICATION_FACTOR=1
+RETENTION_MAIN=259200000
+RETENTION_RETRY=604800000
+RETENTION_DEAD=2592000000
 
-# Retention
-RETENTION_MAIN="--config retention.ms=259200000"   # 3  days
-RETENTION_RETRY="--config retention.ms=604800000"  # 7  days
-RETENTION_DEAD="--config retention.ms=2592000000"  # 30 days
-RETENTION_BLACKLIST="--config retention.ms=900000" # 15 min
+TOPICS=()
+topic_spec() {
+    local spec="$1"
+    local config
+    shift
+    for config in "$@"; do
+        spec+="|$config"
+    done
+    TOPICS+=("$spec")
+}
 
-# Common flags
-CREATE="$KAFKA --create --if-not-exists --partitions $PARTITIONS --replication-factor $REPLICATION_FACTOR"
+topic_triplet() {
+    topic_spec "$1" "retention.ms=$RETENTION_MAIN"
+    topic_spec "$1-retry" "retention.ms=$RETENTION_RETRY"
+    topic_spec "$1-dead" "retention.ms=$RETENTION_DEAD"
+}
 
-# realm: access-control -> identity
-$CREATE --topic realm       $RETENTION_MAIN
-$CREATE --topic realm-retry $RETENTION_RETRY
-$CREATE --topic realm-dead  $RETENTION_DEAD
+for topic in realm account membership identifier service-client interface-client notification message-dispatch access-cache projection-journal; do
+    topic_triplet "$topic"
+done
 
-# account: identity -> all services
-$CREATE --topic account       $RETENTION_MAIN
-$CREATE --topic account-retry $RETENTION_RETRY
-$CREATE --topic account-dead  $RETENTION_DEAD
+topic_spec reauthentication "retention.ms=1800000"
+topic_spec reauthentication-retry "retention.ms=$RETENTION_RETRY"
+topic_spec reauthentication-dead "retention.ms=$RETENTION_DEAD"
+topic_spec blacklist "cleanup.policy=compact,delete" "retention.ms=900000" "min.cleanable.dirty.ratio=0.01" "segment.ms=60000"
+topic_spec blacklist-dead "retention.ms=$RETENTION_RETRY"
+topic_spec audit-log-archive "retention.ms=$RETENTION_MAIN"
+topic_spec change-log-archive "retention.ms=$RETENTION_MAIN"
+topic_spec "$KAFKA_CONNECT_CONFIG_STORAGE_TOPIC" "cleanup.policy=compact"
+topic_spec "$KAFKA_CONNECT_OFFSET_STORAGE_TOPIC" "cleanup.policy=compact"
+topic_spec "$KAFKA_CONNECT_STATUS_STORAGE_TOPIC" "cleanup.policy=compact"
 
-# membership: access-control -> identity
-$CREATE --topic membership       $RETENTION_MAIN
-$CREATE --topic membership-retry $RETENTION_RETRY
-$CREATE --topic membership-dead  $RETENTION_DEAD
+ALL_TOPICS=()
+for spec in "${TOPICS[@]}"; do
+    ALL_TOPICS+=("${spec%%|*}")
+done
 
-# identifier: identity -> notification
-$CREATE --topic identifier       $RETENTION_MAIN
-$CREATE --topic identifier-retry $RETENTION_RETRY
-$CREATE --topic identifier-dead  $RETENTION_DEAD
+declare -A EXISTING_TOPIC_SET=()
+while IFS= read -r topic; do
+    [[ -z "$topic" ]] && continue
+    EXISTING_TOPIC_SET["$topic"]=1
+done < <("${KAFKA_TOPICS[@]}" --list)
 
-# service-client: identity -> certificate-service only
-$CREATE --topic service-client       $RETENTION_MAIN
-$CREATE --topic service-client-retry $RETENTION_RETRY
-$CREATE --topic service-client-dead  $RETENTION_DEAD
+create_topic() {
+    local fields topic args i
+    IFS='|' read -r -a fields <<< "$1"
+    topic="${fields[0]}"
+    [[ -n "${EXISTING_TOPIC_SET[$topic]+x}" ]] && return
+    args=(--create --if-not-exists --topic "$topic" --partitions "$PARTITIONS" --replication-factor "$REPLICATION_FACTOR")
+    for ((i = 1; i < ${#fields[@]}; i += 1)); do
+        args+=(--config "${fields[$i]}")
+    done
+    "${KAFKA_TOPICS[@]}" "${args[@]}"
+}
 
-# interface-client: identity -> access-control, notification
-$CREATE --topic interface-client       $RETENTION_MAIN
-$CREATE --topic interface-client-retry $RETENTION_RETRY
-$CREATE --topic interface-client-dead  $RETENTION_DEAD
+operation_args() {
+    OPERATION_ARGS=()
+    local operation
+    IFS=',' read -r -a operations <<< "$1"
+    for operation in "${operations[@]}"; do
+        OPERATION_ARGS+=(--operation "$operation")
+    done
+}
 
-# notification: all services -> notification
-$CREATE --topic notification       $RETENTION_MAIN
-$CREATE --topic notification-retry $RETENTION_RETRY
-$CREATE --topic notification-dead  $RETENTION_DEAD
+add_acl() {
+    local resource="$1"
+    local principal="$2"
+    local operations="$3"
+    local value args
+    shift 3
+    operation_args "$operations"
+    args=(--add --allow-principal "User:$principal" "${OPERATION_ARGS[@]}")
+    case "$resource" in
+        cluster) args+=(--cluster) ;;
+        group) args+=(--group "$1") ;;
+        topic) for value in "$@"; do args+=(--topic "$value"); done ;;
+        *) echo "Unknown ACL resource: $resource" >&2; exit 1 ;;
+    esac
+    "${KAFKA_ACLS[@]}" "${args[@]}"
+}
 
-# message-dispatch: notification internal (SES/SNS dispatch)
-$CREATE --topic message-dispatch       $RETENTION_MAIN
-$CREATE --topic message-dispatch-retry $RETENTION_RETRY
-$CREATE --topic message-dispatch-dead  $RETENTION_DEAD
+for spec in "${TOPICS[@]}"; do
+    create_topic "$spec"
+done
 
-# access-cache: access-control -> all services
-$CREATE --topic access-cache       $RETENTION_MAIN
-$CREATE --topic access-cache-retry $RETENTION_RETRY
-$CREATE --topic access-cache-dead  $RETENTION_DEAD
+for principal in identity-service access-control-service notification-service kafka-connect clickhouse; do
+    add_acl cluster "$principal" Describe
+done
+add_acl cluster kafka-ui Describe,DescribeConfigs
 
-# projection-journal: access-control internal (redis sync)
-$CREATE --topic projection-journal       $RETENTION_MAIN
-$CREATE --topic projection-journal-retry $RETENTION_RETRY
-$CREATE --topic projection-journal-dead  $RETENTION_DEAD
+add_acl topic kafka-connect Read,Write,Describe "${ALL_TOPICS[@]}"
+add_acl group kafka-connect Read,Describe "$KAFKA_CONNECT_GROUP_ID"
 
-# reauthentication: identity -> all services
-$CREATE --topic reauthentication       --config retention.ms=1800000 # 30 min
-$CREATE --topic reauthentication-retry $RETENTION_RETRY
-$CREATE --topic reauthentication-dead  $RETENTION_DEAD
+add_acl topic clickhouse Read,Describe audit-log-archive change-log-archive
+add_acl group clickhouse Read,Describe clickhouse-audit-log
+add_acl group clickhouse Read,Describe clickhouse-change-log
 
-# blacklist: session revocation
-# compact + delete: deduplication by session key + TTL-eviction
-$CREATE --topic blacklist \
-  --config cleanup.policy=compact,delete \
-  --config retention.ms=900000 \
-  --config min.cleanable.dirty.ratio=0.01 \
-  --config segment.ms=60000
+add_acl topic identity-service Read,Describe access-cache blacklist membership realm reauthentication access-cache-retry membership-retry realm-retry reauthentication-retry
+add_acl topic identity-service Write,Describe access-cache access-cache-retry access-cache-dead blacklist-dead membership membership-retry membership-dead realm realm-retry realm-dead reauthentication reauthentication-retry reauthentication-dead
+add_acl group identity-service Read,Describe identity-service-consumer-server
+add_acl group identity-service Read,Describe identity-service-producer-client
 
-# No retry required the data is temporary. Dead for failure analysis only.
-$CREATE --topic blacklist-dead $RETENTION_RETRY
+add_acl topic access-control-service Read,Describe account blacklist membership projection-journal reauthentication account-retry membership-retry projection-journal-retry
+add_acl topic access-control-service Write,Describe account account-retry account-dead blacklist-dead membership membership-retry membership-dead projection-journal projection-journal-retry projection-journal-dead reauthentication-retry reauthentication-dead
+add_acl group access-control-service Read,Describe access-control-service-consumer-server
+add_acl group access-control-service Read,Describe access-control-service-producer-client
 
-# audit-log-archive / change-log-archive: identity + access-control -> ClickHouse
-# Pure fan-out consumption, no retries: if ClickHouse is down, messages just wait out the retention.
-$CREATE --topic audit-log-archive  $RETENTION_MAIN
-$CREATE --topic change-log-archive $RETENTION_MAIN
+add_acl topic notification-service Read,Describe access-cache blacklist reauthentication notification message-dispatch notification-retry message-dispatch-retry
+add_acl topic notification-service Write,Describe access-cache access-cache-retry access-cache-dead blacklist-dead reauthentication reauthentication-retry reauthentication-dead notification notification-retry notification-dead message-dispatch message-dispatch-retry message-dispatch-dead
+add_acl group notification-service Read,Describe notification-service-consumer-server
+add_acl group notification-service Read,Describe notification-service-producer-client
+
+add_acl topic kafka-ui Read,Describe,DescribeConfigs '*'
+add_acl group kafka-ui Read,Describe '*'
+
+echo "Kafka topics and ACLs are configured."

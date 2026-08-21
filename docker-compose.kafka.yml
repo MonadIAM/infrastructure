@@ -6,41 +6,54 @@ services:
     <<: *base
     image: ${KAFKA_IMAGE:?}
     container_name: kafka
-    ports:
-      - "${KAFKA_EXTERNAL_PORT}:${KAFKA_EXTERNAL_PORT}"
+    group_add:
+      - "10000"
     environment:
       CLUSTER_ID: ${KAFKA_CLUSTER_ID:?}
-      KAFKA_NODE_ID: 1
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:${KAFKA_INTERNAL_PORT},EXTERNAL://0.0.0.0:${KAFKA_EXTERNAL_PORT},CONTROLLER://kafka:${KAFKA_CONTROLLER_PORT}
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:${KAFKA_INTERNAL_PORT},EXTERNAL://localhost:${KAFKA_EXTERNAL_PORT}
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:${KAFKA_CONTROLLER_PORT}
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_INTERNAL_PORT: ${KAFKA_INTERNAL_PORT:?}
+      KAFKA_CONTROLLER_PORT: ${KAFKA_CONTROLLER_PORT:?}
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:?}
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:?}
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:?}
       KAFKA_LOG_DIRS: /var/lib/kafka/data
+    depends_on:
+      service-tls:
+        condition: service_completed_successfully
+      vault-agent:
+        condition: service_healthy
     volumes:
       - kafka_data:/var/lib/kafka/data
+      - ./infrastructure/kafka/start-secure-kafka.sh:/start-secure-kafka.sh:ro
+      - service_tls:/tls:ro
+      - kafka_secrets:/vault/secrets/kafka:ro
+    entrypoint: ["bash", "/start-secure-kafka.sh"]
     networks:
       kafka_net:
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 29092 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:${KAFKA_INTERNAL_PORT} --command-config /home/appuser/kafka/health.properties >/dev/null 2>&1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 20s
+      start_period: 30s
 
   kafka-init:
     image: ${KAFKA_IMAGE:?}
     container_name: kafka-init
+    group_add:
+      - "10000"
+    env_file:
+      - .env
     depends_on:
       kafka:
         condition: service_healthy
     volumes:
       - ./infrastructure/kafka/init-topics.sh:/init-topics.sh:ro
+      - service_tls:/tls:ro
+      - kafka_secrets:/vault/secrets/kafka:ro
     entrypoint: ["bash", "/init-topics.sh"]
     networks:
       kafka_net:
@@ -49,14 +62,18 @@ services:
     <<: *base
     image: ${KAFKA_UI_IMAGE:?}
     container_name: kafka-ui
+    group_add:
+      - "10000"
     ports:
       - "${KAFKA_UI_PORT}:8080"
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     environment:
-      KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:${KAFKA_INTERNAL_PORT}
+      SPRING_CONFIG_ADDITIONAL_LOCATION: file:/vault/secrets/kafka/kafka-ui.yml
+    volumes:
+      - service_tls:/tls:ro
+      - kafka_secrets:/vault/secrets/kafka:ro
     networks:
       kafka_net:
 
@@ -64,6 +81,8 @@ services:
     <<: *base
     image: ${KAFKA_CONNECT_IMAGE:?}
     container_name: kafka-connect
+    group_add:
+      - "10000"
     ports:
       - "${KAFKA_CONNECT_PORT}:8083"
     environment:
@@ -75,10 +94,15 @@ services:
     depends_on:
       service-tls:
         condition: service_completed_successfully
-      kafka:
+      vault-agent:
         condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     volumes:
+      - ./infrastructure/kafka/connect-entrypoint.sh:/connect-entrypoint.sh:ro
       - service_tls:/tls:ro
+      - kafka_secrets:/vault/secrets/kafka:ro
+    entrypoint: ["sh", "/connect-entrypoint.sh"]
     networks:
       kafka_net:
       postgres_net:
@@ -117,6 +141,7 @@ volumes:
   identity_postgresql_secrets:
   access_control_postgresql_secrets:
   notification_postgresql_secrets:
+  kafka_secrets:
   service_tls:
     name: ${DOCKER_VOLUME_SERVICE_TLS:?}
 
