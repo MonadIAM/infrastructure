@@ -51,6 +51,7 @@ lerna-debug.log*
 infrastructure/terraform/.terraform/
 infrastructure/terraform/terraform.tfstate
 infrastructure/terraform/terraform.tfstate.backup
+infrastructure/terraform/.terraform.tfstate.lock.info
 infrastructure/terraform/.output/
 infrastructure/terraform/*.auto.tfvars
 infrastructure/terraform/*.auto.tfvars.json

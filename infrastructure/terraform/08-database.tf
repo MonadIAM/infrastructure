@@ -6,7 +6,7 @@ resource "vault_database_secret_backend_connection" "service" {
     allowed_roles = ["${each.key}-app", "${each.key}-developer-readonly"]
 
     postgresql {
-        connection_url = "postgresql://{{username}}:{{password}}@${each.value.postgres_host}:${each.value.postgres_port}/${each.value.postgres_db}?sslmode=disable"
+        connection_url = "postgresql://{{username}}:{{password}}@${each.value.postgres_host}:${each.value.postgres_port}/${each.value.postgres_db}?sslmode=verify-full&sslrootcert=/service/ca/ca.crt"
         username       = each.value.postgres_admin_user
         password       = random_password.postgres_admin[each.key].result
     }

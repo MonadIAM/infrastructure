@@ -29,6 +29,17 @@ wait_for_secret /secrets/identity/postgresql_password
 wait_for_secret /secrets/access-control/postgresql_password
 wait_for_secret /secrets/notification/postgresql_password
 
+TLS_DIR=/tmp/pgbouncer-tls
+mkdir -p "$TLS_DIR"
+cp /tls/ca.crt "$TLS_DIR/ca.crt"
+cp /tls/pgbouncer.crt "$TLS_DIR/pgbouncer.crt"
+cp /tls/pgbouncer.key "$TLS_DIR/pgbouncer.key"
+cp /tls/client.crt "$TLS_DIR/client.crt"
+cp /tls/client.key "$TLS_DIR/client.key"
+chown -R pgbouncer:pgbouncer "$TLS_DIR"
+chmod 0444 "$TLS_DIR/ca.crt" "$TLS_DIR/pgbouncer.crt" "$TLS_DIR/client.crt"
+chmod 0400 "$TLS_DIR/pgbouncer.key" "$TLS_DIR/client.key"
+
 envsubst '${IDENTITY_POSTGRES_DB} ${IDENTITY_POSTGRES_USER} ${IDENTITY_POSTGRES_TARGET_PORT} ${ACCESS_CONTROL_POSTGRES_DB} ${ACCESS_CONTROL_POSTGRES_USER} ${ACCESS_CONTROL_POSTGRES_TARGET_PORT} ${NOTIFICATION_POSTGRES_DB} ${NOTIFICATION_POSTGRES_USER} ${NOTIFICATION_POSTGRES_TARGET_PORT} ${PGBOUNCER_LISTEN_PORT} ${PGBOUNCER_MAX_CLIENT_CONN} ${PGBOUNCER_DEFAULT_POOL_SIZE} ${PGBOUNCER_RESERVE_POOL_SIZE}' \
     < /etc/pgbouncer/pgbouncer.ini.tpl > /tmp/pgbouncer.ini
 

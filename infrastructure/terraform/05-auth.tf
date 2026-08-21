@@ -114,3 +114,33 @@ resource "vault_token" "provisioner" {
     renewable         = true
     ttl               = "720h"
 }
+
+
+resource "vault_policy" "infra_agent_bootstrap" {
+    name = "infra-agent-bootstrap"
+
+    policy = <<-EOT
+        path "auth/approle/role/infra/role-id" {
+          capabilities = ["read"]
+        }
+
+        path "auth/approle/role/infra/secret-id" {
+          capabilities = ["create", "update"]
+        }
+
+        path "auth/token/renew-self" {
+          capabilities = ["update"]
+        }
+
+        path "auth/token/lookup-self" {
+          capabilities = ["read"]
+        }
+    EOT
+}
+
+resource "vault_token" "infra_agent_bootstrap" {
+    policies          = [vault_policy.infra_agent_bootstrap.name]
+    no_default_policy = true
+    renewable         = true
+    ttl               = "720h"
+}

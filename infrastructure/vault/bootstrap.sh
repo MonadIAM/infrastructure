@@ -1,39 +1,44 @@
 #!/bin/sh
 set -eu
 
-VAULT_TOKEN="$(cat /vault/init-keys/root-token)"
+: "${VAULT_ADDR:?}"
+: "${VAULT_CACERT:?}"
+: "${VAULT_BOOTSTRAP_TOKEN_FILE:?}"
+: "${VAULT_AGENT_ROLE_NAME:?}"
+: "${VAULT_AGENT_ROLE_ID_FILE:?}"
+: "${VAULT_AGENT_SECRET_ID_FILE:?}"
+
+export VAULT_ADDR
+export VAULT_CACERT
+
+wait_for_file() {
+    path="$1"
+    i=0
+    until [ -s "$path" ]; do
+        i=$((i + 1))
+        if [ "$i" -ge 60 ]; then
+            echo "Timed out waiting for $path" >&2
+            exit 1
+        fi
+        sleep 1
+    done
+}
+
+wait_for_file "$VAULT_BOOTSTRAP_TOKEN_FILE"
+
+VAULT_TOKEN="$(cat "$VAULT_BOOTSTRAP_TOKEN_FILE")"
 export VAULT_TOKEN
 
-i=0
 until vault status >/dev/null 2>&1; do
-    i=$((i + 1))
-    if [ "$i" -ge 60 ]; then
-        echo "Vault did not become ready in time ($VAULT_ADDR)" >&2
-        exit 1
-    fi
     sleep 1
 done
 
-i=0
-while :; do
-    if error_output="$(vault read -field=role_id auth/approle/role/infra/role-id 2>&1 > /vault/config/role-id)"; then
-        break
-    fi
+role_path="auth/approle/role/$VAULT_AGENT_ROLE_NAME"
+role_id_dir="$(dirname "$VAULT_AGENT_ROLE_ID_FILE")"
+secret_id_dir="$(dirname "$VAULT_AGENT_SECRET_ID_FILE")"
 
-    case "$error_output" in
-        *"Code: 403"*|*"Code: 401"*)
-            echo "Vault rejected VAULT_TOKEN while reading AppRole 'infra': $error_output" >&2
-            exit 1
-            ;;
-    esac
+mkdir -p "$role_id_dir" "$secret_id_dir"
 
-    i=$((i + 1))
-    if [ "$i" -ge 120 ]; then
-        echo "AppRole 'infra' was never provisioned" >&2
-        exit 1
-    fi
-    sleep 2
-done
-
-vault write -f -field=secret_id auth/approle/role/infra/secret-id > /vault/agent-bootstrap/secret-id
-chmod 0400 /vault/config/role-id /vault/agent-bootstrap/secret-id
+vault read -field=role_id "$role_path/role-id" > "$VAULT_AGENT_ROLE_ID_FILE"
+vault write -f -field=secret_id "$role_path/secret-id" > "$VAULT_AGENT_SECRET_ID_FILE"
+chmod 0400 "$VAULT_AGENT_ROLE_ID_FILE" "$VAULT_AGENT_SECRET_ID_FILE"

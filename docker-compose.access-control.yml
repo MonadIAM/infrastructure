@@ -7,15 +7,18 @@ services:
     image: ${REDIS_IMAGE:?}
     container_name: access-control-redis
     depends_on:
+      service-tls:
+        condition: service_completed_successfully
       vault-agent:
         condition: service_healthy
     environment:
       REDIS_PORT: ${REDIS_PORT:?}
     ports:
-      - "${ACCESS_CONTROL_REDIS_PUBLISHED_PORT}:${REDIS_PORT}"
+      - "127.0.0.1:${ACCESS_CONTROL_REDIS_PUBLISHED_PORT}:${REDIS_PORT}"
     volumes:
       - access_control_redis_data:/data
       - access_control_redis_secrets:/vault/secrets:ro
+      - service_tls:/tls:ro
       - ./infrastructure/services/access-control/redis/entrypoint.sh:/usr/local/bin/vault-entrypoint.sh:ro
     entrypoint: ["sh", "/usr/local/bin/vault-entrypoint.sh"]
     networks:
@@ -23,7 +26,7 @@ services:
         aliases:
           - access-control-redis
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -p $${REDIS_PORT:-6379} -a \"$$(cat /vault/secrets/redis_password)\" ping | grep -q PONG"]
+      test: ["CMD-SHELL", "redis-cli --tls --cacert /tmp/redis-tls/ca.crt --cert /tmp/redis-tls/client.crt --key /tmp/redis-tls/client.key -p $${REDIS_PORT:?} -a \"$$(cat /vault/secrets/redis_password)\" ping | grep -q PONG"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -44,6 +47,8 @@ services:
       POSTGRES_REPLICATION_USER: ${ACCESS_CONTROL_POSTGRES_REPLICATION_USER:?}
       POSTGRES_OUTBOX_SLOT: ${ACCESS_CONTROL_POSTGRES_OUTBOX_SLOT:?}
     depends_on:
+      service-tls:
+        condition: service_completed_successfully
       consul:
         condition: service_healthy
       vault-agent:
@@ -51,6 +56,7 @@ services:
     volumes:
       - /var/lib/postgresql/data
       - access_control_postgresql_secrets:/vault/secrets:ro
+      - service_tls:/tls:ro
     networks:
       postgres_net:
       consul_net:
@@ -65,14 +71,16 @@ volumes:
   access_control_postgresql_secrets:
   access_control_redis_secrets:
   access_control_redis_data:
+  service_tls:
+    name: ${DOCKER_VOLUME_SERVICE_TLS:?}
 
 networks:
   postgres_net:
-    external: true
     name: ${DOCKER_NETWORK_POSTGRES}
+    internal: true
   redis_net:
-    external: true
     name: ${DOCKER_NETWORK_REDIS}
+    internal: true
   consul_net:
     external: true
     name: ${DOCKER_NETWORK_CONSUL}

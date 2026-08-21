@@ -1,11 +1,12 @@
 locals {
-    kv_mount       = "kv"
-    infra_kv_mount = "infra-kv"
-    database_mount = "database"
-    transit_mount  = "transit"
-    pki_root_mount = "pki-root"
-    pki_mount      = "pki"
-    aws_mount      = "aws"
+    kv_mount          = "kv"
+    infra_kv_mount    = "infra-kv"
+    database_mount    = "database"
+    transit_mount     = "transit"
+    pki_root_mount    = "pki-root"
+    pki_mount         = "pki"
+    service_pki_mount = "pki-service"
+    aws_mount         = "aws"
 
     services = {
         identity-service = {

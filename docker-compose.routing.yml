@@ -43,8 +43,10 @@ services:
       ACCESS_CONTROL_POSTGRES_TARGET_PORT: ${ACCESS_CONTROL_POSTGRES_WRITE_PORT:?}
       NOTIFICATION_POSTGRES_TARGET_PORT: ${NOTIFICATION_POSTGRES_WRITE_PORT:?}
     ports:
-      - "${PGBOUNCER_WRITE_PUBLISHED_PORT}:${PGBOUNCER_LISTEN_PORT}"
+      - "127.0.0.1:${PGBOUNCER_WRITE_PUBLISHED_PORT}:${PGBOUNCER_LISTEN_PORT}"
     depends_on:
+      service-tls:
+        condition: service_completed_successfully
       postgres-haproxy:
         condition: service_healthy
       vault-agent:
@@ -53,6 +55,7 @@ services:
       - identity_postgresql_secrets:/secrets/identity:ro
       - access_control_postgresql_secrets:/secrets/access-control:ro
       - notification_postgresql_secrets:/secrets/notification:ro
+      - service_tls:/tls:ro
     networks:
       postgres_net:
     healthcheck:
@@ -76,8 +79,10 @@ services:
       ACCESS_CONTROL_POSTGRES_TARGET_PORT: ${ACCESS_CONTROL_POSTGRES_READ_PORT:?}
       NOTIFICATION_POSTGRES_TARGET_PORT: ${NOTIFICATION_POSTGRES_READ_PORT:?}
     ports:
-      - "${PGBOUNCER_READ_PUBLISHED_PORT}:${PGBOUNCER_LISTEN_PORT}"
+      - "127.0.0.1:${PGBOUNCER_READ_PUBLISHED_PORT}:${PGBOUNCER_LISTEN_PORT}"
     depends_on:
+      service-tls:
+        condition: service_completed_successfully
       postgres-haproxy:
         condition: service_healthy
       vault-agent:
@@ -86,6 +91,7 @@ services:
       - identity_postgresql_secrets:/secrets/identity:ro
       - access_control_postgresql_secrets:/secrets/access-control:ro
       - notification_postgresql_secrets:/secrets/notification:ro
+      - service_tls:/tls:ro
     networks:
       postgres_net:
     healthcheck:
@@ -99,11 +105,13 @@ volumes:
   identity_postgresql_secrets:
   access_control_postgresql_secrets:
   notification_postgresql_secrets:
+  service_tls:
+    name: ${DOCKER_VOLUME_SERVICE_TLS:?}
 
 networks:
   postgres_net:
-    external: true
     name: ${DOCKER_NETWORK_POSTGRES}
+    internal: true
   consul_net:
     external: true
     name: ${DOCKER_NETWORK_CONSUL}

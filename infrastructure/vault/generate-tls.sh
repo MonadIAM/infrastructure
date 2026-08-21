@@ -1,42 +1,66 @@
 #!/bin/sh
 set -eu
 
-CERT_DIR=/vault/tls
-CA_DIR=/vault/ca
-DAYS=3650
+: "${CERT_DIR:?}"
+: "${CA_DIR:?}"
+: "${DAYS:?}"
 
-mkdir -p "$CERT_DIR"
-mkdir -p "$CA_DIR"
+CA_KEY="$CERT_DIR/ca.key"
+CA_CERT="$CERT_DIR/ca.crt"
+VAULT_KEY="$CERT_DIR/vault.key"
+VAULT_CERT="$CERT_DIR/vault.crt"
+VAULT_EXT="$CERT_DIR/vault.ext"
 
-if [ -f "$CERT_DIR/vault.crt" ] && [ -f "$CERT_DIR/vault.key" ] && [ -f "$CERT_DIR/ca.crt" ]; then
-    cp "$CERT_DIR/ca.crt" "$CA_DIR/ca.crt"
-    chmod 0444 "$CA_DIR/ca.crt"
-    echo "TLS material already present in $CERT_DIR, skipping generation."
-    exit 0
-fi
+mkdir -p "$CERT_DIR" "$CA_DIR"
 
-echo "Generating local CA and Vault server certificate (dev/stand-only, self-signed - see infra/VAULT-DEV-MODE-TRANSITION-PLAN.md)..."
+if [ -s "$CA_KEY" ] && [ -s "$CA_CERT" ] && [ -s "$VAULT_KEY" ] && [ -s "$VAULT_CERT" ]; then
+    echo "Vault HTTPS TLS material already exists in $CERT_DIR."
+else
+    echo "Generating Vault HTTPS TLS material in $CERT_DIR."
 
-openssl genrsa -out "$CERT_DIR/ca.key" 4096
-openssl req -x509 -new -nodes -key "$CERT_DIR/ca.key" -sha256 -days "$DAYS" \
-    -subj "/CN=MonadIAM Local Vault CA" -out "$CERT_DIR/ca.crt"
+    umask 077
+    tmp_dir="$CERT_DIR/.generate.$$"
+    rm -rf "$tmp_dir"
+    mkdir -p "$tmp_dir"
+    trap 'rm -rf "$tmp_dir"' EXIT HUP INT TERM
 
-openssl genrsa -out "$CERT_DIR/vault.key" 2048
+    openssl genrsa -out "$tmp_dir/ca.key" 4096
+    openssl req -x509 -new -nodes -key "$tmp_dir/ca.key" -sha256 -days "$DAYS" \
+        -subj "/CN=MonadIAM Local Vault CA" \
+        -out "$tmp_dir/ca.crt"
 
-cat > "$CERT_DIR/vault.ext" <<EOF
-subjectAltName = DNS:vault, DNS:localhost, IP:127.0.0.1
+    openssl genrsa -out "$tmp_dir/vault.key" 2048
+
+    cat > "$tmp_dir/vault.ext" <<'EOF'
+subjectAltName = DNS:vault,DNS:localhost,IP:127.0.0.1
 extendedKeyUsage = serverAuth
+keyUsage = digitalSignature,keyEncipherment
 EOF
 
-openssl req -new -key "$CERT_DIR/vault.key" -subj "/CN=vault" \
-    | openssl x509 -req -CA "$CERT_DIR/ca.crt" -CAkey "$CERT_DIR/ca.key" -CAcreateserial \
-        -days "$DAYS" -sha256 -extfile "$CERT_DIR/vault.ext" -out "$CERT_DIR/vault.crt"
+    openssl req -new -key "$tmp_dir/vault.key" -subj "/CN=vault" \
+        | openssl x509 -req \
+            -CA "$tmp_dir/ca.crt" \
+            -CAkey "$tmp_dir/ca.key" \
+            -CAcreateserial \
+            -days "$DAYS" \
+            -sha256 \
+            -extfile "$tmp_dir/vault.ext" \
+            -out "$tmp_dir/vault.crt"
 
-rm -f "$CERT_DIR/vault.ext" "$CERT_DIR/ca.srl"
+    cp "$tmp_dir/ca.key" "$CA_KEY"
+    cp "$tmp_dir/ca.crt" "$CA_CERT"
+    cp "$tmp_dir/vault.key" "$VAULT_KEY"
+    cp "$tmp_dir/vault.crt" "$VAULT_CERT"
+    rm -f "$VAULT_EXT"
 
-chmod 0400 "$CERT_DIR/ca.key" "$CERT_DIR/vault.key"
-chmod 0444 "$CERT_DIR/ca.crt" "$CERT_DIR/vault.crt"
-cp "$CERT_DIR/ca.crt" "$CA_DIR/ca.crt"
+    rm -rf "$tmp_dir"
+    trap - EXIT HUP INT TERM
+fi
+
+chmod 0400 "$CA_KEY" "$VAULT_KEY"
+chmod 0444 "$CA_CERT" "$VAULT_CERT"
+
+cp "$CA_CERT" "$CA_DIR/ca.crt"
 chmod 0444 "$CA_DIR/ca.crt"
 
-echo "TLS material ready in $CERT_DIR."
+echo "Vault HTTPS CA is available at $CA_DIR/ca.crt."

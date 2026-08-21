@@ -73,8 +73,12 @@ services:
       OFFSET_STORAGE_TOPIC: ${KAFKA_CONNECT_OFFSET_STORAGE_TOPIC}
       STATUS_STORAGE_TOPIC: ${KAFKA_CONNECT_STATUS_STORAGE_TOPIC}
     depends_on:
+      service-tls:
+        condition: service_completed_successfully
       kafka:
         condition: service_healthy
+    volumes:
+      - service_tls:/tls:ro
     networks:
       kafka_net:
       postgres_net:
@@ -113,11 +117,13 @@ volumes:
   identity_postgresql_secrets:
   access_control_postgresql_secrets:
   notification_postgresql_secrets:
+  service_tls:
+    name: ${DOCKER_VOLUME_SERVICE_TLS:?}
 
 networks:
   kafka_net:
     external: true
     name: ${DOCKER_NETWORK_KAFKA}
   postgres_net:
-    external: true
     name: ${DOCKER_NETWORK_POSTGRES}
+    internal: true

@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
 
-CONSUL_HTTP_ADDR="${CONSUL_HTTP_ADDR:-http://consul:8500}"
-VAULT_ADDR="${VAULT_ADDR:-https://vault:8200}"
-VAULT_TOKEN_FILE="${VAULT_TOKEN_FILE:-/terraform-output/consul-connect-ca-token}"
-VAULT_CACERT="${VAULT_CACERT:-/vault/tls/ca.crt}"
+: "${CONSUL_HTTP_ADDR:?}"
+: "${VAULT_TOKEN_FILE:?}"
+: "${VAULT_CACERT:?}"
+: "${VAULT_ADDR:?}"
 
 export CONSUL_HTTP_ADDR
 

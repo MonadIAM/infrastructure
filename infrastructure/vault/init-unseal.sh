@@ -1,54 +1,93 @@
 #!/bin/sh
 set -eu
 
-KEYS_DIR=/vault/init-keys
-ROOT_TOKEN_FILE="$KEYS_DIR/root-token"
-UNSEAL_KEY_FILE="$KEYS_DIR/unseal-key-1"
+: "${VAULT_ADDR:?}"
+: "${VAULT_CACERT:?}"
+: "${VAULT_INIT_KEYS_DIR:?}"
 
-mkdir -p "$KEYS_DIR"
+export VAULT_ADDR
+export VAULT_CACERT
+
+ROOT_TOKEN_FILE="$VAULT_INIT_KEYS_DIR/root-token"
+UNSEAL_KEY_FILE="$VAULT_INIT_KEYS_DIR/unseal-key-1"
+
+mkdir -p "$VAULT_INIT_KEYS_DIR"
+chmod 0700 "$VAULT_INIT_KEYS_DIR"
+
+json_bool() {
+    key="$1"
+    sed -n "s/.*\"$key\"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p"
+}
+
+json_root_token() {
+    sed -n 's/.*"root_token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
+}
+
+json_first_unseal_key() {
+    awk '
+        /"unseal_keys_b64"[[:space:]]*:/ { in_keys = 1; next }
+        in_keys == 1 && /"/ {
+            value = $0
+            sub(/^[[:space:]]*"/, "", value)
+            sub(/"[,[:space:]]*$/, "", value)
+            print value
+            exit
+        }
+    '
+}
 
 while :; do
     status_json="$(vault status -format=json 2>/dev/null || true)"
 
     if [ -z "$status_json" ]; then
-        echo "$(date) Vault API not reachable yet, retrying..."
+        echo "$(date) Vault API is not reachable yet."
         sleep 5
         continue
     fi
 
-    initialized="$(printf '%s\n' "$status_json" | sed -n 's/.*"initialized"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p')"
-    sealed="$(printf '%s\n' "$status_json" | sed -n 's/.*"sealed"[[:space:]]*:[[:space:]]*\(true\|false\).*/\1/p')"
+    initialized="$(printf '%s\n' "$status_json" | json_bool initialized)"
+    sealed="$(printf '%s\n' "$status_json" | json_bool sealed)"
 
     if [ -z "$initialized" ] || [ -z "$sealed" ]; then
-        echo "$(date) Could not parse Vault status response, retrying..." >&2
+        echo "$(date) Vault status response is not parseable." >&2
         sleep 5
         continue
     fi
 
-    if [ "$initialized" != "true" ]; then
-        if [ -f "$ROOT_TOKEN_FILE" ] && [ -f "$UNSEAL_KEY_FILE" ]; then
-            echo "$(date) Vault reports uninitialized but $KEYS_DIR already has key files from a previous init - refusing to auto re-init (this would orphan whatever is/was in Raft storage). Remove $KEYS_DIR by hand if this is meant to be a genuine fresh start, then restart this container." >&2
+    if [ "$initialized" = "false" ]; then
+        if [ -e "$ROOT_TOKEN_FILE" ] || [ -e "$UNSEAL_KEY_FILE" ]; then
+            echo "$(date) Vault is uninitialized, but init key files already exist in $VAULT_INIT_KEYS_DIR; refusing to re-init against possibly different storage." >&2
             sleep 30
             continue
         fi
 
-        echo "$(date) Initializing Vault (single Shamir share, threshold 1)..."
-        init_output="$(vault operator init -key-shares=1 -key-threshold=1)"
-        printf '%s\n' "$init_output" | grep '^Unseal Key 1:' | sed 's/^Unseal Key 1: *//' > "$UNSEAL_KEY_FILE"
-        printf '%s\n' "$init_output" | grep '^Initial Root Token:' | sed 's/^Initial Root Token: *//' > "$ROOT_TOKEN_FILE"
+        echo "$(date) Initializing Vault with one local Shamir share."
+        init_json="$(vault operator init -format=json -key-shares=1 -key-threshold=1)"
+        unseal_key="$(printf '%s\n' "$init_json" | json_first_unseal_key)"
+        root_token="$(printf '%s\n' "$init_json" | json_root_token)"
+
+        if [ -z "$unseal_key" ] || [ -z "$root_token" ]; then
+            echo "$(date) Vault init output did not contain expected key material." >&2
+            exit 1
+        fi
+
+        umask 077
+        printf '%s\n' "$unseal_key" > "$UNSEAL_KEY_FILE"
+        printf '%s\n' "$root_token" > "$ROOT_TOKEN_FILE"
         chmod 0400 "$UNSEAL_KEY_FILE" "$ROOT_TOKEN_FILE"
-        echo "$(date) Vault initialized. Unseal key and root token written to $KEYS_DIR (local, gitignored - not synced anywhere)."
+        echo "$(date) Vault initialized; local init keys written to $VAULT_INIT_KEYS_DIR."
         sealed="true"
     fi
 
     if [ "$sealed" = "true" ]; then
-        if [ ! -f "$UNSEAL_KEY_FILE" ]; then
-            echo "$(date) Vault is sealed but no local unseal key file at $UNSEAL_KEY_FILE - cannot auto-unseal. Manual intervention required (vault operator unseal)." >&2
-        else
-            echo "$(date) Vault is sealed, unsealing..."
-            vault operator unseal "$(cat "$UNSEAL_KEY_FILE")" >/dev/null
-            echo "$(date) Vault unsealed."
+        if [ ! -s "$UNSEAL_KEY_FILE" ]; then
+            echo "$(date) Vault is sealed and $UNSEAL_KEY_FILE is missing." >&2
+            sleep 10
+            continue
         fi
+
+        echo "$(date) Unsealing Vault."
+        vault operator unseal "$(cat "$UNSEAL_KEY_FILE")" >/dev/null
     fi
 
     sleep 10

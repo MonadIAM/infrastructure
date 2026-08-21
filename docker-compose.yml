@@ -10,7 +10,7 @@ services:
       args:
         CONSUL_IMAGE: ${CONSUL_IMAGE:?}
         ENVOY_IMAGE: ${ENVOY_IMAGE:?}
-    image: ${CONSUL_ENVOY_IMAGE:-monadiam-consul-envoy:local}
+    image: ${CONSUL_ENVOY_IMAGE:?}
     profiles:
       - build
     command: ["--version"]
@@ -47,6 +47,8 @@ services:
     environment:
       CONSUL_HTTP_ADDR: "http://consul:8500"
       VAULT_ADDR: "https://vault:${VAULT_PORT}"
+      VAULT_TOKEN_FILE: /terraform-output/consul-connect-ca-token
+      VAULT_CACERT: /vault/tls/ca.crt
     volumes:
       - ./infrastructure/consul/connect-ca-config.sh:/connect-ca-config.sh:ro
       - ./infrastructure/terraform/.output:/terraform-output:ro
@@ -73,8 +75,12 @@ services:
       consul_net:
 
   vault-tls:
-    image: ${VAULT_TLS_IMAGE:-alpine/openssl:3.5.7}
+    image: ${VAULT_TLS_IMAGE:?}
     container_name: vault-tls
+    environment:
+      CERT_DIR: /vault/tls
+      CA_DIR: /vault/ca
+      DAYS: "3650"
     entrypoint: ["sh", "/generate-tls.sh"]
     volumes:
       - ./infrastructure/vault/generate-tls.sh:/generate-tls.sh:ro
@@ -99,11 +105,12 @@ services:
     volumes:
       - ./infrastructure/vault/vault.hcl:/vault/vault.hcl:ro
       - ./infrastructure/vault/tls:/vault/tls:ro
+      - service_tls_ca:/service/ca:ro
       - vault_data:/vault/file
     networks:
       vault_net:
     healthcheck:
-      test: ["CMD", "vault", "status"]
+      test: ["CMD-SHELL", "vault status >/dev/null 2>&1; code=$$?; [ $$code -eq 0 ] || [ $$code -eq 2 ]"]
       interval: 5s
       timeout: 3s
       retries: 40
@@ -119,6 +126,7 @@ services:
     environment:
       VAULT_ADDR: "https://vault:${VAULT_PORT}"
       VAULT_CACERT: /vault/tls/ca.crt
+      VAULT_INIT_KEYS_DIR: /vault/init-keys
     volumes:
       - ./infrastructure/vault/init-unseal.sh:/init-unseal.sh:ro
       - vault_ca:/vault/tls:ro
@@ -126,26 +134,60 @@ services:
     entrypoint: ["sh", "/init-unseal.sh"]
     networks:
       vault_net:
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 5s
 
   terraform-apply:
     image: ${TERRAFORM_IMAGE:?}
     container_name: terraform-apply
     depends_on:
-      vault:
+      vault-init-unseal:
         condition: service_healthy
     environment:
       TF_VAR_vault_address: "https://vault:${VAULT_PORT}"
+      VAULT_ADDR: "https://vault:${VAULT_PORT}"
       VAULT_CACERT: /vault/tls/ca.crt
-      TF_VAR_identity_oauth_google_client_secret: ${OAUTH_GOOGLE_CLIENT_SECRET:-}
-      TF_VAR_identity_oauth_github_client_secret: ${OAUTH_GITHUB_CLIENT_SECRET:-}
-      TF_VAR_notification_aws_root_access_key_id: ${AWS_ROOT_ACCESS_KEY_ID:-}
-      TF_VAR_notification_aws_root_secret_access_key: ${AWS_ROOT_SECRET_ACCESS_KEY:-}
+      VAULT_ROOT_TOKEN_FILE: /vault/init-keys/root-token
+      TERRAFORM_OUTPUT_DIR: /workspace/.output
+      TF_VAR_notification_aws_root_secret_access_key: ${AWS_ROOT_SECRET_ACCESS_KEY:?}
+      TF_VAR_identity_oauth_google_client_secret: ${OAUTH_GOOGLE_CLIENT_SECRET:?}
+      TF_VAR_identity_oauth_github_client_secret: ${OAUTH_GITHUB_CLIENT_SECRET:?}
+      TF_VAR_notification_aws_root_access_key_id: ${AWS_ROOT_ACCESS_KEY_ID:?}
     entrypoint: ["sh", "/terraform-apply.sh"]
     volumes:
-      - ./infrastructure/terraform:/workspace
       - ./infrastructure/vault/terraform-apply.sh:/terraform-apply.sh:ro
-      - vault_ca:/vault/tls:ro
       - ./infrastructure/vault/init-keys:/vault/init-keys:ro
+      - ./infrastructure/terraform:/workspace
+      - vault_ca:/vault/tls:ro
+    networks:
+      vault_net:
+
+  service-tls:
+    image: ${VAULT_IMAGE:?}
+    container_name: service-tls
+    depends_on:
+      terraform-apply:
+        condition: service_completed_successfully
+    environment:
+      VAULT_ADDR: "https://vault:${VAULT_PORT}"
+      VAULT_CACERT: /vault/tls/ca.crt
+      SERVICE_CERT_DIR: /service/tls
+      SERVICE_CA_DIR: /service/ca
+      VAULT_TOKEN_FILE: /terraform-output/service-tls-issuer-token
+      SERVICE_CA_BUNDLE_FILE: /terraform-output/service-tls-ca.crt
+      PKI_MOUNT: pki-service
+      TLS_TTL: 8760h
+    volumes:
+      - ./infrastructure/vault/generate-service-tls.sh:/generate-service-tls.sh:ro
+      - ./infrastructure/terraform/.output:/terraform-output:ro
+      - service_tls_ca:/service/ca
+      - service_tls:/service/tls
+      - vault_ca:/vault/tls:ro
+    entrypoint: ["sh", "/generate-service-tls.sh"]
     networks:
       vault_net:
 
@@ -158,12 +200,16 @@ services:
     environment:
       VAULT_ADDR: "https://vault:${VAULT_PORT}"
       VAULT_CACERT: /vault/tls/ca.crt
+      VAULT_BOOTSTRAP_TOKEN_FILE: /terraform-output/infra-agent-bootstrap-token
+      VAULT_AGENT_ROLE_NAME: infra
+      VAULT_AGENT_ROLE_ID_FILE: /vault/config/role-id
+      VAULT_AGENT_SECRET_ID_FILE: /vault/agent-bootstrap/secret-id
     volumes:
+      - ./infrastructure/terraform/.output:/terraform-output:ro
       - ./infrastructure/vault/bootstrap.sh:/bootstrap.sh:ro
-      - vault_ca:/vault/tls:ro
-      - ./infrastructure/vault/init-keys:/vault/init-keys:ro
-      - vault_agent_config:/vault/config
       - vault_agent_bootstrap:/vault/agent-bootstrap
+      - vault_agent_config:/vault/config
+      - vault_ca:/vault/tls:ro
     entrypoint: ["sh", "/bootstrap.sh"]
     networks:
       vault_net:
@@ -210,20 +256,24 @@ services:
 
 volumes:
   vault_data:
+  service_tls:
+    name: ${DOCKER_VOLUME_SERVICE_TLS:?}
   vault_ca:
-    name: ${DOCKER_VOLUME_VAULT_CA:-vault_ca}
-  vault_agent_bootstrap:
-  vault_agent_config:
-  vault_agent_token:
-  identity_postgresql_secrets:
+    name: ${DOCKER_VOLUME_VAULT_CA:?}
+  service_tls_ca:
+    name: service_tls_ca
   access_control_postgresql_secrets:
   notification_postgresql_secrets:
-  identity_redis_secrets:
   access_control_redis_secrets:
+  identity_postgresql_secrets:
   notification_redis_secrets:
+  identity_redis_secrets:
+  vault_agent_bootstrap:
+  vault_agent_config:
   clickhouse_secrets:
-  minio_secrets:
+  vault_agent_token:
   grafana_secrets:
+  minio_secrets:
   consul_data:
 
 networks:

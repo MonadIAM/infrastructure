@@ -7,6 +7,8 @@
     "database.user": "${POSTGRES_USER}",
     "database.password": "${POSTGRES_PASSWORD}",
     "database.dbname": "${POSTGRES_DB}",
+    "database.sslmode": "verify-full",
+    "database.sslrootcert": "/tls/ca.crt",
     "topic.prefix": "${SERVICE_NAME}",
     "schema.include.list": "system",
     "table.include.list": "system\\.outbox",

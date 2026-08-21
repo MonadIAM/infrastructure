@@ -18,6 +18,10 @@ bootstrap:
       use_pg_rewind: true
       use_slots: true
       parameters:
+        ssl: "on"
+        ssl_ca_file: ${POSTGRES_SSL_CA_FILE}
+        ssl_cert_file: ${POSTGRES_SSL_CERT_FILE}
+        ssl_key_file: ${POSTGRES_SSL_KEY_FILE}
         wal_level: logical
         max_wal_senders: 10
         max_replication_slots: 10
@@ -33,8 +37,8 @@ bootstrap:
     - data-checksums
 
   pg_hba:
-    - host replication all 0.0.0.0/0 md5
-    - host all all 0.0.0.0/0 md5
+    - hostssl replication all 0.0.0.0/0 md5
+    - hostssl all all 0.0.0.0/0 md5
 
   post_bootstrap: /docker-entrypoint-initdb.d/post-bootstrap.sh
 
@@ -42,7 +46,14 @@ postgresql:
   listen: 0.0.0.0:5432
   data_dir: /var/lib/postgresql/data/pgdata
   pgpass: /tmp/pgpass
+  pg_hba:
+    - hostssl replication all 0.0.0.0/0 md5
+    - hostssl all all 0.0.0.0/0 md5
   parameters:
+    ssl: "on"
+    ssl_ca_file: ${POSTGRES_SSL_CA_FILE}
+    ssl_cert_file: ${POSTGRES_SSL_CERT_FILE}
+    ssl_key_file: ${POSTGRES_SSL_KEY_FILE}
     unix_socket_directories: /var/run/postgresql
 
   create_replica_methods:
