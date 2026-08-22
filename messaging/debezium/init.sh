@@ -1,7 +1,9 @@
 #!/bin/sh
 set -eu
 
-CONNECT_URL="${CONNECT_URL:-http://kafka-connect:8083}"
+: "${KAFKA_CONNECT_INTERNAL_PORT:?}"
+
+CONNECT_URL="http://kafka-connect:${KAFKA_CONNECT_INTERNAL_PORT}"
 CONNECTOR_TEMPLATE="/connector.outbox.json.tpl"
 
 log() {

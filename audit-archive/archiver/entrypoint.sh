@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-INTERVAL="${ARCHIVE_INTERVAL_SECONDS:-86400}"
+: "${ARCHIVE_INTERVAL_SECONDS:?}"
+INTERVAL="$ARCHIVE_INTERVAL_SECONDS"
 
 echo "clickhouse-archiver starting, will run every ${INTERVAL}s"
 

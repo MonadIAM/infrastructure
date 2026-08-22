@@ -11,7 +11,7 @@ defaults
 
 listen stats
     mode http
-    bind *:7000
+    bind *:{{ env "HAPROXY_STATS_PORT" }}
     stats enable
     stats uri /
 

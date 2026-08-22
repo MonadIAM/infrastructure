@@ -1,5 +1,5 @@
 server:
-  http_listen_port: 3200
+  http_listen_port: ${TEMPO_INTERNAL_PORT}
 
 distributor:
   receivers:
@@ -17,7 +17,7 @@ ingester:
 
 compactor:
   compaction:
-    block_retention: 48h
+    block_retention: ${TEMPO_BLOCK_RETENTION}
 
 storage:
   trace:

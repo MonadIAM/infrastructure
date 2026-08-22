@@ -2,10 +2,10 @@ scope: ${PATRONI_SCOPE}
 namespace: /service/
 
 restapi:
-  listen: 0.0.0.0:8008
+  listen: 0.0.0.0:${PATRONI_RESTAPI_PORT}
 
 consul:
-  host: consul:8500
+  host: consul:${CONSUL_HTTP_PORT}
   register_service: true
 
 bootstrap:
@@ -19,12 +19,12 @@ bootstrap:
       use_slots: true
       parameters:
         ssl: "on"
-        ssl_ca_file: ${POSTGRES_SSL_CA_FILE}
         ssl_cert_file: ${POSTGRES_SSL_CERT_FILE}
         ssl_key_file: ${POSTGRES_SSL_KEY_FILE}
+        ssl_ca_file: ${POSTGRES_SSL_CA_FILE}
         wal_level: logical
-        max_wal_senders: 10
         max_replication_slots: 10
+        max_wal_senders: 10
         hot_standby: "on"
       slots:
         ${POSTGRES_OUTBOX_SLOT}:
@@ -65,7 +65,7 @@ postgresql:
   remove_data_directory_on_rewind_failure: true
 
 tags:
-  nofailover: false
   noloadbalance: false
+  nofailover: false
   clonefrom: false
   nosync: false

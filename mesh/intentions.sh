@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-CONSUL_HTTP_ADDR="${CONSUL_HTTP_ADDR:-http://consul:8500}"
+: "${CONSUL_HTTP_ADDR:?}"
 export CONSUL_HTTP_ADDR
 
 i=0

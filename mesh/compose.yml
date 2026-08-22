@@ -19,11 +19,11 @@ services:
     container_name: consul
     command: agent -config-file=/consul/config/consul.hcl
     ports:
-      - "${CONSUL_UI_PORT}:8500"
+      - "${CONSUL_UI_PORT:?}:${CONSUL_HTTP_PORT:?}"
     volumes:
       - ./consul.hcl:/consul/config/consul.hcl:ro
-      - vault_ca:/vault/tls:ro
       - consul_data:/consul/data
+      - vault_ca:/vault/tls:ro
     networks:
       consul_net:
       vault_net:
@@ -43,13 +43,16 @@ services:
       terraform-apply:
         condition: service_completed_successfully
     environment:
-      CONSUL_HTTP_ADDR: "http://consul:8500"
-      VAULT_ADDR: "https://vault:${VAULT_PORT}"
+      CONSUL_CA_INTERMEDIATE_CERT_TTL: ${CONSUL_CA_INTERMEDIATE_CERT_TTL:?}
+      CONSUL_CA_PRIVATE_KEY_BITS: ${CONSUL_CA_PRIVATE_KEY_BITS:?}
       VAULT_TOKEN_FILE: /terraform-output/consul-connect-ca-token
+      CONSUL_HTTP_ADDR: "http://consul:${CONSUL_HTTP_PORT:?}"
+      CONSUL_CA_LEAF_CERT_TTL: ${CONSUL_CA_LEAF_CERT_TTL:?}
+      VAULT_ADDR: "https://vault:${VAULT_PORT:?}"
       VAULT_CACERT: /vault/tls/ca.crt
     volumes:
-      - ./connect-ca-config.sh:/connect-ca-config.sh:ro
       - ../secrets/terraform/.output:/terraform-output:ro
+      - ./connect-ca-config.sh:/connect-ca-config.sh:ro
       - vault_ca:/vault/tls:ro
     entrypoint: ["sh", "/connect-ca-config.sh"]
     networks:
@@ -65,7 +68,7 @@ services:
       consul-connect-ca:
         condition: service_completed_successfully
     environment:
-      CONSUL_HTTP_ADDR: "http://consul:8500"
+      CONSUL_HTTP_ADDR: "http://consul:${CONSUL_HTTP_PORT:?}"
     volumes:
       - ./intentions.sh:/intentions.sh:ro
     entrypoint: ["sh", "/intentions.sh"]
@@ -80,7 +83,7 @@ volumes:
 networks:
   consul_net:
     external: true
-    name: ${DOCKER_NETWORK_CONSUL}
+    name: ${DOCKER_NETWORK_CONSUL:?}
   vault_net:
     external: true
-    name: ${DOCKER_NETWORK_VAULT}
+    name: ${DOCKER_NETWORK_VAULT:?}

@@ -1,15 +1,17 @@
 #!/bin/sh
 set -eu
 
+: "${MINIO_API_INTERNAL_PORT:?}"
+
 MINIO_ROOT_PASSWORD="$(cat /vault/secrets/minio_root_password)"
 MINIO_ARCHIVER_SECRET_KEY="$(cat /vault/secrets/minio_archiver_secret_key)"
 
-echo "Waiting for MinIO at http://minio:9000..."
+echo "Waiting for MinIO at http://minio:${MINIO_API_INTERNAL_PORT}..."
 i=0
-until mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+until mc alias set local http://minio:${MINIO_API_INTERNAL_PORT} "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
     i=$((i + 1))
     if [ "$i" -ge 60 ]; then
-        echo "MinIO did not become ready in time (http://minio:9000)" >&2
+        echo "MinIO did not become ready in time (http://minio:${MINIO_API_INTERNAL_PORT})" >&2
         exit 1
     fi
     sleep 1

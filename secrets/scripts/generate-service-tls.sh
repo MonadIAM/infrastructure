@@ -2,6 +2,7 @@
 set -eu
 
 : "${SERVICE_CA_BUNDLE_FILE:?}"
+: "${KAFKA_SECRET_GROUP_ID:?}"
 : "${SERVICE_CERT_DIR:?}"
 : "${VAULT_TOKEN_FILE:?}"
 : "${SERVICE_CA_DIR:?}"
@@ -9,8 +10,6 @@ set -eu
 : "${VAULT_ADDR:?}"
 : "${PKI_MOUNT:?}"
 : "${TLS_TTL:?}"
-
-KAFKA_SECRET_GROUP_ID="${KAFKA_SECRET_GROUP_ID:-10000}"
 
 export VAULT_ADDR
 export VAULT_CACERT

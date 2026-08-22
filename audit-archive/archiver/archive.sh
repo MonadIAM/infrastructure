@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eu
 
+: "${MINIO_API_INTERNAL_PORT:?}"
+
 CLICKHOUSE_WRITER_PASSWORD="$(cat /vault/secrets/clickhouse/clickhouse_writer_password)"
 MINIO_ARCHIVER_SECRET_KEY="$(cat /vault/secrets/minio/minio_archiver_secret_key)"
 
@@ -29,7 +31,7 @@ archive_table() {
             WHERE database = 'audit' AND table = '${table}' AND active AND partition = '${partition}'
         ")
 
-        key="http://minio:9000/${bucket}/${partition}.parquet"
+        key="http://minio:${MINIO_API_INTERNAL_PORT}/${bucket}/${partition}.parquet"
 
         echo "Exporting ${table} partition ${partition} (${source_count} rows) -> ${bucket}/${partition}.parquet"
         $CH --query "

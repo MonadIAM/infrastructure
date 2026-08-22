@@ -14,12 +14,12 @@ services:
     environment:
       REDIS_PORT: ${REDIS_PORT:?}
     ports:
-      - "127.0.0.1:${ACCESS_CONTROL_REDIS_PUBLISHED_PORT}:${REDIS_PORT}"
+      - "127.0.0.1:${ACCESS_CONTROL_REDIS_PUBLISHED_PORT:?}:${REDIS_PORT:?}"
     volumes:
-      - access_control_redis_data:/data
-      - access_control_redis_secrets:/vault/secrets:ro
-      - service_tls:/tls:ro
       - ../../database/redis/entrypoint.sh:/usr/local/bin/vault-entrypoint.sh:ro
+      - access_control_redis_secrets:/vault/secrets:ro
+      - access_control_redis_data:/data
+      - service_tls:/tls:ro
     entrypoint: ["sh", "/usr/local/bin/vault-entrypoint.sh"]
     networks:
       redis_net:
@@ -41,11 +41,11 @@ services:
     env_file:
       - ../../.env
     environment:
-      PATRONI_SCOPE: access-control-service
-      POSTGRES_DB: ${ACCESS_CONTROL_POSTGRES_DB:?}
-      POSTGRES_USER: ${ACCESS_CONTROL_POSTGRES_USER:?}
       POSTGRES_REPLICATION_USER: ${ACCESS_CONTROL_POSTGRES_REPLICATION_USER:?}
       POSTGRES_OUTBOX_SLOT: ${ACCESS_CONTROL_POSTGRES_OUTBOX_SLOT:?}
+      POSTGRES_USER: ${ACCESS_CONTROL_POSTGRES_USER:?}
+      POSTGRES_DB: ${ACCESS_CONTROL_POSTGRES_DB:?}
+      PATRONI_SCOPE: access-control-service
     depends_on:
       service-tls:
         condition: service_completed_successfully
@@ -54,14 +54,14 @@ services:
       vault-agent:
         condition: service_healthy
     volumes:
-      - /var/lib/postgresql/data
       - access_control_postgresql_secrets:/vault/secrets:ro
+      - /var/lib/postgresql/data
       - service_tls:/tls:ro
     networks:
       postgres_net:
       consul_net:
     healthcheck:
-      test: ["CMD", "curl", "-fs", "http://127.0.0.1:8008/health"]
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:${PATRONI_RESTAPI_PORT:?}/health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -79,9 +79,9 @@ services:
     environment:
       PATRONI_SCOPE: access-control-service
     command:
-      - "-consul-addr=consul:8500"
       - "-template=/etc/haproxy-templates/haproxy.ctmpl:/usr/local/etc/haproxy/haproxy.cfg"
       - "-exec=haproxy -f /usr/local/etc/haproxy/haproxy.cfg -db"
+      - "-consul-addr=consul:${CONSUL_HTTP_PORT:?}"
     depends_on:
       consul:
         condition: service_healthy
@@ -90,29 +90,29 @@ services:
       consul_net:
       vault_net:
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:7000/"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:${HAPROXY_STATS_PORT:?}/"]
       interval: 10s
       timeout: 5s
       retries: 15
       start_period: 45s
 
 volumes:
+  service_tls:
+    name: ${DOCKER_VOLUME_SERVICE_TLS:?}
   access_control_postgresql_secrets:
   access_control_redis_secrets:
   access_control_redis_data:
-  service_tls:
-    name: ${DOCKER_VOLUME_SERVICE_TLS:?}
 
 networks:
   postgres_net:
-    name: ${DOCKER_NETWORK_POSTGRES}
     internal: true
-  redis_net:
-    name: ${DOCKER_NETWORK_REDIS}
-    internal: true
+    name: ${DOCKER_NETWORK_POSTGRES:?}
   consul_net:
     external: true
-    name: ${DOCKER_NETWORK_CONSUL}
+    name: ${DOCKER_NETWORK_CONSUL:?}
   vault_net:
     external: true
-    name: ${DOCKER_NETWORK_VAULT}
+    name: ${DOCKER_NETWORK_VAULT:?}
+  redis_net:
+    internal: true
+    name: ${DOCKER_NETWORK_REDIS:?}

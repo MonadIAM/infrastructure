@@ -10,17 +10,18 @@ services:
       vault-agent:
         condition: service_healthy
     ports:
-      - "${GRAFANA_PORT}:3000"
+      - "${GRAFANA_PORT:?}:${GRAFANA_INTERNAL_PORT:?}"
     environment:
-      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD__FILE=/run/secrets/admin_password
-      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=${GF_AUTH_ANONYMOUS_ORG_NAME:?}
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:?}
+      - GF_SERVER_HTTP_PORT=${GRAFANA_INTERNAL_PORT:?}
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - GF_AUTH_ANONYMOUS_ORG_NAME=${GF_AUTH_ANONYMOUS_ORG_NAME}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning
-      - grafana_data:/var/lib/grafana
       - grafana_secrets:/run/secrets:ro
+      - grafana_data:/var/lib/grafana
     networks:
       monitoring_net:
       kafka_net:
@@ -30,7 +31,13 @@ services:
     image: ${PROMETHEUS_IMAGE:?}
     container_name: prometheus
     ports:
-      - "${PROMETHEUS_PORT}:9090"
+      - "${PROMETHEUS_PORT:?}:${PROMETHEUS_INTERNAL_PORT:?}"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.listen-address=:${PROMETHEUS_INTERNAL_PORT:?}"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
@@ -42,8 +49,10 @@ services:
     image: ${LOKI_IMAGE:?}
     container_name: loki
     ports:
-      - "${LOKI_PORT}:3100"
-    command: -config.file=/etc/loki/local-config.yaml
+      - "${LOKI_PORT:?}:${LOKI_INTERNAL_PORT:?}"
+    command:
+      - "-config.file=/etc/loki/local-config.yaml"
+      - "-server.http-listen-port=${LOKI_INTERNAL_PORT:?}"
     volumes:
       - loki_data:/loki
     networks:
@@ -55,8 +64,8 @@ services:
     container_name: otel-collector
     command: ["--config=/etc/otel-collector/config.yaml"]
     ports:
-      - "${OTEL_COLLECTOR_GRPC_PORT}:4317"
-      - "${OTEL_COLLECTOR_HTTP_PORT}:4318"
+      - "${OTEL_COLLECTOR_GRPC_PORT:?}:4317"
+      - "${OTEL_COLLECTOR_HTTP_PORT:?}:4318"
     volumes:
       - ./otel-collector/config.yaml:/etc/otel-collector/config.yaml:ro
     networks:
@@ -68,11 +77,14 @@ services:
     <<: *base
     image: ${TEMPO_IMAGE:?}
     container_name: tempo
-    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    command: ["-config.file=/etc/tempo/tempo.yml", "-config.expand-env=true"]
     ports:
-      - "${TEMPO_HTTP_PORT}:3200"
+      - "${TEMPO_HTTP_PORT:?}:${TEMPO_INTERNAL_PORT:?}"
+    environment:
+      TEMPO_BLOCK_RETENTION: ${TEMPO_BLOCK_RETENTION:?}
+      TEMPO_INTERNAL_PORT: ${TEMPO_INTERNAL_PORT:?}
     volumes:
-      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yml:ro
       - tempo_data:/var/tempo
     networks:
       monitoring_net:
@@ -89,7 +101,7 @@ volumes:
 networks:
   monitoring_net:
     external: true
-    name: ${DOCKER_NETWORK_MONITORING}
+    name: ${DOCKER_NETWORK_MONITORING:?}
   kafka_net:
     external: true
-    name: ${DOCKER_NETWORK_KAFKA}
+    name: ${DOCKER_NETWORK_KAFKA:?}

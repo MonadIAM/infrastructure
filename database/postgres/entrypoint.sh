@@ -1,11 +1,13 @@
 #!/bin/bash
 set -eu
 
-: "${PATRONI_SCOPE:?}"
-: "${POSTGRES_DB:?}"
-: "${POSTGRES_USER:?}"
 : "${POSTGRES_REPLICATION_USER:?}"
 : "${POSTGRES_OUTBOX_SLOT:?}"
+: "${PATRONI_RESTAPI_PORT:?}"
+: "${CONSUL_HTTP_PORT:?}"
+: "${POSTGRES_USER:?}"
+: "${PATRONI_SCOPE:?}"
+: "${POSTGRES_DB:?}"
 
 if [ -n "${PATRONI_NAME+x}" ]; then
     : "${PATRONI_NAME:?}"
@@ -28,7 +30,7 @@ export PATRONI_REPLICATION_USERNAME="${POSTGRES_REPLICATION_USER}"
 export PATRONI_REPLICATION_PASSWORD="$(cat /vault/secrets/postgresql_replication_password)"
 
 export PATRONI_POSTGRESQL_CONNECT_ADDRESS="${PATRONI_NODE_HOST}:5432"
-export PATRONI_RESTAPI_CONNECT_ADDRESS="${PATRONI_NODE_HOST}:8008"
+export PATRONI_RESTAPI_CONNECT_ADDRESS="${PATRONI_NODE_HOST}:${PATRONI_RESTAPI_PORT}"
 
 TLS_DIR=/tmp/postgres-tls
 install -d -m 0700 -o postgres -g postgres "$TLS_DIR"

@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+: "${CONSUL_CA_INTERMEDIATE_CERT_TTL:?}"
+: "${CONSUL_CA_PRIVATE_KEY_BITS:?}"
+: "${CONSUL_CA_LEAF_CERT_TTL:?}"
 : "${CONSUL_HTTP_ADDR:?}"
 : "${VAULT_TOKEN_FILE:?}"
 : "${VAULT_CACERT:?}"
@@ -48,10 +51,10 @@ cat > /tmp/consul-connect-ca.json <<EOF
     "Token": "${VAULT_TOKEN}",
     "RootPKIPath": "pki-root",
     "IntermediatePKIPath": "pki",
-    "LeafCertTTL": "24h",
-    "IntermediateCertTTL": "8760h",
+    "LeafCertTTL": "${CONSUL_CA_LEAF_CERT_TTL}",
+    "IntermediateCertTTL": "${CONSUL_CA_INTERMEDIATE_CERT_TTL}",
     "PrivateKeyType": "rsa",
-    "PrivateKeyBits": 2048,
+    "PrivateKeyBits": ${CONSUL_CA_PRIVATE_KEY_BITS},
     "CAFile": "${VAULT_CACERT}",
     "TLSServerName": "vault"
   }
