@@ -114,8 +114,10 @@ services:
       start_period: 30s
 
   debezium-init:
-    image: ${DEBEZIUM_INIT_IMAGE:?}
+    image: ${KAFKA_CONNECT_IMAGE:?}
     container_name: debezium-init
+    group_add:
+      - "10000"
     env_file:
       - ../.env
     volumes:
@@ -127,7 +129,11 @@ services:
     depends_on:
       kafka-connect:
         condition: service_healthy
-      postgres-haproxy:
+      identity-postgres-haproxy:
+        condition: service_healthy
+      access-control-postgres-haproxy:
+        condition: service_healthy
+      notification-postgres-haproxy:
         condition: service_healthy
       vault-agent:
         condition: service_healthy

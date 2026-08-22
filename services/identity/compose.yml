@@ -67,6 +67,35 @@ services:
       retries: 10
       start_period: 30s
 
+  identity-postgres-haproxy:
+    <<: *base
+    build:
+      context: ../../database/postgres-haproxy
+      args:
+        HAPROXY_BASE_IMAGE: ${HAPROXY_IMAGE:?}
+    container_name: identity-postgres-haproxy
+    env_file:
+      - ../../.env
+    environment:
+      PATRONI_SCOPE: identity-service
+    command:
+      - "-consul-addr=consul:8500"
+      - "-template=/etc/haproxy-templates/haproxy.ctmpl:/usr/local/etc/haproxy/haproxy.cfg"
+      - "-exec=haproxy -f /usr/local/etc/haproxy/haproxy.cfg -db"
+    depends_on:
+      consul:
+        condition: service_healthy
+    networks:
+      postgres_net:
+      consul_net:
+      vault_net:
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:7000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 45s
+
 volumes:
   identity_postgresql_secrets:
   identity_redis_secrets:
@@ -84,3 +113,6 @@ networks:
   consul_net:
     external: true
     name: ${DOCKER_NETWORK_CONSUL}
+  vault_net:
+    external: true
+    name: ${DOCKER_NETWORK_VAULT}

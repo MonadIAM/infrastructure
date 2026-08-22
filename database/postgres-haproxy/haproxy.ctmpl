@@ -1,0 +1,29 @@
+global
+    maxconn 600
+
+defaults
+    mode tcp
+    retries 2
+    timeout client 30m
+    timeout connect 4s
+    timeout server 30m
+    timeout check 5s
+
+listen stats
+    mode http
+    bind *:7000
+    stats enable
+    stats uri /
+
+listen postgres_write
+    bind *:{{ env "POSTGRES_HAPROXY_WRITE_PORT" }}
+{{ range service (print "master." (env "PATRONI_SCOPE")) }}
+    server {{ .Address }} {{ .Address }}:{{ .Port }} maxconn 100 check
+{{ end }}
+
+listen postgres_read
+    bind *:{{ env "POSTGRES_HAPROXY_READ_PORT" }}
+    balance roundrobin
+{{ range service (print "replica." (env "PATRONI_SCOPE")) }}
+    server {{ .Address }} {{ .Address }}:{{ .Port }} maxconn 100 check
+{{ end }}

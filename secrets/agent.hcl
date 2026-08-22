@@ -141,6 +141,7 @@ template {
     contents    = "{{ with secret \"kv/data/identity-service/runtime\" }}{{ .Data.data.postgresql_password }}{{ end }}"
     destination = "/secrets/postgresql/identity/postgresql_password"
     perms       = "0440"
+    group       = "10000"
 }
 
 template {
@@ -166,6 +167,7 @@ template {
     contents    = "{{ with secret \"kv/data/access-control-service/runtime\" }}{{ .Data.data.postgresql_password }}{{ end }}"
     destination = "/secrets/postgresql/access-control/postgresql_password"
     perms       = "0440"
+    group       = "10000"
 }
 
 template {
@@ -191,6 +193,7 @@ template {
     contents    = "{{ with secret \"kv/data/notification-service/runtime\" }}{{ .Data.data.postgresql_password }}{{ end }}"
     destination = "/secrets/postgresql/notification/postgresql_password"
     perms       = "0440"
+    group       = "10000"
 }
 
 template {

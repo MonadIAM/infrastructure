@@ -10,8 +10,8 @@ locals {
 
     services = {
         identity-service = {
-            postgres_host       = "postgres-haproxy"
-            postgres_port       = 6011
+            postgres_host       = "identity-postgres-haproxy"
+            postgres_port       = 6432
             postgres_db         = "identity-service"
             postgres_admin_user = "identity_owner"
 
@@ -29,8 +29,8 @@ locals {
         }
 
         access-control-service = {
-            postgres_host       = "postgres-haproxy"
-            postgres_port       = 6021
+            postgres_host       = "access-control-postgres-haproxy"
+            postgres_port       = 6432
             postgres_db         = "access-control-service"
             postgres_admin_user = "access_control_owner"
 
@@ -48,8 +48,8 @@ locals {
         }
 
         notification-service = {
-            postgres_host       = "postgres-haproxy"
-            postgres_port       = 6031
+            postgres_host       = "notification-postgres-haproxy"
+            postgres_port       = 6432
             postgres_db         = "notification-service"
             postgres_admin_user = "notification_owner"
 

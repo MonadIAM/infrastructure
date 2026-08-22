@@ -18,10 +18,9 @@ env:
 build-consul-envoy:
 	$(COMPOSE) build consul-envoy-image
 build-postgres:
-	$(COMPOSE) build identity-postgresql access-control-postgresql notification-postgresql
-build-routing:
-	$(COMPOSE) build postgres-haproxy pgbouncer-write pgbouncer-read
-up: build-consul-envoy build-postgres build-routing
+	$(COMPOSE) build identity-postgresql access-control-postgresql notification-postgresql \
+		identity-postgres-haproxy access-control-postgres-haproxy notification-postgres-haproxy
+up: build-consul-envoy build-postgres
 	$(COMPOSE) up -d $(POSTGRES_SCALE)
 stop:
 	$(COMPOSE) stop

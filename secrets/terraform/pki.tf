@@ -125,26 +125,6 @@ resource "vault_pki_secret_backend_config_issuers" "service_tls" {
     default_follows_latest_issuer = false
 }
 
-resource "vault_pki_secret_backend_role" "pgbouncer_server" {
-    backend = vault_mount.service_pki.path
-    name    = "pgbouncer-server"
-
-    ttl        = 31536000
-    max_ttl    = 31536000
-    issuer_ref = vault_pki_secret_backend_issuer.service_tls.issuer_id
-
-    allowed_domains    = ["pgbouncer", "pgbouncer-write", "pgbouncer-read", "localhost"]
-    allow_bare_domains = true
-    allow_ip_sans      = true
-    require_cn         = true
-
-    server_flag = true
-    client_flag = false
-
-    key_type = "rsa"
-    key_bits = 2048
-}
-
 resource "vault_pki_secret_backend_role" "postgres_server" {
     backend = vault_mount.service_pki.path
     name    = "postgres-server"
@@ -155,7 +135,9 @@ resource "vault_pki_secret_backend_role" "postgres_server" {
 
     allowed_domains = [
         "postgres",
-        "postgres-haproxy",
+        "identity-postgres-haproxy",
+        "access-control-postgres-haproxy",
+        "notification-postgres-haproxy",
         "identity-postgresql",
         "access-control-postgresql",
         "notification-postgresql",
@@ -288,10 +270,6 @@ resource "vault_policy" "service_tls_issuer" {
     name = "service-tls-issuer"
 
     policy = <<-EOT
-        path "${local.service_pki_mount}/issue/pgbouncer-server" {
-          capabilities = ["update"]
-        }
-
         path "${local.service_pki_mount}/issue/postgres-server" {
           capabilities = ["update"]
         }

@@ -18,7 +18,8 @@ COPY post-bootstrap.sh /docker-entrypoint-initdb.d/post-bootstrap.sh
 COPY post-bootstrap.sql /docker-entrypoint-initdb.d/post-bootstrap.sql
 COPY entrypoint.sh /usr/local/bin/patroni-entrypoint.sh
 
-RUN chmod +x /docker-entrypoint-initdb.d/post-bootstrap.sh /usr/local/bin/patroni-entrypoint.sh
+RUN chmod +x /docker-entrypoint-initdb.d/post-bootstrap.sh /usr/local/bin/patroni-entrypoint.sh \
+    && chmod 0444 /docker-entrypoint-initdb.d/post-bootstrap.sql
 
 EXPOSE 5432 8008
 
