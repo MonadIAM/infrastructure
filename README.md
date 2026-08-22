@@ -27,20 +27,22 @@ make env
 ```sh
 make up
 ```
-On a genuinely first boot this also: generates a local self-signed CA + Vault server certificate (`vault-tls`, written to `infrastructure/vault/tls/` - gitignored), initializes Vault and unseals it (`vault-init-unseal`, writes the root token and Shamir unseal key to `infrastructure/vault/init-keys/` - also gitignored, see the Vault section for why this is a deliberate, temporary simplification), then runs `terraform-apply`, which provisions the shared Vault instance (mounts, policies, AppRole roles, Transit keys, Database Secrets Engine, generated passwords, and PKI roles). After Terraform, `service-tls` issues Kafka/PostgreSQL/PgBouncer/Redis/app-client TLS material through the `pki-service` Vault PKI mount into `service_tls`. First boot takes longer than before while Terraform downloads providers and pulls the OpenSSL helper image if it is not already present.
+On a genuinely first boot this also: generates a local self-signed CA + Vault server certificate (`vault-tls`, written to `secrets/tls/` - gitignored), initializes Vault and unseals it (`vault-init-unseal`, writes the root token and Shamir unseal key to `secrets/init-keys/` - also gitignored, see the Vault section for why this is a deliberate, temporary simplification), then runs `terraform-apply`, which provisions the shared Vault instance (mounts, policies, AppRole roles, Transit keys, Database Secrets Engine, generated passwords, and PKI roles). After Terraform, `service-tls` issues Kafka/PostgreSQL/PgBouncer/Redis/app-client TLS material through the `pki-service` Vault PKI mount into `service_tls`. First boot takes longer than before while Terraform downloads providers and pulls the OpenSSL helper image if it is not already present.
 
-Compose is split by responsibility:
+Compose is split by responsibility. `docker-compose.yml` at the repo root is just an `include:` manifest wiring the domain files together (Docker Compose 2.20.3+) - `make`/`docker compose` pick it up automatically from this directory, no `-f` flags needed:
 
 | File                                  | Owns                                                      |
 |:--------------------------------------|:----------------------------------------------------------|
-| `docker-compose.yml`                  | Consul, Vault, Terraform apply, Vault agent               |
-| `docker-compose.identity.yml`         | Identity Patroni/Postgres cluster, Redis                  |
-| `docker-compose.access-control.yml`   | AccessControl Patroni/Postgres cluster, Redis             |
-| `docker-compose.notification.yml`     | Notification Patroni/Postgres cluster, Redis              |
-| `docker-compose.routing.yml`          | Centralized Postgres HAProxy + PgBouncer                  |
-| `docker-compose.kafka.yml`            | Kafka, Kafka UI, Kafka Connect, Debezium init             |
-| `docker-compose.observability.yml`    | Grafana, Prometheus, Loki, OpenTelemetry Collector, Tempo |
-| `docker-compose.audit-archive.yml`    | ClickHouse, MinIO, audit archive init/jobs                |
+| `docker-compose.yml`                  | Root manifest - only `include:`s the files below           |
+| `secrets/compose.yml`                 | Vault, Terraform apply                                     |
+| `mesh/compose.yml`                    | Consul, Consul Connect CA/intentions                       |
+| `services/identity/compose.yml`       | Identity Patroni/Postgres cluster, Redis                   |
+| `services/access-control/compose.yml` | AccessControl Patroni/Postgres cluster, Redis               |
+| `services/notification/compose.yml`   | Notification Patroni/Postgres cluster, Redis                |
+| `database/routing/compose.yml`        | Centralized Postgres HAProxy + PgBouncer                    |
+| `messaging/compose.yml`               | Kafka, Kafka UI, Kafka Connect, Debezium init                |
+| `observability/compose.yml`           | Grafana, Prometheus, Loki, OpenTelemetry Collector, Tempo    |
+| `audit-archive/compose.yml`           | ClickHouse, MinIO, audit archive init/jobs                   |
 
 4. Verify Kafka is running:
 ```sh
@@ -129,7 +131,7 @@ Kafka runs as one KRaft broker with broker+controller roles combined. The broker
 - *Client TLS material:* `service_tls/client.crt`, `service_tls/client.key`, `service_tls/ca.crt`
 - *Secret file access:* Kafka Vault Agent outputs and Kafka/client PEM private-key material are group-readable by GID `10000` with mode `0440`; Kafka, Kafka init, Kafka UI, Kafka Connect, `vault-agent`, and `service-tls` join that supplemental group through Compose `group_add`
 - *Kafka principals:* `identity-service`, `access-control-service`, `notification-service`, `kafka-connect`, `kafka-ui`, `clickhouse`, plus broker/admin principals
-- *ACL model:* `StandardAuthorizer` with explicit topic/group ACLs from `infrastructure/kafka/init-topics.sh`; `allow.everyone.if.no.acl.found=false`
+- *ACL model:* `StandardAuthorizer` with explicit topic/group ACLs from `messaging/init-topics.sh`; `allow.everyone.if.no.acl.found=false`
 
 Kafka UI is still published on `http://localhost:${KAFKA_UI_PORT}`. It uses login form auth with user `dev_kafka_admin`; the password is generated by Terraform in `infra-kv/infra/kafka` and rendered into the Kafka UI config by the infra Vault Agent.
 
@@ -142,23 +144,23 @@ When migrating an existing local stand from the old PLAINTEXT Kafka configuratio
 <details>
 <summary><strong>Vault</strong></summary>
 
-A single shared Vault instance is run from this repository and used by all services, on `vault-net`. **This repository owns all provisioning** - mounts, policies, AppRole/Kubernetes auth roles, Transit keys, Database Secrets Engine connections/roles, the AWS Secrets Engine role, and every generated password - declared once in `infrastructure/terraform/` and applied by the `terraform-apply` container on every `make up`. A service repository no longer creates its own policies or KV entries; it only ever *consumes* what this repo already provisioned for it. `infrastructure/terraform/03-locals.tf` is the single manifest of what every service needs, kept in sync by hand with each service repo (a PR here, whenever a service's secret needs change - no automated sync exists at this stage).
+A single shared Vault instance is run from this repository and used by all services, on `vault-net`. **This repository owns all provisioning** - mounts, policies, AppRole/Kubernetes auth roles, Transit keys, Database Secrets Engine connections/roles, the AWS Secrets Engine role, and every generated password - declared once in `secrets/terraform/` and applied by the `terraform-apply` container on every `make up`. A service repository no longer creates its own policies or KV entries; it only ever *consumes* what this repo already provisioned for it. `secrets/terraform/locals.tf` is the single manifest of what every service needs, kept in sync by hand with each service repo (a PR here, whenever a service's secret needs change - no automated sync exists at this stage).
 
 - *Address (Docker network):* `vault:8200` (TLS, see below)
 - *Address (host machine):* `https://localhost:8200`
 - *Storage:* Raft (Integrated Storage), persistent volume `vault_data` - Vault no longer loses its state on restart.
-- *Vault HTTPS TLS:* self-signed for the local compose stand, generated once by `vault-tls` into `infrastructure/vault/tls/` (gitignored). The public CA cert is copied into `DOCKER_VOLUME_VAULT_CA` (`vault_ca` by default); Vault HTTPS private keys remain local to this repo.
-- *Unseal:* `vault-init-unseal` owns only local compose init/unseal. It initializes Vault once, writes the Shamir unseal key and initial root token to `infrastructure/vault/init-keys/` (gitignored), and then keeps Vault unsealed after restarts. If Vault storage is fresh but old key files remain, it refuses to initialize again.
-- *Provisioning boundary:* `terraform-apply` is the only stage that reads the local root token. It provisions mounts, policies, auth roles, generated secrets, Database Secrets Engine config, Transit keys, PKI issuers, and scoped handoff tokens. Runtime stages consume only scoped tokens from `infrastructure/terraform/.output/`.
+- *Vault HTTPS TLS:* self-signed for the local compose stand, generated once by `vault-tls` into `secrets/tls/` (gitignored). The public CA cert is copied into `DOCKER_VOLUME_VAULT_CA` (`vault_ca` by default); Vault HTTPS private keys remain local to this repo.
+- *Unseal:* `vault-init-unseal` owns only local compose init/unseal. It initializes Vault once, writes the Shamir unseal key and initial root token to `secrets/init-keys/` (gitignored), and then keeps Vault unsealed after restarts. If Vault storage is fresh but old key files remain, it refuses to initialize again.
+- *Provisioning boundary:* `terraform-apply` is the only stage that reads the local root token. It provisions mounts, policies, auth roles, generated secrets, Database Secrets Engine config, Transit keys, PKI issuers, and scoped handoff tokens. Runtime stages consume only scoped tokens from `secrets/terraform/.output/`.
 - *PKI model:* `pki-root` is the root CA mount, `pki` is the Consul Connect intermediate mount, and `pki-service` is the native TLS intermediate mount. Each mount has one configured default issuer. Kafka/PostgreSQL/PgBouncer/Redis/app-client roles set `issuer_ref` explicitly to the service TLS issuer.
 - *Service native TLS:* `service-tls` uses only `service-tls-issuer-token` to issue leaf certificates. It cannot read root token or CA endpoints. The CA bundle written to `service_tls/ca.crt` comes from Terraform output `service-tls-ca.crt`, derived from the PKI chain Terraform applied. It writes `ca.crt`, `client.crt/key`, `client.pem`, `kafka.crt/key`, `kafka.pem`, `pgbouncer.crt/key`, `postgres.crt/key`, and `redis.crt/key` into `DOCKER_VOLUME_SERVICE_TLS` (`service_tls` by default).
 - *Vault Database engine TLS:* Vault mounts the separate `service_tls_ca` volume read-only and uses only `/service/ca/ca.crt` to verify Postgres through `postgres-haproxy`. Vault does not mount the `service_tls` private-key volume.
 - *Vault Agent bootstrap:* `vault-bootstrap` no longer reads the root token. It uses `infra-agent-bootstrap-token` only to read the `infra` AppRole role id and mint one secret id for `vault-agent`.
-- *Full reset:* `make clean` removes named Docker volumes (including `vault_data`, the shared Vault CA volume, and the service TLS volume), the host-bind-mounted Vault bootstrap state in `infrastructure/vault/tls/` and `infrastructure/vault/init-keys/`, and local Terraform runtime state/output in `infrastructure/terraform/terraform.tfstate*`, `.terraform.tfstate.lock.info`, and `.output/`. If you run `docker compose down -v` by hand without removing those files/directories, `vault-init-unseal` will refuse to blindly re-init because old key files would point at now-gone Raft state. Run `make vault-reset` for a Vault/service-TLS-only reset.
+- *Full reset:* `make clean` removes named Docker volumes (including `vault_data`, the shared Vault CA volume, and the service TLS volume), the host-bind-mounted Vault bootstrap state in `secrets/tls/` and `secrets/init-keys/`, and local Terraform runtime state/output in `secrets/terraform/terraform.tfstate*`, `.terraform.tfstate.lock.info`, and `.output/`. If you run `docker compose down -v` by hand without removing those files/directories, `vault-init-unseal` will refuse to blindly re-init because old key files would point at now-gone Raft state. Run `make vault-reset` for a Vault/service-TLS-only reset.
 
-**How a service authenticates to Vault** (see `infrastructure/terraform/05-auth.tf`): AppRole in plain docker-compose dev, Kubernetes auth (via Vault Agent Injector) on k3s stands - same policies either way, only the auth backend differs. Each service's own `docker/vault/bootstrap.sh` mints a one-time-use `secret_id` for its AppRole role using `VAULT_PROVISIONER_TOKEN` (copied from `infrastructure/terraform/.output/provisioner-token-<service>` after apply - see step 5 above), then a `vault-agent` sidecar in that service's `docker-compose.yml` logs in with it and renders secrets to disk, auto-renewing. Each service gets its own `VAULT_PROVISIONER_TOKEN`, scoped by policy to mint `secret_id`s only for that service's own AppRole role (and, for identity-service, its `identity-service-key-trim` role too) - it cannot read or write any actual secret, and it cannot impersonate another service's role.
+**How a service authenticates to Vault** (see `secrets/terraform/auth.tf`): AppRole in plain docker-compose dev, Kubernetes auth (via Vault Agent Injector) on k3s stands - same policies either way, only the auth backend differs. Each service's own `docker/vault/bootstrap.sh` mints a one-time-use `secret_id` for its AppRole role using `VAULT_PROVISIONER_TOKEN` (copied from `secrets/terraform/.output/provisioner-token-<service>` after apply - see step 5 above), then a `vault-agent` sidecar in that service's `docker-compose.yml` logs in with it and renders secrets to disk, auto-renewing. Each service gets its own `VAULT_PROVISIONER_TOKEN`, scoped by policy to mint `secret_id`s only for that service's own AppRole role (and, for identity-service, its `identity-service-key-trim` role too) - it cannot read or write any actual secret, and it cannot impersonate another service's role.
 
-**Dynamic Postgres credentials** (see `infrastructure/terraform/08-database.tf`): the application no longer connects with a static password. Vault's Database Secrets Engine issues a short-lived username+password pair per connection (`database/creds/<service>-app`, ~1h TTL, auto-renewed by that service's Vault Agent) that inherits the admin user's privileges via Postgres role membership (`IN ROLE`). A separate `database/creds/<service>-developer-readonly` role (SELECT-only, ~30m TTL) exists for ad hoc human access - e.g. pulling a fresh, temporary credential into DBeaver. The admin/root Postgres password itself is Terraform-generated, never typed by a human, and used only by Postgres's own bootstrap and by Vault's connection config - not by the application.
+**Dynamic Postgres credentials** (see `secrets/terraform/database.tf`): the application no longer connects with a static password. Vault's Database Secrets Engine issues a short-lived username+password pair per connection (`database/creds/<service>-app`, ~1h TTL, auto-renewed by that service's Vault Agent) that inherits the admin user's privileges via Postgres role membership (`IN ROLE`). A separate `database/creds/<service>-developer-readonly` role (SELECT-only, ~30m TTL) exists for ad hoc human access - e.g. pulling a fresh, temporary credential into DBeaver. The admin/root Postgres password itself is Terraform-generated, never typed by a human, and used only by Postgres's own bootstrap and by Vault's connection config - not by the application.
 
 **Known gaps, not addressed by this configuration:** host-side dev/operator PgBouncer/Redis ports remain direct convenience paths outside the runtime mesh, cloud KMS auto-unseal for stand is still pending, and how a *human* authenticates to Vault to use the `developer-readonly` role (OIDC/LDAP/userpass - not yet decided).
 
@@ -198,7 +200,7 @@ Single shared ClickHouse instance, run from this repository, on `kafka-net` (Kaf
 - *Address (host machine):* `localhost:9000` (native), `http://localhost:8123` (HTTP), `http://localhost:8123/play`
 - *Default database:* `CLICKHOUSE_DB` in `.env`
 
-Schema applied in filename order by `clickhouse-init`, from `infrastructure/audit-archive/clickhouse/schema/*.sql`:
+Schema applied in filename order by `clickhouse-init`, from `audit-archive/clickhouse/schema/*.sql`:
 
 | File        | What                                                                                  |
 |:------------|:--------------------------------------------------------------------------------------|
@@ -239,7 +241,7 @@ COLD archive for `audit.audit_log`/`audit.change_log` — where data ends up aft
 - *Address (host machine):* `http://localhost:${MINIO_API_PORT}` (S3 API), `http://localhost:${MINIO_CONSOLE_PORT}` (console)
 - *Buckets:* `MINIO_AUDIT_LOG_BUCKET` (default `audit-archive`), `MINIO_CHANGE_LOG_BUCKET` (default `change-log-archive`) — one per ClickHouse table, both services land in the same bucket (`service` column already discriminates inside the Parquet file, same as in ClickHouse)
 
-Buckets are created by `minio-init` (`infrastructure/audit-archive/minio/init.sh`, `minio/mc` image) with Object Lock enabled at creation time — retrofitting Object Lock onto an existing bucket isn't possible, which is why bucket creation and lock configuration happen in the same script, once. Default retention is set in **COMPLIANCE** mode (not GOVERNANCE): nobody, including root, can shorten it or delete an object early. Retention length equals lifecycle expiry — objects age out of the bucket exactly when WORM protection itself lapses, not before:
+Buckets are created by `minio-init` (`audit-archive/minio/init.sh`, `minio/mc` image) with Object Lock enabled at creation time — retrofitting Object Lock onto an existing bucket isn't possible, which is why bucket creation and lock configuration happen in the same script, once. Default retention is set in **COMPLIANCE** mode (not GOVERNANCE): nobody, including root, can shorten it or delete an object early. Retention length equals lifecycle expiry — objects age out of the bucket exactly when WORM protection itself lapses, not before:
 
 | Bucket                     | Retention (`MINIO_*_RETENTION_DAYS`) |
 |:---------------------------|:-------------------------------------|
@@ -257,13 +259,13 @@ Root credentials (`MINIO_ROOT_USER`, password from Vault) exist solely to bootst
 <details>
 <summary><strong>clickhouse-archiver</strong></summary>
 
-Daily job (`infrastructure/audit-archive/archiver/`, plain shell loop — no cron daemon, no NestJS: the job is platform-level, not owned by identity-service or access-control-service) that exports ClickHouse partitions into MinIO as Parquet once they're older than `ARCHIVE_AFTER_DAYS` (default 150 — a 30-day margin before the 180-day ClickHouse `TTL`), verifies the export by row count, and records success in `audit.archive_log`.
+Daily job (`audit-archive/archiver/`, plain shell loop — no cron daemon, no NestJS: the job is platform-level, not owned by identity-service or access-control-service) that exports ClickHouse partitions into MinIO as Parquet once they're older than `ARCHIVE_AFTER_DAYS` (default 150 — a 30-day margin before the 180-day ClickHouse `TTL`), verifies the export by row count, and records success in `audit.archive_log`.
 
 It never issues `DROP PARTITION` or any other destructive statement against ClickHouse — deletion stays exactly where it already was, the table `TTL`. If the archiver falls behind or breaks, the worst case is a few extra days of ClickHouse storage, not a race against data loss; the margin exists specifically so a stalled job has time to be noticed and fixed before the TTL would otherwise catch up.
 
 Uses `CLICKHOUSE_IMAGE` unmodified (`clickhouse-client` only, no extra tooling) — export, read-back verification, and the eventual queries against archived Parquet from ClickHouse Play UI (`s3()` table function, works for both writing and reading MinIO) all go through the same one binary.
 
-> `mc ilm`/`mc retention` flag names in `infrastructure/audit-archive/minio/init.sh` have shifted across `mc` releases — double-check them against the exact pinned `MINIO_MC_IMAGE` tag before relying on this in production.
+> `mc ilm`/`mc retention` flag names in `audit-archive/minio/init.sh` have shifted across `mc` releases — double-check them against the exact pinned `MINIO_MC_IMAGE` tag before relying on this in production.
 
 </details>
 
@@ -284,7 +286,7 @@ Uses `CLICKHOUSE_IMAGE` unmodified (`clickhouse-client` only, no extra tooling) 
 | `make logs`                      | Stream Kafka logs in real time.                                                                                                                                                                          |
 | `make exec`                      | Open a shell inside the Kafka container.                                                                                                                                                                 |
 | `make clean`                     | Remove containers, volumes, Vault TLS material, Vault init/unseal keys, and Terraform runtime state/output.                                                                                              |
-| `make vault-reset`               | Vault/service-TLS reset: removes `vault_data`, shared Vault CA, service TLS, service TLS CA volumes, `infrastructure/vault/tls/`, `infrastructure/vault/init-keys/`, and Terraform runtime state/output. |
+| `make vault-reset`               | Vault/service-TLS reset: removes `vault_data`, shared Vault CA, service TLS, service TLS CA volumes, `secrets/tls/`, `secrets/init-keys/`, and Terraform runtime state/output. |
 | `make pg-reset service=identity` | Reset one Patroni/Postgres cluster and its anonymous node volumes.                                                                                                                                       |
 | `make pg-reset-all`              | Reset all infra-owned Patroni/Postgres clusters.                                                                                                                                                         |
 | `make pg-list service=identity`  | Show Patroni cluster status through `patronictl`.                                                                                                                                                        |

@@ -22,7 +22,7 @@ services:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_secrets:/vault/secrets:ro
       - service_tls:/tls:ro
-      - ./infrastructure/audit-archive/clickhouse/entrypoint.sh:/entrypoint-wrapper.sh:ro
+      - ./clickhouse/entrypoint.sh:/entrypoint-wrapper.sh:ro
     entrypoint: ["sh", "/entrypoint-wrapper.sh"]
     networks:
       kafka_net:
@@ -51,8 +51,8 @@ services:
       CLICKHOUSE_WRITER_USER: ${CLICKHOUSE_WRITER_USER:?}
       CLICKHOUSE_READER_USER: ${CLICKHOUSE_READER_USER:?}
     volumes:
-      - ./infrastructure/audit-archive/clickhouse/init.sh:/init.sh:ro
-      - ./infrastructure/audit-archive/clickhouse/schema:/schema:ro
+      - ./clickhouse/init.sh:/init.sh:ro
+      - ./clickhouse/schema:/schema:ro
       - clickhouse_secrets:/vault/secrets:ro
     entrypoint: ["bash", "/init.sh"]
     networks:
@@ -92,7 +92,7 @@ services:
       MINIO_AUDIT_LOG_RETENTION_DAYS: ${MINIO_AUDIT_LOG_RETENTION_DAYS:?}
       MINIO_CHANGE_LOG_RETENTION_DAYS: ${MINIO_CHANGE_LOG_RETENTION_DAYS:?}
     volumes:
-      - ./infrastructure/audit-archive/minio/init.sh:/init.sh:ro
+      - ./minio/init.sh:/init.sh:ro
       - minio_secrets:/vault/secrets:ro
     entrypoint: ["sh", "/init.sh"]
     networks:
@@ -115,8 +115,8 @@ services:
       ARCHIVE_AFTER_DAYS: ${ARCHIVE_AFTER_DAYS:?}
       ARCHIVE_INTERVAL_SECONDS: "86400"
     volumes:
-      - ./infrastructure/audit-archive/archiver/entrypoint.sh:/entrypoint.sh:ro
-      - ./infrastructure/audit-archive/archiver/archive.sh:/archive.sh:ro
+      - ./archiver/entrypoint.sh:/entrypoint.sh:ro
+      - ./archiver/archive.sh:/archive.sh:ro
       - clickhouse_secrets:/vault/secrets/clickhouse:ro
       - minio_secrets:/vault/secrets/minio:ro
     entrypoint: ["sh", "/entrypoint.sh"]

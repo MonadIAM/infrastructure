@@ -48,17 +48,17 @@ lerna-debug.log*
 .tmp
 
 # Terraform
-infrastructure/terraform/.terraform/
-infrastructure/terraform/terraform.tfstate
-infrastructure/terraform/terraform.tfstate.backup
-infrastructure/terraform/.terraform.tfstate.lock.info
-infrastructure/terraform/.output/
-infrastructure/terraform/*.auto.tfvars
-infrastructure/terraform/*.auto.tfvars.json
+secrets/terraform/.terraform/
+secrets/terraform/terraform.tfstate
+secrets/terraform/terraform.tfstate.backup
+secrets/terraform/.terraform.tfstate.lock.info
+secrets/terraform/.output/
+secrets/terraform/*.auto.tfvars
+secrets/terraform/*.auto.tfvars.json
 
 # Vault - generated locally on first `make up`, never committed:
-infrastructure/vault/tls/
-infrastructure/vault/init-keys/
+secrets/tls/
+secrets/init-keys/
 
 # Runtime data
 pids

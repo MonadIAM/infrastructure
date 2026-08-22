@@ -19,7 +19,7 @@ services:
       - access_control_redis_data:/data
       - access_control_redis_secrets:/vault/secrets:ro
       - service_tls:/tls:ro
-      - ./infrastructure/services/access-control/redis/entrypoint.sh:/usr/local/bin/vault-entrypoint.sh:ro
+      - ../../database/redis/entrypoint.sh:/usr/local/bin/vault-entrypoint.sh:ro
     entrypoint: ["sh", "/usr/local/bin/vault-entrypoint.sh"]
     networks:
       redis_net:
@@ -35,11 +35,11 @@ services:
   access-control-postgresql:
     <<: *base
     build:
-      context: ./infrastructure/services/access-control/postgres
+      context: ../../database/postgres
       args:
         POSTGRES_BASE_IMAGE: ${POSTGRES_IMAGE:?}
     env_file:
-      - .env
+      - ../../.env
     environment:
       PATRONI_SCOPE: access-control-service
       POSTGRES_DB: ${ACCESS_CONTROL_POSTGRES_DB:?}

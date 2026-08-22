@@ -1,0 +1,86 @@
+x-base: &base
+  restart: on-failure
+
+services:
+  consul-envoy-image:
+    build:
+      context: ./envoy
+      args:
+        CONSUL_IMAGE: ${CONSUL_IMAGE:?}
+        ENVOY_IMAGE: ${ENVOY_IMAGE:?}
+    image: ${CONSUL_ENVOY_IMAGE:?}
+    profiles:
+      - build
+    command: ["--version"]
+
+  consul:
+    <<: *base
+    image: ${CONSUL_IMAGE:?}
+    container_name: consul
+    command: agent -config-file=/consul/config/consul.hcl
+    ports:
+      - "${CONSUL_UI_PORT}:8500"
+    volumes:
+      - ./consul.hcl:/consul/config/consul.hcl:ro
+      - vault_ca:/vault/tls:ro
+      - consul_data:/consul/data
+    networks:
+      consul_net:
+      vault_net:
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  consul-connect-ca:
+    image: ${CONSUL_IMAGE:?}
+    container_name: consul-connect-ca
+    depends_on:
+      consul:
+        condition: service_healthy
+      terraform-apply:
+        condition: service_completed_successfully
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+      VAULT_ADDR: "https://vault:${VAULT_PORT}"
+      VAULT_TOKEN_FILE: /terraform-output/consul-connect-ca-token
+      VAULT_CACERT: /vault/tls/ca.crt
+    volumes:
+      - ./connect-ca-config.sh:/connect-ca-config.sh:ro
+      - ../secrets/terraform/.output:/terraform-output:ro
+      - vault_ca:/vault/tls:ro
+    entrypoint: ["sh", "/connect-ca-config.sh"]
+    networks:
+      consul_net:
+      vault_net:
+
+  consul-intentions:
+    image: ${CONSUL_IMAGE:?}
+    container_name: consul-intentions
+    depends_on:
+      consul:
+        condition: service_healthy
+      consul-connect-ca:
+        condition: service_completed_successfully
+    environment:
+      CONSUL_HTTP_ADDR: "http://consul:8500"
+    volumes:
+      - ./intentions.sh:/intentions.sh:ro
+    entrypoint: ["sh", "/intentions.sh"]
+    networks:
+      consul_net:
+
+volumes:
+  consul_data:
+  vault_ca:
+    name: ${DOCKER_VOLUME_VAULT_CA:?}
+
+networks:
+  consul_net:
+    external: true
+    name: ${DOCKER_NETWORK_CONSUL}
+  vault_net:
+    external: true
+    name: ${DOCKER_NETWORK_VAULT}

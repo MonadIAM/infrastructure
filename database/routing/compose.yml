@@ -5,12 +5,12 @@ services:
   postgres-haproxy:
     <<: *base
     build:
-      context: ./infrastructure/routing/haproxy
+      context: ./haproxy
       args:
         HAPROXY_BASE_IMAGE: ${HAPROXY_IMAGE:?}
     container_name: postgres-haproxy
     env_file:
-      - .env
+      - ../../.env
     command:
       - "-consul-addr=consul:8500"
       - "-template=/etc/haproxy-templates/haproxy.ctmpl:/usr/local/etc/haproxy/haproxy.cfg"
@@ -32,12 +32,12 @@ services:
   pgbouncer-write:
     <<: *base
     build:
-      context: ./infrastructure/routing/pgbouncer
+      context: ./pgbouncer
       args:
         PGBOUNCER_BASE_IMAGE: ${PGBOUNCER_BASE_IMAGE:?}
     container_name: pgbouncer-write
     env_file:
-      - .env
+      - ../../.env
     environment:
       IDENTITY_POSTGRES_TARGET_PORT: ${IDENTITY_POSTGRES_WRITE_PORT:?}
       ACCESS_CONTROL_POSTGRES_TARGET_PORT: ${ACCESS_CONTROL_POSTGRES_WRITE_PORT:?}
@@ -68,12 +68,12 @@ services:
   pgbouncer-read:
     <<: *base
     build:
-      context: ./infrastructure/routing/pgbouncer
+      context: ./pgbouncer
       args:
         PGBOUNCER_BASE_IMAGE: ${PGBOUNCER_BASE_IMAGE:?}
     container_name: pgbouncer-read
     env_file:
-      - .env
+      - ../../.env
     environment:
       IDENTITY_POSTGRES_TARGET_PORT: ${IDENTITY_POSTGRES_READ_PORT:?}
       ACCESS_CONTROL_POSTGRES_TARGET_PORT: ${ACCESS_CONTROL_POSTGRES_READ_PORT:?}

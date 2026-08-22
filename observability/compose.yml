@@ -18,7 +18,7 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_AUTH_ANONYMOUS_ORG_NAME=${GF_AUTH_ANONYMOUS_ORG_NAME}
     volumes:
-      - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning:/etc/grafana/provisioning
       - grafana_data:/var/lib/grafana
       - grafana_secrets:/run/secrets:ro
     networks:
@@ -32,7 +32,7 @@ services:
     ports:
       - "${PROMETHEUS_PORT}:9090"
     volumes:
-      - ./infrastructure/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     networks:
       monitoring_net:
@@ -58,7 +58,7 @@ services:
       - "${OTEL_COLLECTOR_GRPC_PORT}:4317"
       - "${OTEL_COLLECTOR_HTTP_PORT}:4318"
     volumes:
-      - ./infrastructure/observability/otel-collector/config.yaml:/etc/otel-collector/config.yaml:ro
+      - ./otel-collector/config.yaml:/etc/otel-collector/config.yaml:ro
     networks:
       monitoring_net:
         aliases:
@@ -72,7 +72,7 @@ services:
     ports:
       - "${TEMPO_HTTP_PORT}:3200"
     volumes:
-      - ./infrastructure/observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - tempo_data:/var/tempo
     networks:
       monitoring_net:

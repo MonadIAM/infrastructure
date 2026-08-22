@@ -4,22 +4,14 @@ IDENTITY_POSTGRES_REPLICAS ?= 2
 ACCESS_CONTROL_POSTGRES_REPLICAS ?= 2
 NOTIFICATION_POSTGRES_REPLICAS ?= 2
 
-COMPOSE_FILES = -f docker-compose.yml \
-	-f docker-compose.identity.yml \
-	-f docker-compose.access-control.yml \
-	-f docker-compose.notification.yml \
-	-f docker-compose.routing.yml \
-	-f docker-compose.kafka.yml \
-	-f docker-compose.observability.yml \
-	-f docker-compose.audit-archive.yml
-COMPOSE = docker compose $(COMPOSE_FILES)
+COMPOSE = docker compose
 POSTGRES_SCALE = --scale identity-postgresql=$(IDENTITY_POSTGRES_REPLICAS) \
 	--scale access-control-postgresql=$(ACCESS_CONTROL_POSTGRES_REPLICAS) \
 	--scale notification-postgresql=$(NOTIFICATION_POSTGRES_REPLICAS)
-TERRAFORM_RUNTIME_STATE = infrastructure/terraform/terraform.tfstate \
-	infrastructure/terraform/terraform.tfstate.backup \
-	infrastructure/terraform/.terraform.tfstate.lock.info \
-	infrastructure/terraform/.output
+TERRAFORM_RUNTIME_STATE = secrets/terraform/terraform.tfstate \
+	secrets/terraform/terraform.tfstate.backup \
+	secrets/terraform/.terraform.tfstate.lock.info \
+	secrets/terraform/.output
 
 env:
 	[ -f .env.example ] && cp -f .env.example .env || echo '.env.example not found'
@@ -39,7 +31,7 @@ config:
 	$(COMPOSE) config
 clean:
 	$(COMPOSE) down -v
-	rm -rf infrastructure/vault/tls infrastructure/vault/init-keys
+	rm -rf secrets/tls secrets/init-keys
 	rm -rf $(TERRAFORM_RUNTIME_STATE)
 	echo "Docker volumes, Vault TLS material, Vault init/unseal keys, and Terraform runtime state removed - next 'make up' will re-init Vault from scratch."
 restart: down up
@@ -52,7 +44,7 @@ networks:
 exec:
 	docker exec -it kafka /bin/bash
 provisioner-token:
-	cat infrastructure/terraform/.output/provisioner-token-$(service) | pbcopy
+	cat secrets/terraform/.output/provisioner-token-$(service) | pbcopy
 	echo "VAULT_PROVISIONER_TOKEN for $(service) copied to clipboard"
 vault-reset:
 	$(COMPOSE) stop vault vault-init-unseal vault-tls service-tls
@@ -61,7 +53,7 @@ vault-reset:
 	docker volume rm -f $${DOCKER_VOLUME_VAULT_CA:?}
 	docker volume rm -f $${DOCKER_VOLUME_SERVICE_TLS:?}
 	docker volume rm -f service_tls_ca
-	rm -rf infrastructure/vault/tls infrastructure/vault/init-keys
+	rm -rf secrets/tls secrets/init-keys
 	rm -rf $(TERRAFORM_RUNTIME_STATE)
 	echo "Vault/service TLS material, init/unseal keys, Raft storage, and Terraform runtime state removed - next 'make up' will re-init from scratch."
 pg-reset:

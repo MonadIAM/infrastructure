@@ -19,7 +19,7 @@ services:
       - notification_redis_data:/data
       - notification_redis_secrets:/vault/secrets:ro
       - service_tls:/tls:ro
-      - ./infrastructure/services/notification/redis/entrypoint.sh:/usr/local/bin/vault-entrypoint.sh:ro
+      - ../../database/redis/entrypoint.sh:/usr/local/bin/vault-entrypoint.sh:ro
     entrypoint: ["sh", "/usr/local/bin/vault-entrypoint.sh"]
     networks:
       redis_net:
@@ -35,11 +35,11 @@ services:
   notification-postgresql:
     <<: *base
     build:
-      context: ./infrastructure/services/notification/postgres
+      context: ../../database/postgres
       args:
         POSTGRES_BASE_IMAGE: ${POSTGRES_IMAGE:?}
     env_file:
-      - .env
+      - ../../.env
     environment:
       PATRONI_SCOPE: notification-service
       POSTGRES_DB: ${NOTIFICATION_POSTGRES_DB:?}
