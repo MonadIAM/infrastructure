@@ -1,12 +1,13 @@
 #!/bin/bash
 set -eu
 
+: "${CLICKHOUSE_NATIVE_INTERNAL_PORT:?}"
 : "${MINIO_API_INTERNAL_PORT:?}"
 
 CLICKHOUSE_WRITER_PASSWORD="$(cat /vault/secrets/clickhouse/clickhouse_writer_password)"
 MINIO_ARCHIVER_SECRET_KEY="$(cat /vault/secrets/minio/minio_archiver_secret_key)"
 
-CH="clickhouse-client --host clickhouse --user ${CLICKHOUSE_WRITER_USER} --password ${CLICKHOUSE_WRITER_PASSWORD}"
+CH="clickhouse-client --host clickhouse --port ${CLICKHOUSE_NATIVE_INTERNAL_PORT} --secure --user ${CLICKHOUSE_WRITER_USER} --password ${CLICKHOUSE_WRITER_PASSWORD}"
 
 archive_table() {
     table="$1"

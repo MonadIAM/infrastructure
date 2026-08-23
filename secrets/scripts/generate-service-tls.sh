@@ -107,6 +107,7 @@ chmod 0444 "$SERVICE_CERT_DIR/ca.crt" "$SERVICE_CA_DIR/ca.crt"
 issue_cert "postgres" "postgres-server" "postgres" "identity-postgres-haproxy,access-control-postgres-haproxy,notification-postgres-haproxy,identity-postgresql,access-control-postgresql,notification-postgresql,localhost" "127.0.0.1"
 issue_cert "redis" "redis-server" "redis" "identity-redis,access-control-redis,notification-redis,template-redis,localhost" "127.0.0.1"
 issue_cert "kafka" "kafka-server" "kafka" "kafka,localhost" "127.0.0.1"
+issue_cert "clickhouse" "clickhouse-server" "clickhouse" "clickhouse,localhost" "127.0.0.1"
 issue_cert "client" "app-client" "monadiam-app-client" "" ""
 grant_kafka_secret_group_read \
     "$SERVICE_CERT_DIR/kafka.key" \
