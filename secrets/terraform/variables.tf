@@ -90,3 +90,18 @@ variable "identity_transit_pairwise_key" {
     type    = string
     default = "identity-pairwise-sub"
 }
+
+variable "identity_transit_audit_mask_key" {
+    type    = string
+    default = "identity-audit-mask-hmac"
+}
+
+variable "identity_transit_audit_log_key" {
+    type    = string
+    default = "identity-audit-log-sig"
+}
+
+variable "identity_transit_audit_log_rotation_period" {
+    type    = number
+    default = 7776000
+}

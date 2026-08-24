@@ -86,6 +86,18 @@ resource "vault_policy" "identity_service_transit" {
         path "${local.transit_mount}/hmac/${var.identity_transit_pairwise_key}" {
           capabilities = ["update"]
         }
+
+        path "${local.transit_mount}/hmac/${var.identity_transit_audit_mask_key}" {
+          capabilities = ["update"]
+        }
+
+        path "${local.transit_mount}/keys/${var.identity_transit_audit_log_key}" {
+          capabilities = ["read"]
+        }
+
+        path "${local.transit_mount}/sign/${var.identity_transit_audit_log_key}" {
+          capabilities = ["update"]
+        }
     EOT
 }
 

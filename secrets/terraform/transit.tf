@@ -35,3 +35,18 @@ resource "vault_transit_secret_backend_key" "pairwise" {
     type     = "hmac"
     key_size = 32
 }
+
+resource "vault_transit_secret_backend_key" "audit_mask" {
+    backend  = vault_mount.transit.path
+    name     = var.identity_transit_audit_mask_key
+    type     = "hmac"
+    key_size = 32
+}
+
+resource "vault_transit_secret_backend_key" "audit_log" {
+    backend            = vault_mount.transit.path
+    name               = var.identity_transit_audit_log_key
+    type               = "ed25519"
+    auto_rotate_period = var.identity_transit_audit_log_rotation_period
+    deletion_allowed   = true
+}
