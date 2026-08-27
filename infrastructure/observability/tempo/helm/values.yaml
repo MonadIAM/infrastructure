@@ -1,0 +1,46 @@
+fullnameOverride: tempo
+
+global:
+  commonLabels:
+    app.kubernetes.io/component: observability
+    app.kubernetes.io/part-of: monadiam
+
+replicas: 1
+
+tempo:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+  retention: 48h
+  ingester:
+    trace_idle_period: 10s
+    max_block_bytes: 1000000
+    max_block_duration: 5m
+  storage:
+    trace:
+      backend: local
+      local:
+        path: /var/tempo/traces
+      wal:
+        path: /var/tempo/wal
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+persistence:
+  enabled: true
+  storageClassName: local-path-retain
+  accessModes:
+    - ReadWriteOnce
+  size: 2Gi

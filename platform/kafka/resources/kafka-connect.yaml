@@ -1,0 +1,68 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnect
+metadata:
+  name: kafka-connect
+  namespace: monadiam-messaging
+  labels:
+    app.kubernetes.io/name: kafka-connect
+    app.kubernetes.io/component: messaging
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    strimzi.io/use-connector-resources: "true"
+spec:
+  version: 4.3.1
+  replicas: 1
+  bootstrapServers: kafka-main-kafka-bootstrap:9093
+  groupId: monadiam-connect
+  configStorageTopic: connect-configs
+  offsetStorageTopic: connect-offsets
+  statusStorageTopic: connect-status
+  config:
+    config.storage.replication.factor: 1
+    offset.storage.replication.factor: 1
+    status.storage.replication.factor: 1
+    key.converter: org.apache.kafka.connect.json.JsonConverter
+    key.converter.schemas.enable: false
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter.schemas.enable: false
+    offset.flush.interval.ms: 10000
+    config.providers: secrets
+    config.providers.secrets.class: io.strimzi.kafka.KubernetesSecretConfigProvider
+  tls:
+    trustedCertificates:
+      - secretName: kafka-main-cluster-ca-cert
+        certificate: ca.crt
+  authentication:
+    type: scram-sha-512
+    username: kafka-connect
+    passwordSecret:
+      secretName: kafka-connect
+      password: password
+  build:
+    output:
+      type: docker
+      image: monadiam-registry:5000/monadiam/kafka-connect:3.6.1-final
+      additionalPushOptions:
+        - "--tls-verify=false"
+    plugins:
+      - name: debezium-postgresql
+        artifacts:
+          - type: tgz
+            url: https://repo1.maven.org/maven2/io/debezium/debezium-connector-postgres/3.6.1.Final/debezium-connector-postgres-3.6.1.Final-plugin.tar.gz
+            sha512sum: 774f6854a6c1c9a7ad3bdb6ddd367e9479a0b80e511ea27fc361320a955f9bf57a72393ff0e045b868b63589e7e16c27266cda296d9b1419bb071e914ee4d212
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+  jvmOptions:
+    -Xms: 256m
+    -Xmx: 512m
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi

@@ -1,0 +1,12 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path-retain
+  labels:
+    app.kubernetes.io/name: local-path-retain
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+provisioner: rancher.io/local-path
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer

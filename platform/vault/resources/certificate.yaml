@@ -1,0 +1,48 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vault-server-tls
+  namespace: vault
+  labels:
+    app.kubernetes.io/name: vault-server-tls
+    app.kubernetes.io/component: secrets
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  secretName: vault-server-tls
+  commonName: vault.vault.svc
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  subject:
+    organizations:
+      - MonadIAM
+    organizationalUnits:
+      - Platform
+  dnsNames:
+    - vault
+    - vault.vault
+    - vault.vault.svc
+    - vault.vault.svc.cluster.local
+    - vault-active
+    - vault-active.vault
+    - vault-active.vault.svc
+    - vault-active.vault.svc.cluster.local
+    - vault-standby
+    - vault-standby.vault
+    - vault-standby.vault.svc
+    - vault-standby.vault.svc.cluster.local
+    - vault-internal
+    - vault-internal.vault
+    - vault-internal.vault.svc
+    - vault-internal.vault.svc.cluster.local
+    - "*.vault-internal"
+    - "*.vault-internal.vault"
+    - "*.vault-internal.vault.svc"
+    - "*.vault-internal.vault.svc.cluster.local"
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: monadiam-ca

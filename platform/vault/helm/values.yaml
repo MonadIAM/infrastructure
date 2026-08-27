@@ -1,0 +1,109 @@
+global:
+  enabled: true
+  tlsDisable: false
+
+injector:
+  enabled: false
+
+server:
+  enabled: true
+
+  image:
+    repository: hashicorp/vault
+    tag: 2.0.3
+    pullPolicy: IfNotPresent
+
+  authDelegator:
+    enabled: true
+
+  ingress:
+    enabled: false
+
+  route:
+    enabled: false
+
+  httproute:
+    enabled: false
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  readinessProbe:
+    enabled: true
+    path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+    port: 8200
+
+  livenessProbe:
+    enabled: false
+
+  dataStorage:
+    enabled: true
+    size: 2Gi
+    storageClass: local-path-retain
+    accessMode: ReadWriteOnce
+
+  auditStorage:
+    enabled: true
+    size: 1Gi
+    storageClass: local-path-retain
+    accessMode: ReadWriteOnce
+
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+
+  standalone:
+    enabled: false
+
+  ha:
+    enabled: true
+    replicas: 1
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+          tls_disable = 0
+          tls_min_version = "tls12"
+          tls_cert_file = "/vault/userconfig/vault-server-tls/tls.crt"
+          tls_key_file = "/vault/userconfig/vault-server-tls/tls.key"
+          tls_client_ca_file = "/vault/userconfig/vault-server-tls/ca.crt"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+
+  extraVolumes:
+    - type: secret
+      name: vault-server-tls
+
+  statefulSet:
+    securityContext:
+      pod:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 1000
+        fsGroup: 1000
+      container:
+        allowPrivilegeEscalation: false
+
+ui:
+  enabled: false
+
+csi:
+  enabled: false
+
+serverTelemetry:
+  serviceMonitor:
+    enabled: false

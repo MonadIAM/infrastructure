@@ -1,0 +1,20 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: monadiam-messaging
+  namespace: monadiam-messaging
+  labels:
+    app.kubernetes.io/name: monadiam-messaging
+    app.kubernetes.io/component: messaging
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  method: kubernetes
+  mount: kubernetes
+  vaultConnectionRef: vault-secrets-operator/vault
+  kubernetes:
+    role: monadiam-messaging
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+    tokenExpirationSeconds: 600

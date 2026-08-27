@@ -1,0 +1,56 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: monadiam-selfsigned
+  labels:
+    app.kubernetes.io/name: monadiam-selfsigned
+    app.kubernetes.io/component: pki
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: monadiam-root-ca
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: monadiam-root-ca
+    app.kubernetes.io/component: pki
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  isCA: true
+  commonName: monadiam-root-ca
+  subject:
+    organizations:
+      - MonadIAM
+    organizationalUnits:
+      - Platform
+  secretName: monadiam-root-ca
+  duration: 87600h
+  renewBefore: 720h
+  usages:
+    - cert sign
+    - crl sign
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: monadiam-selfsigned
+    kind: ClusterIssuer
+    group: cert-manager.io
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: monadiam-ca
+  labels:
+    app.kubernetes.io/name: monadiam-ca
+    app.kubernetes.io/component: pki
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  ca:
+    secretName: monadiam-root-ca

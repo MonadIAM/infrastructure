@@ -1,0 +1,44 @@
+controller:
+  replicas: 1
+
+  manager:
+    globalTransformationOptions:
+      excludeRaw: true
+    clientCache:
+      persistenceModel: none
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 256Mi
+
+  kubeRbacProxy:
+    resources:
+      requests:
+        cpu: 5m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+  podSecurityContext:
+    runAsNonRoot: true
+
+  securityContext:
+    allowPrivilegeEscalation: false
+
+defaultVaultConnection:
+  enabled: false
+
+defaultAuthMethod:
+  enabled: false
+
+telemetry:
+  serviceMonitor:
+    enabled: false
+
+csi:
+  enabled: false
+
+tests:
+  enabled: false

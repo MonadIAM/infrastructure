@@ -1,0 +1,123 @@
+fullnameOverride: kube-prometheus-stack
+
+commonLabels:
+  app.kubernetes.io/component: observability
+  app.kubernetes.io/part-of: monadiam
+
+defaultRules:
+  create: true
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    retention: 24h
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path-retain
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
+
+grafana:
+  enabled: true
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: Loki
+      url: http://loki:3100
+      access: proxy
+      orgId: 1
+      editable: false
+    - name: Tempo
+      type: tempo
+      uid: Tempo
+      url: http://tempo:3200
+      access: proxy
+      orgId: 1
+      editable: false
+  defaultDashboardsEnabled: true
+  persistence:
+    enabled: true
+    storageClassName: local-path-retain
+    accessModes:
+      - ReadWriteOnce
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  serviceMonitor:
+    enabled: true
+
+kubeApiServer:
+  enabled: true
+
+kubeControllerManager:
+  enabled: false
+
+kubeEtcd:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeProxy:
+  enabled: false
+
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+prometheus:
+  enabled: true
+  serviceMonitor:
+    selfMonitor: true
+  prometheusSpec:
+    retention: 24h
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-path-retain
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi

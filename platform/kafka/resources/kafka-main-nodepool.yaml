@@ -1,0 +1,28 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaNodePool
+metadata:
+  name: main
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/name: kafka-main
+    app.kubernetes.io/component: messaging
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: persistent-claim
+    class: local-path-retain
+    size: 5Gi
+    deleteClaim: false
+    kraftMetadata: shared
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    limits:
+      memory: 1536Mi

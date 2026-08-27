@@ -1,0 +1,41 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: minio-main-tls
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: minio-main
+    app.kubernetes.io/component: object-storage
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  secretName: minio-main-tls
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: monadiam-ca
+  commonName: minio.monadiam-data.svc.cluster.local
+  dnsNames:
+    - minio
+    - minio.monadiam-data
+    - minio.monadiam-data.svc
+    - minio.monadiam-data.svc.cluster.local
+    - minio-main
+    - minio-main.monadiam-data
+    - minio-main.monadiam-data.svc
+    - minio-main.monadiam-data.svc.cluster.local
+    - minio-main-console
+    - minio-main-console.monadiam-data
+    - minio-main-console.monadiam-data.svc
+    - minio-main-console.monadiam-data.svc.cluster.local
+    - minio-main-hl
+    - minio-main-hl.monadiam-data
+    - minio-main-hl.monadiam-data.svc
+    - minio-main-hl.monadiam-data.svc.cluster.local
+    - "*.minio.monadiam-data.svc.cluster.local"
+    - "*.minio-main.monadiam-data.svc.cluster.local"
+    - "*.minio-main-hl.monadiam-data.svc.cluster.local"
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth

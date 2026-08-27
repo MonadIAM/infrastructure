@@ -1,0 +1,14 @@
+replicas: 1
+watchNamespaces:
+  - monadiam-messaging
+watchAnyNamespace: false
+connectBuildTimeoutMs: 1200000
+
+annotations:
+  sidecar.istio.io/inject: "false"
+
+dashboards:
+  enabled: false
+
+podDisruptionBudget:
+  enabled: false

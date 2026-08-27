@@ -1,0 +1,92 @@
+fullnameOverride: redis-main
+
+commonLabels:
+  app.kubernetes.io/component: cache
+  app.kubernetes.io/part-of: monadiam
+
+architecture: replication
+
+image:
+  registry: registry-1.docker.io
+  repository: bitnami/redis
+  tag: latest
+  digest: sha256:d75bda00b778ad5e03a639ec36e00f6665a5d7e0f35a6250be5b103fb2117275
+
+commonConfiguration: |-
+  appendonly yes
+  save ""
+
+auth:
+  enabled: true
+  sentinel: true
+  existingSecret: redis-main-auth
+  existingSecretPasswordKey: redis-password
+  usePasswordFiles: true
+  usePasswordFileFromSecret: true
+
+tls:
+  enabled: true
+  authClients: true
+  existingSecret: redis-main-tls
+  certFilename: tls.crt
+  certKeyFilename: tls.key
+  certCAFilename: ca.crt
+
+master:
+  count: 1
+  resourcesPreset: none
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  persistence:
+    enabled: true
+    storageClass: local-path-retain
+    size: 1Gi
+
+replica:
+  replicaCount: 3
+  resourcesPreset: none
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  persistence:
+    enabled: true
+    storageClass: local-path-retain
+    size: 1Gi
+
+sentinel:
+  enabled: true
+  image:
+    registry: registry-1.docker.io
+    repository: bitnami/redis-sentinel
+    tag: latest
+    digest: sha256:fcfca07d8b56cea8e990e51c09c0d03102bde09a2147bd6a669e024a56893a8c
+  masterSet: redis-main
+  quorum: 2
+  resourcesPreset: none
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+      sentinel: 26379
+    createMaster: false
+  masterService:
+    enabled: false
+
+metrics:
+  enabled: false
+
+networkPolicy:
+  enabled: false

@@ -1,0 +1,79 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: public
+  namespace: istio-ingress
+  labels:
+    app.kubernetes.io/name: public
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  gatewayClassName: istio
+  infrastructure:
+    labels:
+      app.kubernetes.io/name: public
+      app.kubernetes.io/component: ingress
+      app.kubernetes.io/part-of: monadiam
+      app.kubernetes.io/managed-by: istio
+  listeners:
+    - name: http-root
+      hostname: monadiam.localhost
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        kinds:
+          - kind: HTTPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: monadiam-apps
+    - name: http-wildcard
+      hostname: "*.monadiam.localhost"
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        kinds:
+          - kind: HTTPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: monadiam-apps
+    - name: https-root
+      hostname: monadiam.localhost
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: monadiam-localhost-gateway-tls
+      allowedRoutes:
+        kinds:
+          - kind: HTTPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: monadiam-apps
+    - name: https-wildcard
+      hostname: "*.monadiam.localhost"
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - group: ""
+            kind: Secret
+            name: monadiam-localhost-gateway-tls
+      allowedRoutes:
+        kinds:
+          - kind: HTTPRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: monadiam-apps
