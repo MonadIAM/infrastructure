@@ -1,0 +1,20 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: clickhouse-operator
+  namespace: clickhouse-operator
+  labels:
+    app.kubernetes.io/name: clickhouse-operator
+    app.kubernetes.io/component: analytics-operator
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  method: kubernetes
+  mount: kubernetes
+  vaultConnectionRef: vault-secrets-operator/vault
+  kubernetes:
+    role: clickhouse-operator
+    serviceAccount: vault-auth
+    audiences:
+      - vault
+    tokenExpirationSeconds: 600

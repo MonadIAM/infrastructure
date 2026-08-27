@@ -1,0 +1,37 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: kafka-connect
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/name: kafka-connect
+    app.kubernetes.io/component: messaging
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: cluster
+        operations:
+          - Describe
+      - resource:
+          type: topic
+          name: "*"
+          patternType: literal
+        operations:
+          - Create
+          - Describe
+          - Read
+          - Write
+      - resource:
+          type: group
+          name: monadiam-connect
+          patternType: literal
+        operations:
+          - Describe
+          - Read

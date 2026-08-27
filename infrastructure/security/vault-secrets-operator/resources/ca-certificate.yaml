@@ -1,0 +1,29 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vault-server-ca
+  namespace: vault-secrets-operator
+  labels:
+    app.kubernetes.io/name: vault-server-ca
+    app.kubernetes.io/component: secrets-operator
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  secretName: vault-server-ca
+  commonName: vault-secrets-operator.vault-client
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  subject:
+    organizations:
+      - MonadIAM
+    organizationalUnits:
+      - Platform
+  dnsNames:
+    - vault-secrets-operator.vault-client
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: monadiam-ca

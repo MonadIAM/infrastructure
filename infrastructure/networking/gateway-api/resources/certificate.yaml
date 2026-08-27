@@ -1,0 +1,30 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: monadiam-localhost-gateway-tls
+  namespace: istio-ingress
+  labels:
+    app.kubernetes.io/name: monadiam-localhost-gateway-tls
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  secretName: monadiam-localhost-gateway-tls
+  duration: 2160h
+  renewBefore: 720h
+  commonName: monadiam.localhost
+  subject:
+    organizations:
+      - MonadIAM
+    organizationalUnits:
+      - Platform
+  dnsNames:
+    - monadiam.localhost
+    - "*.monadiam.localhost"
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: monadiam-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

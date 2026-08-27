@@ -1,0 +1,15 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultConnection
+metadata:
+  name: vault
+  namespace: vault-secrets-operator
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/component: secrets-operator
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  address: https://vault.vault.svc.cluster.local:8200
+  skipTLSVerify: false
+  caCertSecretRef: vault-server-ca
+  tlsServerName: vault.vault.svc

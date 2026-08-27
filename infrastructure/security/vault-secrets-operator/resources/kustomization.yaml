@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ca-certificate.yaml
+  - app-serviceaccount.yaml
+  - data-serviceaccount.yaml
+  - messaging-serviceaccount.yaml
+  - observability-serviceaccount.yaml
+  - clickhouse-operator-serviceaccount.yaml
+  - vault-connection.yaml
+  - vault-auth.yaml
+  - data-vault-auth.yaml
+  - messaging-vault-auth.yaml
+  - observability-vault-auth.yaml
+  - clickhouse-operator-vault-auth.yaml
+  - vault-static-secret.yaml
+  - data-bootstrap-static-secret.yaml
+  - messaging-bootstrap-static-secret.yaml
+  - grafana-admin-static-secret.yaml
+  - postgresql-main-superuser-static-secret.yaml
+  - postgresql-main-app-static-secret.yaml
+  - postgresql-main-debezium-static-secret.yaml
+  - kafka-main-admin-password-static-secret.yaml
+  - redis-main-auth-static-secret.yaml
+  - clickhouse-main-app-static-secret.yaml
+  - clickhouse-main-intercluster-static-secret.yaml
+  - clickhouse-operator-static-secret.yaml
+  - minio-main-root-static-secret.yaml
+  - minio-main-archiver-static-secret.yaml

@@ -1,0 +1,18 @@
+watchNamespaces:
+  - monadiam-data
+
+secret:
+  create: false
+
+podAnnotations:
+  sidecar.istio.io/inject: "false"
+
+crdHook:
+  podAnnotations:
+    sidecar.istio.io/inject: "false"
+
+serviceMonitor:
+  enabled: false
+
+dashboards:
+  enabled: false

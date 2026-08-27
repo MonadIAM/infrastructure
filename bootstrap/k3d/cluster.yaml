@@ -1,0 +1,42 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: monadiam
+servers: 1
+agents: 1
+image: rancher/k3s:v1.35.5-k3s1
+kubeAPI:
+  host: "127.0.0.1"
+  hostIP: "127.0.0.1"
+  hostPort: "6550"
+ports:
+  - port: "127.0.0.1:8080:80"
+    nodeFilters:
+      - loadbalancer
+  - port: "127.0.0.1:8443:443"
+    nodeFilters:
+      - loadbalancer
+registries:
+  create:
+    name: monadiam-registry
+    host: "127.0.0.1"
+    hostPort: "5001"
+  config: |
+    mirrors:
+      "monadiam-registry:5000":
+        endpoint:
+          - http://monadiam-registry:5000
+options:
+  k3d:
+    wait: true
+    timeout: "180s"
+    disableLoadbalancer: false
+    disableImageVolume: false
+  k3s:
+    extraArgs:
+      - arg: "--disable=traefik"
+        nodeFilters:
+          - server:*
+      - arg: "--secrets-encryption"
+        nodeFilters:
+          - server:*

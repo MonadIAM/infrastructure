@@ -1,0 +1,62 @@
+apiVersion: clickhouse.altinity.com/v1
+kind: ClickHouseInstallation
+metadata:
+  name: clickhouse-main
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: clickhouse-main
+    app.kubernetes.io/component: analytics
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  templates:
+    podTemplates:
+      - name: clickhouse-main
+        spec:
+          containers:
+            - name: clickhouse
+              image: altinity/clickhouse-server:25.8.16.10002.altinitystable
+              resources:
+                requests:
+                  cpu: 250m
+                  memory: 768Mi
+                limits:
+                  memory: 1536Mi
+              volumeMounts:
+                - name: clickhouse-storage
+                  mountPath: /var/lib/clickhouse
+    volumeClaimTemplates:
+      - name: clickhouse-storage
+        reclaimPolicy: Retain
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: local-path-retain
+          resources:
+            requests:
+              storage: 5Gi
+  configuration:
+    users:
+      default/networks/ip:
+        - "127.0.0.1/32"
+      app/password_sha256_hex:
+        valueFrom:
+          secretKeyRef:
+            name: clickhouse-main-app
+            key: password_sha256_hex
+      app/networks/ip:
+        - "::/0"
+      app/profile: default
+      app/quota: default
+    clusters:
+      - name: main
+        secret:
+          valueFrom:
+            secretKeyRef:
+              name: clickhouse-main-intercluster
+              key: secret
+        layout:
+          shardsCount: 1
+          replicasCount: 1
+        templates:
+          podTemplate: clickhouse-main

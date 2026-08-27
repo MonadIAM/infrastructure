@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - kafka-main-nodepool.yaml
+  - kafka-main.yaml
+  - kafka-main-topics.yaml
+  - kafka-main-admin-user.yaml
+  - kafka-connect-user.yaml
+  - kafka-connect-postgresql-secret-reader.yaml
+  - kafka-connect.yaml
+  - postgresql-main-outbox-connector.yaml

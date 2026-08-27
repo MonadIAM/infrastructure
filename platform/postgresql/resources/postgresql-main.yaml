@@ -1,0 +1,52 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgresql-main
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: postgresql-main
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6-standard-trixie
+  instances: 1
+  enableSuperuserAccess: true
+  superuserSecret:
+    name: postgresql-main-superuser
+  bootstrap:
+    initdb:
+      database: app
+      owner: app
+      secret:
+        name: postgresql-main-app
+      dataChecksums: true
+  managed:
+    roles:
+      - name: debezium
+        ensure: present
+        login: true
+        replication: true
+        inRoles:
+          - app
+        passwordSecret:
+          name: postgresql-main-debezium
+  storage:
+    storageClass: local-path-retain
+    size: 2Gi
+  walStorage:
+    storageClass: local-path-retain
+    size: 1Gi
+  monitoring:
+    enablePodMonitor: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  inheritedMetadata:
+    labels:
+      app.kubernetes.io/name: postgresql-main
+      app.kubernetes.io/component: database
+      app.kubernetes.io/part-of: monadiam
