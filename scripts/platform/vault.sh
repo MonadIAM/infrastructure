@@ -5,6 +5,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 . "$ROOT_DIR/scripts/lib/env.sh"
+. "$ROOT_DIR/scripts/lib/helm.sh"
 . "$ROOT_DIR/scripts/lib/vault.sh"
 
 load_env
@@ -18,13 +19,12 @@ chmod 700 "$VAULT_STATE_DIR"
 
 kubectl --context "$KUBE_CONTEXT" apply -k clusters/local
 
-helm repo add hashicorp "$HASHICORP_HELM_REPO" --force-update
-helm repo update hashicorp
+helm_repo_add hashicorp "$HASHICORP_HELM_REPO"
 
 kubectl --context "$KUBE_CONTEXT" apply -k platform/vault/resources
 kubectl --context "$KUBE_CONTEXT" wait --for=condition=Ready certificate/vault-server-tls -n "$VAULT_NAMESPACE" --timeout=180s
 
-helm upgrade --install vault hashicorp/vault \
+helm_upgrade_install vault hashicorp/vault \
     --version "$VAULT_CHART_VERSION" \
     --namespace "$VAULT_NAMESPACE" \
     --create-namespace \
@@ -39,7 +39,7 @@ initialize_vault
 unseal_vault
 bootstrap_vault
 
-helm upgrade --install vault-secrets-operator hashicorp/vault-secrets-operator \
+helm_upgrade_install vault-secrets-operator hashicorp/vault-secrets-operator \
     --version "$VAULT_SECRETS_OPERATOR_VERSION" \
     --namespace vault-secrets-operator \
     --create-namespace \

@@ -5,6 +5,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 . "$ROOT_DIR/scripts/lib/env.sh"
+. "$ROOT_DIR/scripts/lib/helm.sh"
 
 load_env
 require_env \
@@ -45,18 +46,15 @@ kubectl --context "$KUBE_CONTEXT" wait --for=create secret/grafana-admin \
     -n monadiam-observability \
     --timeout=180s
 
-helm repo add prometheus-community "$PROMETHEUS_COMMUNITY_HELM_REPO" --force-update
-helm repo add grafana-community "$GRAFANA_COMMUNITY_HELM_REPO" --force-update
-helm repo add open-telemetry "$OPENTELEMETRY_HELM_REPO" --force-update
-helm repo update prometheus-community
-helm repo update grafana-community
-helm repo update open-telemetry
+helm_repo_add prometheus-community "$PROMETHEUS_COMMUNITY_HELM_REPO"
+helm_repo_add grafana-community "$GRAFANA_COMMUNITY_HELM_REPO"
+helm_repo_add open-telemetry "$OPENTELEMETRY_HELM_REPO"
 
-helm show crds prometheus-community/kube-prometheus-stack \
+helm_show_crds prometheus-community/kube-prometheus-stack \
     --version "$KUBE_PROMETHEUS_STACK_CHART_VERSION" > "$crd_file"
 kubectl --context "$KUBE_CONTEXT" apply --server-side -f "$crd_file"
 
-helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+helm_upgrade_install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
     --version "$KUBE_PROMETHEUS_STACK_CHART_VERSION" \
     --namespace monadiam-observability \
     --create-namespace \
@@ -72,7 +70,7 @@ rollout_status daemonset kube-prometheus-stack-prometheus-node-exporter
 wait_available prometheus kube-prometheus-stack-prometheus
 wait_available alertmanager kube-prometheus-stack-alertmanager
 
-helm upgrade --install loki grafana-community/loki \
+helm_upgrade_install loki grafana-community/loki \
     --version "$LOKI_CHART_VERSION" \
     --namespace monadiam-observability \
     --create-namespace \
@@ -82,7 +80,7 @@ helm upgrade --install loki grafana-community/loki \
 
 rollout_status statefulset loki
 
-helm upgrade --install tempo grafana-community/tempo \
+helm_upgrade_install tempo grafana-community/tempo \
     --version "$TEMPO_CHART_VERSION" \
     --namespace monadiam-observability \
     --create-namespace \
@@ -92,7 +90,7 @@ helm upgrade --install tempo grafana-community/tempo \
 
 rollout_status statefulset tempo
 
-helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
+helm_upgrade_install otel-collector open-telemetry/opentelemetry-collector \
     --version "$OPENTELEMETRY_COLLECTOR_CHART_VERSION" \
     --namespace monadiam-observability \
     --create-namespace \

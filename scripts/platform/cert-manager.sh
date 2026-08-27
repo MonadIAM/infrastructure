@@ -5,13 +5,14 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 . "$ROOT_DIR/scripts/lib/env.sh"
+. "$ROOT_DIR/scripts/lib/helm.sh"
 
 load_env
 require_env KUBE_CONTEXT CERT_MANAGER_VERSION CERT_MANAGER_CHART
 
 cd "$ROOT_DIR"
 
-helm upgrade --install cert-manager "$CERT_MANAGER_CHART" \
+helm_upgrade_install cert-manager "$CERT_MANAGER_CHART" \
     --version "$CERT_MANAGER_VERSION" \
     --namespace cert-manager \
     --create-namespace \

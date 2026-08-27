@@ -5,13 +5,13 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 . "$ROOT_DIR/scripts/lib/env.sh"
+. "$ROOT_DIR/scripts/lib/helm.sh"
 
 load_env
 require_env \
     KUBE_CONTEXT \
     CNPG_HELM_REPO \
     CNPG_CHART_VERSION \
-    STRIMZI_HELM_REPO \
     STRIMZI_CHART_VERSION \
     ALTINITY_HELM_REPO \
     CLICKHOUSE_OPERATOR_CHART_VERSION \
@@ -46,13 +46,11 @@ EOF
 
 kubectl --context "$KUBE_CONTEXT" apply -k clusters/local
 
-helm repo add cnpg "$CNPG_HELM_REPO" --force-update
-helm repo add strimzi "$STRIMZI_HELM_REPO" --force-update
-helm repo add altinity "$ALTINITY_HELM_REPO" --force-update
-helm repo add minio "$MINIO_OPERATOR_HELM_REPO" --force-update
-helm repo update cnpg strimzi altinity minio
+helm_repo_add cnpg "$CNPG_HELM_REPO"
+helm_repo_add altinity "$ALTINITY_HELM_REPO"
+helm_repo_add minio "$MINIO_OPERATOR_HELM_REPO"
 
-helm upgrade --install cnpg cnpg/cloudnative-pg \
+helm_upgrade_install cnpg cnpg/cloudnative-pg \
     --version "$CNPG_CHART_VERSION" \
     --namespace cnpg-system \
     --create-namespace \
@@ -62,7 +60,7 @@ helm upgrade --install cnpg cnpg/cloudnative-pg \
 kubectl --context "$KUBE_CONTEXT" rollout status deployment/cnpg-cloudnative-pg -n cnpg-system --timeout=600s
 kubectl --context "$KUBE_CONTEXT" wait --for=condition=Established crd/clusters.postgresql.cnpg.io --timeout=600s
 
-helm upgrade --install strimzi strimzi/strimzi-kafka-operator \
+helm_upgrade_install strimzi oci://quay.io/strimzi-helm/strimzi-kafka-operator \
     --version "$STRIMZI_CHART_VERSION" \
     --namespace strimzi-system \
     --create-namespace \
@@ -76,7 +74,7 @@ kubectl --context "$KUBE_CONTEXT" wait --for=condition=Established crd/kafkaconn
 kubectl --context "$KUBE_CONTEXT" wait --for=condition=Established crd/kafkausers.kafka.strimzi.io --timeout=600s
 kubectl --context "$KUBE_CONTEXT" wait --for=condition=Established crd/kafkatopics.kafka.strimzi.io --timeout=600s
 
-helm upgrade --install clickhouse-operator altinity/altinity-clickhouse-operator \
+helm_upgrade_install clickhouse-operator altinity/altinity-clickhouse-operator \
     --version "$CLICKHOUSE_OPERATOR_CHART_VERSION" \
     --namespace clickhouse-operator \
     --create-namespace \
@@ -89,7 +87,7 @@ kubectl --context "$KUBE_CONTEXT" wait --for=condition=Established crd/clickhous
 kubectl --context "$KUBE_CONTEXT" wait --for=condition=Established crd/clickhousekeeperinstallations.clickhouse-keeper.altinity.com --timeout=600s
 
 sync_minio_operator_ca
-helm upgrade --install minio-operator minio/operator \
+helm_upgrade_install minio-operator minio/operator \
     --version "$MINIO_OPERATOR_CHART_VERSION" \
     --namespace minio-operator \
     --create-namespace \

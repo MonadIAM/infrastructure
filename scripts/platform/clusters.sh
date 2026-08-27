@@ -5,6 +5,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 . "$ROOT_DIR/scripts/lib/env.sh"
+. "$ROOT_DIR/scripts/lib/helm.sh"
 . "$ROOT_DIR/scripts/lib/minio.sh"
 
 load_env
@@ -71,7 +72,7 @@ kubectl --context "$KUBE_CONTEXT" apply -k platform/minio/resources
 
 kubectl --context "$KUBE_CONTEXT" wait --for=condition=Ready certificate/redis-main-tls -n monadiam-data --timeout=180s
 kubectl --context "$KUBE_CONTEXT" wait --for=create secret/redis-main-auth -n monadiam-data --timeout=180s
-helm upgrade --install redis-main "$REDIS_CHART" \
+helm_upgrade_install redis-main "$REDIS_CHART" \
     --version "$REDIS_CHART_VERSION" \
     --namespace monadiam-data \
     --create-namespace \
