@@ -1,0 +1,96 @@
+x-base: &base
+  restart: on-failure
+  env_file:
+    - ../.env
+
+services:
+  clickhouse:
+    <<: *base
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse
+    ports:
+      - "${CLICKHOUSE_NATIVE_PORT:?}:9000"
+      - "${CLICKHOUSE_HTTP_PORT:?}:8123"
+    volumes:
+      - ./clickhouse/config/local-ports.xml:/etc/clickhouse-server/config.d/local-ports.xml:ro
+      - clickhouse_data:/var/lib/clickhouse
+    networks:
+      kafka_net:
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "clickhouse-client --port 9000 --user \"$${CLICKHOUSE_USER}\" --password \"$${CLICKHOUSE_PASSWORD}\" --query 'SELECT 1'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  clickhouse-init:
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse-init
+    env_file:
+      - ../.env
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    volumes:
+      - ../scripts:/scripts:ro
+      - ./clickhouse/schema:/schema:ro
+    entrypoint: ["bash", "/scripts/clickhouse-init.sh"]
+    networks:
+      kafka_net:
+
+  minio:
+    <<: *base
+    image: ${MINIO_IMAGE:?}
+    container_name: minio
+    command: server /data --address ":${MINIO_API_INTERNAL_PORT:?}" --console-address ":${MINIO_CONSOLE_INTERNAL_PORT:?}"
+    ports:
+      - "${MINIO_CONSOLE_PORT:?}:${MINIO_CONSOLE_INTERNAL_PORT:?}"
+      - "${MINIO_API_PORT:?}:${MINIO_API_INTERNAL_PORT:?}"
+    volumes:
+      - minio_data:/data
+    networks:
+      kafka_net:
+
+  minio-init:
+    image: ${MINIO_MC_IMAGE:?}
+    container_name: minio-init
+    env_file:
+      - ../.env
+    depends_on:
+      minio:
+        condition: service_started
+    volumes:
+      - ./minio/policy.archiver.json:/minio/policy.archiver.json:ro
+      - ../scripts:/scripts:ro
+    entrypoint: ["sh", "/scripts/minio-init.sh"]
+    networks:
+      kafka_net:
+
+  clickhouse-archiver:
+    <<: *base
+    image: ${CLICKHOUSE_IMAGE:?}
+    container_name: clickhouse-archiver
+    depends_on:
+      clickhouse-init:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    volumes:
+      - ../scripts:/scripts:ro
+    entrypoint: ["sh", "/scripts/clickhouse-archiver-entrypoint.sh"]
+    networks:
+      kafka_net:
+
+volumes:
+  clickhouse_data:
+  minio_data:
+
+networks:
+  kafka_net:
+    name: ${DOCKER_NETWORK_KAFKA:?}

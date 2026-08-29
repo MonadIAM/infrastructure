@@ -1,0 +1,59 @@
+x-base: &base
+  restart: on-failure
+  env_file:
+    - ../../.env
+
+services:
+  notification-redis:
+    <<: *base
+    image: ${REDIS_IMAGE:?}
+    container_name: notification-redis
+    ports:
+      - "127.0.0.1:${NOTIFICATION_REDIS_PUBLISHED_PORT:?}:6379"
+    volumes:
+      - notification_redis_data:/data
+    command: ["sh", "-c", "exec redis-server --appendonly yes --port 6379 --requirepass \"$${NOTIFICATION_REDIS_PASSWORD}\""]
+    networks:
+      redis_net:
+        aliases:
+          - notification-redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -p 6379 -a \"$${NOTIFICATION_REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  notification-postgresql:
+    <<: *base
+    image: ${POSTGRES_IMAGE:?}
+    container_name: notification-postgresql
+    environment:
+      POSTGRES_PASSWORD: ${NOTIFICATION_POSTGRES_PASSWORD:?}
+      POSTGRES_USER: ${NOTIFICATION_POSTGRES_USER:?}
+      POSTGRES_DB: ${NOTIFICATION_POSTGRES_DB:?}
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    ports:
+      - "127.0.0.1:${NOTIFICATION_POSTGRES_PUBLISHED_PORT:?}:5432"
+    volumes:
+      - notification_postgresql_data:/var/lib/postgresql/data
+    networks:
+      postgres_net:
+        aliases:
+          - notification-postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  notification_postgresql_data:
+  notification_redis_data:
+
+networks:
+  postgres_net:
+    name: ${DOCKER_NETWORK_POSTGRES:?}
+  redis_net:
+    name: ${DOCKER_NETWORK_REDIS:?}

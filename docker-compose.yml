@@ -1,0 +1,10 @@
+name: infra
+
+include:
+  - services/template/compose.yml
+  - services/access-control/compose.yml
+  - services/notification/compose.yml
+  - services/identity/compose.yml
+  - audit-archive/compose.yml
+  - messaging/compose.yml
+  - vault/compose.yml

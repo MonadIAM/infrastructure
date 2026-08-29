@@ -1,0 +1,114 @@
+x-base: &base
+  restart: on-failure
+  env_file:
+    - ../.env
+
+services:
+  kafka:
+    <<: *base
+    image: ${KAFKA_IMAGE:?}
+    container_name: kafka
+    volumes:
+      - ./kafka/server.properties:/etc/kafka/server.properties:ro
+      - ../scripts:/scripts:ro
+      - kafka_data:/var/lib/kafka/data
+    entrypoint: ["bash", "/scripts/kafka-start.sh"]
+    networks:
+      kafka_net:
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:29092 >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  kafka-init:
+    image: ${KAFKA_IMAGE:?}
+    container_name: kafka-init
+    env_file:
+      - ../.env
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ../scripts:/scripts:ro
+    entrypoint: ["bash", "/scripts/kafka-init-topics.sh"]
+    networks:
+      kafka_net:
+
+  kafka-ui:
+    <<: *base
+    image: ${KAFKA_UI_IMAGE:?}
+    container_name: kafka-ui
+    ports:
+      - "${KAFKA_UI_PORT:?}:8080"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    networks:
+      kafka_net:
+
+  kafka-connect:
+    <<: *base
+    image: ${KAFKA_CONNECT_IMAGE:?}
+    container_name: kafka-connect
+    ports:
+      - "${KAFKA_CONNECT_PORT:?}:8083"
+    environment:
+      CONFIG_STORAGE_TOPIC: ${KAFKA_CONNECT_CONFIG_STORAGE_TOPIC:?}
+      OFFSET_STORAGE_TOPIC: ${KAFKA_CONNECT_OFFSET_STORAGE_TOPIC:?}
+      STATUS_STORAGE_TOPIC: ${KAFKA_CONNECT_STATUS_STORAGE_TOPIC:?}
+      GROUP_ID: ${KAFKA_CONNECT_GROUP_ID:?}
+      BOOTSTRAP_SERVERS: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    networks:
+      kafka_net:
+      postgres_net:
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8083/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  debezium-init:
+    image: ${KAFKA_CONNECT_IMAGE:?}
+    container_name: debezium-init
+    env_file:
+      - ../.env
+    volumes:
+      - ./debezium/outbox.connector.json:/debezium/outbox.connector.json:ro
+      - ../scripts:/scripts:ro
+    depends_on:
+      template-postgresql:
+        condition: service_healthy
+      access-control-postgresql:
+        condition: service_healthy
+      notification-postgresql:
+        condition: service_healthy
+      kafka-connect:
+        condition: service_healthy
+      identity-postgresql:
+        condition: service_healthy
+    entrypoint: ["sh", "/scripts/debezium-init-connectors.sh"]
+    networks:
+      kafka_net:
+      postgres_net:
+
+volumes:
+  kafka_data:
+
+networks:
+  postgres_net:
+    name: ${DOCKER_NETWORK_POSTGRES:?}
+  kafka_net:
+    name: ${DOCKER_NETWORK_KAFKA:?}

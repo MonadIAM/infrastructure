@@ -1,0 +1,59 @@
+x-base: &base
+  restart: on-failure
+  env_file:
+    - ../../.env
+
+services:
+  access-control-redis:
+    <<: *base
+    image: ${REDIS_IMAGE:?}
+    container_name: access-control-redis
+    ports:
+      - "127.0.0.1:${ACCESS_CONTROL_REDIS_PUBLISHED_PORT:?}:6379"
+    volumes:
+      - access_control_redis_data:/data
+    command: ["sh", "-c", "exec redis-server --appendonly yes --port 6379 --requirepass \"$${ACCESS_CONTROL_REDIS_PASSWORD}\""]
+    networks:
+      redis_net:
+        aliases:
+          - access-control-redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -p 6379 -a \"$${ACCESS_CONTROL_REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  access-control-postgresql:
+    <<: *base
+    image: ${POSTGRES_IMAGE:?}
+    container_name: access-control-postgresql
+    environment:
+      POSTGRES_PASSWORD: ${ACCESS_CONTROL_POSTGRES_PASSWORD:?}
+      POSTGRES_USER: ${ACCESS_CONTROL_POSTGRES_USER:?}
+      POSTGRES_DB: ${ACCESS_CONTROL_POSTGRES_DB:?}
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    ports:
+      - "127.0.0.1:${ACCESS_CONTROL_POSTGRES_PUBLISHED_PORT:?}:5432"
+    volumes:
+      - access_control_postgresql_data:/var/lib/postgresql/data
+    networks:
+      postgres_net:
+        aliases:
+          - access-control-postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  access_control_postgresql_data:
+  access_control_redis_data:
+
+networks:
+  postgres_net:
+    name: ${DOCKER_NETWORK_POSTGRES:?}
+  redis_net:
+    name: ${DOCKER_NETWORK_REDIS:?}

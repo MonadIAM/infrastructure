@@ -1,0 +1,86 @@
+x-base: &base
+  restart: on-failure
+  env_file:
+    - ../.env
+
+services:
+  vault:
+    <<: *base
+    image: ${VAULT_IMAGE:?}
+    container_name: vault
+    cap_add:
+      - IPC_LOCK
+    entrypoint: ["vault"]
+    command: ["server", "-config=/vault/config/vault.hcl"]
+    ports:
+      - "${VAULT_PUBLISHED_PORT:?}:8200"
+    volumes:
+      - ./config/vault.hcl:/vault/config/vault.hcl:ro
+      - vault_data:/vault/file
+    networks:
+      vault_net:
+        aliases:
+          - vault
+      postgres_net:
+    healthcheck:
+      test: ["CMD-SHELL", "VAULT_ADDR=http://127.0.0.1:8200 vault status >/dev/null 2>&1; code=$$?; [ $$code -eq 0 ] || [ $$code -eq 2 ]"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 5s
+
+  vault-init-unseal:
+    image: ${VAULT_IMAGE:?}
+    container_name: vault-init-unseal
+    env_file:
+      - ../.env
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_INIT_DIR: /vault/init
+    volumes:
+      - ../scripts:/scripts:ro
+      - vault_init:/vault/init
+    entrypoint: ["sh", "/scripts/vault-init-unseal.sh"]
+    networks:
+      vault_net:
+
+  vault-bootstrap:
+    image: ${VAULT_IMAGE:?}
+    container_name: vault-bootstrap
+    env_file:
+      - ../.env
+    depends_on:
+      vault-init-unseal:
+        condition: service_completed_successfully
+      template-postgresql:
+        condition: service_healthy
+      identity-postgresql:
+        condition: service_healthy
+      access-control-postgresql:
+        condition: service_healthy
+      notification-postgresql:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_INIT_DIR: /vault/init
+    volumes:
+      - ../scripts:/scripts:ro
+      - ./policies:/vault/policies:ro
+      - vault_init:/vault/init
+    entrypoint: ["sh", "/scripts/vault-bootstrap.sh"]
+    networks:
+      vault_net:
+      postgres_net:
+
+volumes:
+  vault_data:
+  vault_init:
+
+networks:
+  vault_net:
+    name: ${DOCKER_NETWORK_VAULT:?}
+  postgres_net:
+    name: ${DOCKER_NETWORK_POSTGRES:?}
