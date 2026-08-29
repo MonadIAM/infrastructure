@@ -16,6 +16,10 @@ spec:
           containers:
             - name: clickhouse
               image: altinity/clickhouse-server:25.8.16.10002.altinitystable
+              ports:
+                - name: metrics
+                  containerPort: 9363
+                  protocol: TCP
               resources:
                 requests:
                   cpu: 250m
@@ -36,6 +40,20 @@ spec:
             requests:
               storage: 5Gi
   configuration:
+    files:
+      config.d/prometheus.xml: |
+        <clickhouse>
+            <prometheus>
+                <port>9363</port>
+                <endpoint>/metrics</endpoint>
+                <metrics>true</metrics>
+                <asynchronous_metrics>true</asynchronous_metrics>
+                <events>true</events>
+                <errors>true</errors>
+                <histograms>true</histograms>
+                <dimensional_metrics>true</dimensional_metrics>
+            </prometheus>
+        </clickhouse>
     users:
       default/networks/ip:
         - "127.0.0.1/32"

@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: ScrapeConfig
+metadata:
+  name: minio-main
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: minio-main
+    app.kubernetes.io/component: object-storage
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  jobName: minio-main
+  scrapeInterval: 60s
+  scrapeTimeout: 10s
+  metricsPath: /minio/metrics/v3
+  scheme: https
+  staticConfigs:
+    - targets:
+        - minio.monadiam-data.svc.cluster.local:443
+      labels:
+        namespace: monadiam-data
+        service: minio
+  authorization:
+    type: Bearer
+    credentials:
+      name: minio-main-prometheus
+      key: bearer-token
+  tlsConfig:
+    ca:
+      secret:
+        name: minio-main-tls
+        key: ca.crt
+    serverName: minio.monadiam-data.svc.cluster.local

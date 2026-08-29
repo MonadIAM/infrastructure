@@ -12,7 +12,7 @@ crdHook:
     sidecar.istio.io/inject: "false"
 
 serviceMonitor:
-  enabled: false
+  enabled: true
 
 dashboards:
   enabled: false

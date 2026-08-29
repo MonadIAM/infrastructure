@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: clickhouse-main
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: clickhouse-main
+    app.kubernetes.io/component: analytics
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  selector:
+    matchLabels:
+      clickhouse.altinity.com/chi: clickhouse-main
+      clickhouse.altinity.com/ready: "yes"
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - minio-main-certificate.yaml
   - minio-main.yaml
+  - minio-main-scrapeconfig.yaml

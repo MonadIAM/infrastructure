@@ -38,6 +38,133 @@ wait_minio_bootstrap_pod_completed() {
     done
 }
 
+wait_minio_command_pod_completed() {
+    namespace="$1"
+    name="$2"
+    attempt=0
+
+    while :; do
+        phase="$(kubectl --context "$KUBE_CONTEXT" get pod "$name" -n "$namespace" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+        case "$phase" in
+            Succeeded)
+                kubectl --context "$KUBE_CONTEXT" logs "pod/$name" -n "$namespace"
+                kubectl --context "$KUBE_CONTEXT" delete pod "$name" -n "$namespace" --ignore-not-found >/dev/null
+                return
+                ;;
+            Failed)
+                kubectl --context "$KUBE_CONTEXT" logs "pod/$name" -n "$namespace" || true
+                kubectl --context "$KUBE_CONTEXT" describe pod "$name" -n "$namespace" || true
+                exit 1
+                ;;
+        esac
+
+        attempt=$((attempt + 1))
+        if [ "$attempt" -ge 120 ]; then
+            kubectl --context "$KUBE_CONTEXT" logs "pod/$name" -n "$namespace" || true
+            kubectl --context "$KUBE_CONTEXT" describe pod "$name" -n "$namespace" || true
+            exit 1
+        fi
+        sleep 5
+    done
+}
+
+sync_minio_prometheus_token() {
+    namespace=monadiam-data
+    name=minio-main-prometheus-token
+
+    kubectl --context "$KUBE_CONTEXT" delete pod "$name" -n "$namespace" --ignore-not-found
+    kubectl --context "$KUBE_CONTEXT" apply -f - <<-EOF
+	apiVersion: v1
+	kind: Pod
+	metadata:
+	  name: $name
+	  namespace: $namespace
+	  labels:
+	    app.kubernetes.io/name: minio-main-prometheus-token
+	    app.kubernetes.io/component: object-storage-bootstrap
+	    app.kubernetes.io/part-of: monadiam
+	    app.kubernetes.io/managed-by: shell
+	spec:
+	  restartPolicy: Never
+	  enableServiceLinks: false
+	  containers:
+	    - name: mc
+	      image: $MINIO_MC_IMAGE
+	      imagePullPolicy: IfNotPresent
+	      env:
+	        - name: HOME
+	          value: /tmp
+	        - name: MINIO_ENDPOINT
+	          value: https://minio.monadiam-data.svc.cluster.local
+	      command:
+	        - /bin/sh
+	        - -eu
+	        - -c
+	        - |
+	          mkdir -p /tmp/.mc/certs/CAs
+	          cp /mnt/minio-tls/ca.crt /tmp/.mc/certs/CAs/monadiam-root-ca.crt
+	          . /mnt/minio-root/config.env
+	          i=0
+	          until mc alias set local "\$MINIO_ENDPOINT" "\$MINIO_ROOT_USER" "\$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+	              i=\$((i + 1))
+	              if [ "\$i" -ge 60 ]; then
+	                  echo "MinIO did not become ready in time: \$MINIO_ENDPOINT" >&2
+	                  exit 1
+	              fi
+	              sleep 2
+	          done
+	          mc admin prometheus generate local --api-version v3
+	      volumeMounts:
+	        - name: minio-main-root
+	          mountPath: /mnt/minio-root
+	          readOnly: true
+	        - name: minio-main-tls
+	          mountPath: /mnt/minio-tls
+	          readOnly: true
+	      securityContext:
+	        allowPrivilegeEscalation: false
+	        capabilities:
+	          drop:
+	            - ALL
+	        runAsNonRoot: true
+	        runAsUser: 1000
+	        runAsGroup: 1000
+	        seccompProfile:
+	          type: RuntimeDefault
+	  volumes:
+	    - name: minio-main-root
+	      secret:
+	        secretName: minio-main-root
+	    - name: minio-main-tls
+	      secret:
+	        secretName: minio-main-tls
+	EOF
+
+    scrape_config="$(wait_minio_command_pod_completed "$namespace" "$name")"
+    token="$(printf '%s\n' "$scrape_config" | awk '$1 == "bearer_token:" {print $2; exit}')"
+
+    if [ -z "$token" ]; then
+        echo "MinIO Prometheus bearer token was not generated" >&2
+        exit 1
+    fi
+
+    kubectl --context "$KUBE_CONTEXT" apply -f - <<-EOF
+	apiVersion: v1
+	kind: Secret
+	metadata:
+	  name: minio-main-prometheus
+	  namespace: monadiam-data
+	  labels:
+	    app.kubernetes.io/name: minio-main-prometheus
+	    app.kubernetes.io/component: object-storage
+	    app.kubernetes.io/part-of: monadiam
+	    app.kubernetes.io/managed-by: scripts
+	type: Opaque
+	stringData:
+	  bearer-token: $token
+	EOF
+}
+
 bootstrap_minio() {
     require_minio_env
 
@@ -187,4 +314,5 @@ bootstrap_minio() {
 	EOF
 
     wait_minio_bootstrap_pod_completed "$namespace" "$name"
+    sync_minio_prometheus_token
 }

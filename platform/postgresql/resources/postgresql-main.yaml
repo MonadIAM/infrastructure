@@ -37,8 +37,6 @@ spec:
   walStorage:
     storageClass: local-path-retain
     size: 1Gi
-  monitoring:
-    enablePodMonitor: false
   resources:
     requests:
       cpu: 100m
