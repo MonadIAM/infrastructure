@@ -41,6 +41,9 @@ topic_spec change-log-archive "retention.ms=$RETENTION_MAIN"
 topic_spec "$KAFKA_CONNECT_CONFIG_STORAGE_TOPIC" "cleanup.policy=compact"
 topic_spec "$KAFKA_CONNECT_OFFSET_STORAGE_TOPIC" "cleanup.policy=compact"
 topic_spec "$KAFKA_CONNECT_STATUS_STORAGE_TOPIC" "cleanup.policy=compact"
+topic_spec "${SCHEMA_REGISTRY_KAFKASQL_JOURNAL_TOPIC}" "cleanup.policy=delete" "retention.ms=-1" "retention.bytes=-1"
+topic_spec "${SCHEMA_REGISTRY_KAFKASQL_SNAPSHOTS_TOPIC}" "cleanup.policy=delete" "retention.ms=-1" "retention.bytes=-1"
+topic_spec "${SCHEMA_REGISTRY_EVENTS_TOPIC}" "cleanup.policy=delete" "retention.ms=-1" "retention.bytes=-1"
 
 declare -A EXISTING_TOPIC_SET=()
 while IFS= read -r topic; do

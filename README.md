@@ -27,15 +27,16 @@ Only the host-published ports above are service-indexed.
 <details>
 <summary><strong>Shared Ports</strong></summary>
 
-| Component     | Host port | Container port | Variable                 |
-|:--------------|:----------|:---------------|:-------------------------|
-| Kafka UI      | `8080`    | `8080`         | `KAFKA_UI_PORT`          |
-| Kafka Connect | `8083`    | `8083`         | `KAFKA_CONNECT_PORT`     |
-| Vault         | `8200`    | `8200`         | `VAULT_PUBLISHED_PORT`   |
-| ClickHouse    | `9000`    | `9000`         | `CLICKHOUSE_NATIVE_PORT` |
-| ClickHouse    | `8123`    | `8123`         | `CLICKHOUSE_HTTP_PORT`   |
-| MinIO API     | `9010`    | `9000`         | `MINIO_API_PORT`         |
-| MinIO Console | `9011`    | `9090`         | `MINIO_CONSOLE_PORT`     |
+| Component       | Host port | Container port | Variable                 |
+|:----------------|:----------|:---------------|:-------------------------|
+| Kafka UI        | `8080`    | `8080`         | `KAFKA_UI_PORT`          |
+| Kafka Connect   | `8083`    | `8083`         | `KAFKA_CONNECT_PORT`     |
+| Schema Registry | `8081`    | `8080`         | `SCHEMA_REGISTRY_PORT`   |
+| Vault           | `8200`    | `8200`         | `VAULT_PUBLISHED_PORT`   |
+| ClickHouse      | `9000`    | `9000`         | `CLICKHOUSE_NATIVE_PORT` |
+| ClickHouse      | `8123`    | `8123`         | `CLICKHOUSE_HTTP_PORT`   |
+| MinIO API       | `9010`    | `9000`         | `MINIO_API_PORT`         |
+| MinIO Console   | `9011`    | `9090`         | `MINIO_CONSOLE_PORT`     |
 
 </details>
 
@@ -114,9 +115,23 @@ listener and rendered secret files.
 <details>
 <summary><strong>Kafka and Debezium</strong></summary>
 
-- `messaging/compose.yml` starts Kafka, Kafka UI, Kafka Connect, and the Debezium connector bootstrap container.
+- `messaging/compose.yml` starts Kafka, Kafka UI, Schema Registry, Kafka Connect, and the Debezium connector bootstrap container.
 - `scripts/kafka-init-topics.sh` creates platform topics and retry/dead-letter topics.
 - `scripts/debezium-init-connectors.sh` registers outbox connectors.
+
+Schema Registry runs on Apicurio Registry with KafkaSQL storage. Its internal
+journal, snapshots, and events topics are created explicitly by
+`scripts/kafka-init-topics.sh`; topic auto-creation is disabled in the registry
+container. Registry readiness is checked through the Apicurio management
+endpoint on the internal container port `9000`.
+
+Global Schema Registry rules are configured through `.env`:
+
+| Variable                               | Default    | Purpose                                      |
+|:---------------------------------------|:-----------|:---------------------------------------------|
+| `SCHEMA_REGISTRY_GLOBAL_VALIDITY`      | `FULL`     | Reject structurally invalid schema artifacts |
+| `SCHEMA_REGISTRY_GLOBAL_COMPATIBILITY` | `BACKWARD` | Keep consumers compatible by default         |
+| `SCHEMA_REGISTRY_GLOBAL_INTEGRITY`     | `FULL`     | Validate artifact references and integrity   |
 
 | Service          | Connector name                            | PostgreSQL host                  |
 |:-----------------|:------------------------------------------|:---------------------------------|

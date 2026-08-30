@@ -55,6 +55,36 @@ services:
     networks:
       kafka_net:
 
+  schema-registry-main:
+    <<: *base
+    image: ${SCHEMA_REGISTRY_IMAGE:?}
+    container_name: schema-registry-main
+    ports:
+      - "127.0.0.1:${SCHEMA_REGISTRY_PORT:?}:8080"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      APICURIO_KAFKASQL_SNAPSHOTS_TOPIC: ${SCHEMA_REGISTRY_KAFKASQL_SNAPSHOTS_TOPIC:?}
+      APICURIO_RULES_GLOBAL_COMPATIBILITY: ${SCHEMA_REGISTRY_GLOBAL_COMPATIBILITY:?}
+      APICURIO_RULES_GLOBAL_INTEGRITY: ${SCHEMA_REGISTRY_GLOBAL_INTEGRITY:?}
+      APICURIO_KAFKASQL_TOPIC: ${SCHEMA_REGISTRY_KAFKASQL_JOURNAL_TOPIC:?}
+      APICURIO_RULES_GLOBAL_VALIDITY: ${SCHEMA_REGISTRY_GLOBAL_VALIDITY:?}
+      APICURIO_EVENTS_KAFKA_TOPIC: ${SCHEMA_REGISTRY_EVENTS_TOPIC:?}
+      APICURIO_KAFKASQL_BOOTSTRAP_SERVERS: kafka:29092
+      APICURIO_KAFKASQL_TOPIC_AUTO_CREATE: "false"
+      APICURIO_STORAGE_KIND: kafkasql
+    networks:
+      kafka_net:
+        aliases:
+          - schema-registry-main
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   kafka-connect:
     <<: *base
     image: ${KAFKA_CONNECT_IMAGE:?}
