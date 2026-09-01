@@ -23,7 +23,6 @@ topic_spec() {
 
 topic_triplet() {
     topic_spec "$1" "retention.ms=$RETENTION_MAIN"
-    topic_spec "$1-retry" "retention.ms=$RETENTION_RETRY"
     topic_spec "$1-dead" "retention.ms=$RETENTION_DEAD"
 }
 
@@ -31,8 +30,21 @@ for topic in realm account membership identifier service-client interface-client
     topic_triplet "$topic"
 done
 
+retry_topics() {
+    local service="$1"
+    local topic
+    shift
+    for topic in "$@"; do
+        topic_spec "$topic-retry-$service" "retention.ms=$RETENTION_RETRY"
+    done
+}
+
+retry_topics identity-service reauthentication access-cache membership realm
+retry_topics access-control-service reauthentication account membership projection-journal
+retry_topics notification-service reauthentication access-cache notification message-dispatch
+retry_topics template-service reauthentication access-cache
+
 topic_spec reauthentication "retention.ms=1800000"
-topic_spec reauthentication-retry "retention.ms=$RETENTION_RETRY"
 topic_spec reauthentication-dead "retention.ms=$RETENTION_DEAD"
 topic_spec blacklist "cleanup.policy=compact,delete" "retention.ms=900000" "min.cleanable.dirty.ratio=0.01" "segment.ms=60000"
 topic_spec blacklist-dead "retention.ms=$RETENTION_RETRY"
