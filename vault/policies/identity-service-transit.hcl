@@ -34,11 +34,19 @@ path "transit/verify/identity-id-token" {
   capabilities = ["update"]
 }
 
+path "transit/keys/identity-totp-secret" {
+  capabilities = ["read"]
+}
+
 path "transit/encrypt/identity-totp-secret" {
   capabilities = ["update"]
 }
 
 path "transit/decrypt/identity-totp-secret" {
+  capabilities = ["update"]
+}
+
+path "transit/rewrap/identity-totp-secret" {
   capabilities = ["update"]
 }
 
@@ -48,6 +56,10 @@ path "transit/hmac/identity-pairwise-sub" {
 
 path "transit/hmac/identity-audit-mask-hmac" {
   capabilities = ["update"]
+}
+
+path "transit/keys/identity-audit-log-sig" {
+  capabilities = ["read"]
 }
 
 path "transit/sign/identity-audit-log-sig" {
