@@ -58,10 +58,6 @@ path "transit/hmac/identity-audit-mask-hmac" {
   capabilities = ["update"]
 }
 
-path "transit/keys/identity-audit-log-sig" {
-  capabilities = ["read"]
-}
-
 path "transit/sign/identity-audit-log-sig" {
   capabilities = ["update"]
 }
