@@ -5,6 +5,7 @@ include:
   - services/access-control/compose.yml
   - services/notification/compose.yml
   - services/identity/compose.yml
+  - observability/compose.yml
   - audit-archive/compose.yml
   - messaging/compose.yml
   - vault/compose.yml

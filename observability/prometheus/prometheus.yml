@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - prometheus:9090
+
+  - job_name: otel-collector
+    static_configs:
+      - targets:
+          - otel-collector:8888
+
+  - job_name: otel-metrics
+    static_configs:
+      - targets:
+          - otel-collector:8889
+
+  - job_name: monadiam-services
+    metrics_path: /api/v1/metrics
+    static_configs:
+      - targets:
+          - template-service-app:4000
+        labels:
+          service: template-service
+      - targets:
+          - access-control-service-app:4001
+        labels:
+          service: access-control-service
+      - targets:
+          - identity-service-app:4002
+        labels:
+          service: identity-service
+      - targets:
+          - notification-service-app:4003
+        labels:
+          service: notification-service
