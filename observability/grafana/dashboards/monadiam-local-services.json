@@ -1010,8 +1010,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "MonadIAM Local Observability",
-  "uid": "monadiam-local-overview",
+  "title": "Services",
+  "uid": "monadiam-local-services",
   "version": 1,
   "weekStart": ""
 }

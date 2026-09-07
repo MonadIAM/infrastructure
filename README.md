@@ -61,7 +61,7 @@ Only the host-published ports above are service-indexed.
 | `services/notification/compose.yml`       | Notification PostgreSQL + Redis                  |
 | `messaging/compose.yml`                   | Kafka, Kafka UI, Kafka Connect, Debezium init    |
 | `audit-archive/compose.yml`               | ClickHouse, MinIO, archive init/job              |
-| `observability/compose.yml`               | Prometheus, Grafana, Loki, Tempo, OTel Collector |
+| `observability/compose.yml`               | Prometheus, Grafana, Loki, Tempo, OTel/exporters |
 | `observability/prometheus/prometheus.yml` | Application metrics scrape config                |
 | `observability/grafana/provisioning/`     | Datasources and dashboard provisioning           |
 | `vault/compose.yml`                       | Vault server, init/unseal, local bootstrap       |
@@ -129,9 +129,11 @@ LOKI_BATCH_INTERVAL="5"
 Existing service `.env` files are not rewritten automatically. Add these
 variables manually or recreate them from `.env.local.example`.
 
-Grafana is available at `http://localhost:3000`; the provisioned home dashboard
-is `MonadIAM Local Observability`. ClickHouse remains outside Grafana here:
-audit/change logs are an investigation WORM path, not operational log storage.
+Grafana is available at `http://localhost:3000`; the provisioned dashboards are
+`Services`, `PostgreSQL`, `Redis`, `Kafka`, `ClickHouse`, and `MinIO`, with
+`Services` as the home dashboard. ClickHouse query/audit data is still not used
+as a Grafana datasource: audit/change logs remain an investigation WORM path,
+not operational log storage.
 
 </details>
 

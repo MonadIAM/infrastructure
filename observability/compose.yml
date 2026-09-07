@@ -4,17 +4,176 @@ x-base: &base
     - ../.env
 
 services:
+  template-postgresql-exporter:
+    <<: *base
+    image: ${POSTGRES_EXPORTER_IMAGE:?}
+    container_name: template-postgresql-exporter
+    depends_on:
+      template-postgresql:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_URI: "template-postgresql:5432/${TEMPLATE_POSTGRES_DB:?}?sslmode=disable"
+      DATA_SOURCE_PASS: ${TEMPLATE_POSTGRES_PASSWORD:?}
+      DATA_SOURCE_USER: ${TEMPLATE_POSTGRES_USER:?}
+    networks:
+      monitoring_net:
+        aliases:
+          - template-postgresql-exporter
+      postgres_net:
+    mem_limit: 64m
+
+  access-control-postgresql-exporter:
+    <<: *base
+    image: ${POSTGRES_EXPORTER_IMAGE:?}
+    container_name: access-control-postgresql-exporter
+    depends_on:
+      access-control-postgresql:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_URI: "access-control-postgresql:5432/${ACCESS_CONTROL_POSTGRES_DB:?}?sslmode=disable"
+      DATA_SOURCE_PASS: ${ACCESS_CONTROL_POSTGRES_PASSWORD:?}
+      DATA_SOURCE_USER: ${ACCESS_CONTROL_POSTGRES_USER:?}
+    networks:
+      monitoring_net:
+        aliases:
+          - access-control-postgresql-exporter
+      postgres_net:
+    mem_limit: 64m
+
+  identity-postgresql-exporter:
+    <<: *base
+    image: ${POSTGRES_EXPORTER_IMAGE:?}
+    container_name: identity-postgresql-exporter
+    depends_on:
+      identity-postgresql:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_URI: "identity-postgresql:5432/${IDENTITY_POSTGRES_DB:?}?sslmode=disable"
+      DATA_SOURCE_PASS: ${IDENTITY_POSTGRES_PASSWORD:?}
+      DATA_SOURCE_USER: ${IDENTITY_POSTGRES_USER:?}
+    networks:
+      monitoring_net:
+        aliases:
+          - identity-postgresql-exporter
+      postgres_net:
+    mem_limit: 64m
+
+  notification-postgresql-exporter:
+    <<: *base
+    image: ${POSTGRES_EXPORTER_IMAGE:?}
+    container_name: notification-postgresql-exporter
+    depends_on:
+      notification-postgresql:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_URI: "notification-postgresql:5432/${NOTIFICATION_POSTGRES_DB:?}?sslmode=disable"
+      DATA_SOURCE_PASS: ${NOTIFICATION_POSTGRES_PASSWORD:?}
+      DATA_SOURCE_USER: ${NOTIFICATION_POSTGRES_USER:?}
+    networks:
+      monitoring_net:
+        aliases:
+          - notification-postgresql-exporter
+      postgres_net:
+    mem_limit: 64m
+
+  template-redis-exporter:
+    <<: *base
+    image: ${REDIS_EXPORTER_IMAGE:?}
+    container_name: template-redis-exporter
+    depends_on:
+      template-redis:
+        condition: service_healthy
+    environment:
+      REDIS_PASSWORD: ${TEMPLATE_REDIS_PASSWORD:?}
+      REDIS_EXPORTER_REDIS_ONLY_METRICS: "true"
+      REDIS_ADDR: redis://template-redis:6379
+    networks:
+      monitoring_net:
+        aliases:
+          - template-redis-exporter
+      redis_net:
+    mem_limit: 64m
+
+  access-control-redis-exporter:
+    <<: *base
+    image: ${REDIS_EXPORTER_IMAGE:?}
+    container_name: access-control-redis-exporter
+    depends_on:
+      access-control-redis:
+        condition: service_healthy
+    environment:
+      REDIS_PASSWORD: ${ACCESS_CONTROL_REDIS_PASSWORD:?}
+      REDIS_ADDR: redis://access-control-redis:6379
+      REDIS_EXPORTER_REDIS_ONLY_METRICS: "true"
+    networks:
+      monitoring_net:
+        aliases:
+          - access-control-redis-exporter
+      redis_net:
+    mem_limit: 64m
+
+  identity-redis-exporter:
+    <<: *base
+    image: ${REDIS_EXPORTER_IMAGE:?}
+    container_name: identity-redis-exporter
+    depends_on:
+      identity-redis:
+        condition: service_healthy
+    environment:
+      REDIS_PASSWORD: ${IDENTITY_REDIS_PASSWORD:?}
+      REDIS_EXPORTER_REDIS_ONLY_METRICS: "true"
+      REDIS_ADDR: redis://identity-redis:6379
+    networks:
+      monitoring_net:
+        aliases:
+          - identity-redis-exporter
+      redis_net:
+    mem_limit: 64m
+
+  notification-redis-exporter:
+    <<: *base
+    image: ${REDIS_EXPORTER_IMAGE:?}
+    container_name: notification-redis-exporter
+    depends_on:
+      notification-redis:
+        condition: service_healthy
+    environment:
+      REDIS_PASSWORD: ${NOTIFICATION_REDIS_PASSWORD:?}
+      REDIS_ADDR: redis://notification-redis:6379
+      REDIS_EXPORTER_REDIS_ONLY_METRICS: "true"
+    networks:
+      monitoring_net:
+        aliases:
+          - notification-redis-exporter
+      redis_net:
+    mem_limit: 64m
+
+  kafka-exporter:
+    <<: *base
+    image: ${KAFKA_EXPORTER_IMAGE:?}
+    container_name: kafka-exporter
+    command: ["--kafka.server=kafka:29092", "--kafka.version=3.9.0"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      monitoring_net:
+        aliases:
+          - kafka-exporter
+      kafka_net:
+    mem_limit: 128m
+
   prometheus:
     <<: *base
-    image: ${PROMETHEUS_IMAGE}
+    image: ${PROMETHEUS_IMAGE:?}
     container_name: prometheus
     command:
-      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION}"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:?}"
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--web.enable-lifecycle"
     ports:
-      - "127.0.0.1:${PROMETHEUS_PORT}:9090"
+      - "127.0.0.1:${PROMETHEUS_PORT:?}:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -26,11 +185,11 @@ services:
 
   loki:
     <<: *base
-    image: ${LOKI_IMAGE}
+    image: ${LOKI_IMAGE:?}
     container_name: loki
     command: ["-config.file=/etc/loki/config.yaml"]
     ports:
-      - "127.0.0.1:${LOKI_PORT}:3100"
+      - "127.0.0.1:${LOKI_PORT:?}:3100"
     volumes:
       - ./loki/config.yaml:/etc/loki/config.yaml:ro
       - loki_data:/loki
@@ -42,11 +201,11 @@ services:
 
   tempo:
     <<: *base
-    image: ${TEMPO_IMAGE}
+    image: ${TEMPO_IMAGE:?}
     container_name: tempo
     command: ["-config.file=/etc/tempo/config.yaml"]
     ports:
-      - "127.0.0.1:${TEMPO_PORT}:3200"
+      - "127.0.0.1:${TEMPO_PORT:?}:3200"
     volumes:
       - ./tempo/config.yaml:/etc/tempo/config.yaml:ro
       - tempo_data:/var/tempo
@@ -58,15 +217,15 @@ services:
 
   otel-collector:
     <<: *base
-    image: ${OTEL_COLLECTOR_IMAGE}
+    image: ${OTEL_COLLECTOR_IMAGE:?}
     container_name: otel-collector
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     depends_on:
       tempo:
         condition: service_started
     ports:
-      - "127.0.0.1:${OTEL_COLLECTOR_GRPC_PORT}:4317"
-      - "127.0.0.1:${OTEL_COLLECTOR_HTTP_PORT}:4318"
+      - "127.0.0.1:${OTEL_COLLECTOR_GRPC_PORT:?}:4317"
+      - "127.0.0.1:${OTEL_COLLECTOR_HTTP_PORT:?}:4318"
     volumes:
       - ./otel-collector/config.yaml:/etc/otelcol-contrib/config.yaml:ro
     networks:
@@ -77,7 +236,7 @@ services:
 
   grafana:
     <<: *base
-    image: ${GRAFANA_IMAGE}
+    image: ${GRAFANA_IMAGE:?}
     container_name: grafana
     depends_on:
       prometheus:
@@ -87,15 +246,15 @@ services:
       tempo:
         condition: service_started
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/monadiam-local-services.json
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?}
       GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_USERS_DEFAULT_THEME: "light"
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/monadiam-local-overview.json
     ports:
-      - "127.0.0.1:${GRAFANA_PORT}:3000"
+      - "127.0.0.1:${GRAFANA_PORT:?}:3000"
     volumes:
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
@@ -115,4 +274,10 @@ volumes:
 
 networks:
   monitoring_net:
-    name: ${DOCKER_NETWORK_MONITORING}
+    name: ${DOCKER_NETWORK_MONITORING:?}
+  postgres_net:
+    name: ${DOCKER_NETWORK_POSTGRES:?}
+  redis_net:
+    name: ${DOCKER_NETWORK_REDIS:?}
+  kafka_net:
+    name: ${DOCKER_NETWORK_KAFKA:?}

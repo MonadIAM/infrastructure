@@ -1,6 +1,6 @@
 global:
-  scrape_interval: 30s
-  evaluation_interval: 30s
+  scrape_interval: 10s
+  evaluation_interval: 10s
 
 scrape_configs:
   - job_name: prometheus
@@ -37,3 +37,77 @@ scrape_configs:
           - notification-service-app:4003
         labels:
           service: notification-service
+
+  - job_name: monadiam-postgresql
+    static_configs:
+      - targets:
+          - template-postgresql-exporter:9187
+        labels:
+          service: template-service
+      - targets:
+          - access-control-postgresql-exporter:9187
+        labels:
+          service: access-control-service
+      - targets:
+          - identity-postgresql-exporter:9187
+        labels:
+          service: identity-service
+      - targets:
+          - notification-postgresql-exporter:9187
+        labels:
+          service: notification-service
+
+  - job_name: monadiam-redis
+    static_configs:
+      - targets:
+          - template-redis-exporter:9121
+        labels:
+          service: template-service
+      - targets:
+          - access-control-redis-exporter:9121
+        labels:
+          service: access-control-service
+      - targets:
+          - identity-redis-exporter:9121
+        labels:
+          service: identity-service
+      - targets:
+          - notification-redis-exporter:9121
+        labels:
+          service: notification-service
+
+  - job_name: monadiam-kafka
+    static_configs:
+      - targets:
+          - kafka-exporter:9308
+        labels:
+          cluster: local
+
+  - job_name: monadiam-clickhouse
+    static_configs:
+      - targets:
+          - clickhouse:9363
+        labels:
+          database: audit
+    metric_relabel_configs:
+      - source_labels:
+          - __name__
+        regex: ClickHouseErrorMetric_(.*)
+        target_label: clickhouse_error
+        replacement: $1
+
+  - job_name: monadiam-minio-cluster
+    metrics_path: /minio/v2/metrics/cluster
+    static_configs:
+      - targets:
+          - minio:9000
+        labels:
+          cluster: local
+
+  - job_name: monadiam-minio-bucket
+    metrics_path: /minio/v2/metrics/bucket
+    static_configs:
+      - targets:
+          - minio:9000
+        labels:
+          cluster: local

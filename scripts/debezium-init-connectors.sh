@@ -19,6 +19,7 @@ register_connector() {
     POSTGRES_ROUTE_PORT="$7" \
     POSTGRES_OUTBOX_SLOT="$8" \
     POSTGRES_OUTBOX_PUBLICATION="$9" \
+    routedByValue='${routedByValue}' \
     envsubst < "$CONNECTOR_TEMPLATE" \
       | curl -fsS -X PUT "${CONNECT_URL}/connectors/$2/config" \
         -H "Content-Type: application/json" \

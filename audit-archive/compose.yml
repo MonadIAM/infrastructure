@@ -13,8 +13,12 @@ services:
       - "${CLICKHOUSE_HTTP_PORT:?}:8123"
     volumes:
       - ./clickhouse/config/local-ports.xml:/etc/clickhouse-server/config.d/local-ports.xml:ro
+      - ./clickhouse/config/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml:ro
       - clickhouse_data:/var/lib/clickhouse
     networks:
+      monitoring_net:
+        aliases:
+          - clickhouse
       kafka_net:
     healthcheck:
       test:
@@ -49,12 +53,17 @@ services:
     image: ${MINIO_IMAGE:?}
     container_name: minio
     command: server /data --address ":${MINIO_API_INTERNAL_PORT:?}" --console-address ":${MINIO_CONSOLE_INTERNAL_PORT:?}"
+    environment:
+      MINIO_PROMETHEUS_AUTH_TYPE: public
     ports:
       - "${MINIO_CONSOLE_PORT:?}:${MINIO_CONSOLE_INTERNAL_PORT:?}"
       - "${MINIO_API_PORT:?}:${MINIO_API_INTERNAL_PORT:?}"
     volumes:
       - minio_data:/data
     networks:
+      monitoring_net:
+        aliases:
+          - minio
       kafka_net:
 
   minio-init:
@@ -92,5 +101,7 @@ volumes:
   minio_data:
 
 networks:
+  monitoring_net:
+    name: ${DOCKER_NETWORK_MONITORING:?}
   kafka_net:
     name: ${DOCKER_NETWORK_KAFKA:?}
