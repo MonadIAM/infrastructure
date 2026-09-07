@@ -4,9 +4,94 @@
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Services",
+      "tooltip": "Open Services dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-services"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "PostgreSQL",
+      "tooltip": "Open PostgreSQL dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-postgresql"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Redis",
+      "tooltip": "Open Redis dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-redis"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Kafka",
+      "tooltip": "Open Kafka dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-kafka"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Queues",
+      "tooltip": "Open Queues dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-queues"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "MinIO",
+      "tooltip": "Open MinIO dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-minio"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "ClickHouse",
+      "tooltip": "Open ClickHouse dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-clickhouse"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -18,7 +103,7 @@
       },
       "id": 40,
       "panels": [],
-      "title": "ClickHouse",
+      "title": "ClickHouse Server (Exporter)",
       "type": "row"
     },
     {
@@ -29,7 +114,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -43,15 +140,21 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -90,7 +193,8 @@
         }
       ],
       "title": "ClickHouse queries",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Query throughput observed from ClickHouse exporter metrics. Use it to spot traffic bursts and idle periods."
     },
     {
       "datasource": {
@@ -100,7 +204,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -114,15 +230,21 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -150,7 +272,8 @@
         }
       ],
       "title": "ClickHouse memory",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "ClickHouse memory consumption by tracked allocator/category where available."
     },
     {
       "datasource": {
@@ -160,7 +283,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -174,15 +309,21 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -210,7 +351,8 @@
         }
       ],
       "title": "ClickHouse active work",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Currently active ClickHouse work such as running queries or background activity."
     },
     {
       "datasource": {
@@ -220,7 +362,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -234,15 +388,21 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "min",
+            "max",
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -259,7 +419,8 @@
         }
       ],
       "title": "ClickHouse errors",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Rate of ClickHouse query or server-side errors exposed by the ClickHouse exporter."
     }
   ],
   "refresh": "10s",
@@ -281,5 +442,6 @@
   "title": "ClickHouse",
   "uid": "monadiam-local-clickhouse",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "style": "dark"
 }

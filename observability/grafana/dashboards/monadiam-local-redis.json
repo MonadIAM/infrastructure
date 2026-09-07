@@ -4,9 +4,94 @@
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Services",
+      "tooltip": "Open Services dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-services"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "PostgreSQL",
+      "tooltip": "Open PostgreSQL dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-postgresql"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Redis",
+      "tooltip": "Open Redis dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-redis"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Kafka",
+      "tooltip": "Open Kafka dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-kafka"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Queues",
+      "tooltip": "Open Queues dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-queues"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "MinIO",
+      "tooltip": "Open MinIO dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-minio"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "ClickHouse",
+      "tooltip": "Open ClickHouse dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-clickhouse"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -18,7 +103,7 @@
       },
       "id": 25,
       "panels": [],
-      "title": "Redis",
+      "title": "Redis Server (Exporter)",
       "type": "row"
     },
     {
@@ -29,7 +114,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -43,15 +140,18 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
           "displayMode": "table",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -62,13 +162,14 @@
           },
           "editorMode": "code",
           "expr": "max by (service) (redis_connected_clients{job=\"monadiam-redis\", service=~\"$service\"})",
-          "legendFormat": "{{service}}",
+          "legendFormat": "clients",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis clients",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Connected Redis clients reported by redis_exporter."
     },
     {
       "datasource": {
@@ -78,7 +179,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "bytes",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -92,15 +205,18 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
           "displayMode": "table",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -111,13 +227,14 @@
           },
           "editorMode": "code",
           "expr": "max by (service) (redis_memory_used_bytes{job=\"monadiam-redis\", service=~\"$service\"})",
-          "legendFormat": "{{service}}",
+          "legendFormat": "memory",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis memory",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Redis memory usage reported by redis_exporter."
     },
     {
       "datasource": {
@@ -127,7 +244,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -141,15 +270,18 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
           "displayMode": "table",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -160,13 +292,14 @@
           },
           "editorMode": "code",
           "expr": "sum by (service) (rate(redis_commands_processed_total{job=\"monadiam-redis\", service=~\"$service\"}[$__rate_interval]))",
-          "legendFormat": "{{service}}",
+          "legendFormat": "commands",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis command rate",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Redis command throughput from redis_exporter."
     },
     {
       "datasource": {
@@ -178,7 +311,19 @@
           "unit": "percentunit",
           "decimals": 2,
           "min": 0,
-          "max": 1
+          "max": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -192,15 +337,19 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "min",
+            "max"
           ],
           "displayMode": "table",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -211,13 +360,753 @@
           },
           "editorMode": "code",
           "expr": "sum by (service) (rate(redis_keyspace_hits_total{job=\"monadiam-redis\", service=~\"$service\"}[$__rate_interval])) / clamp_min(sum by (service) (rate(redis_keyspace_hits_total{job=\"monadiam-redis\", service=~\"$service\"}[$__rate_interval])) + sum by (service) (rate(redis_keyspace_misses_total{job=\"monadiam-redis\", service=~\"$service\"}[$__rate_interval])), 1)",
-          "legendFormat": "{{service}}",
+          "legendFormat": "hit ratio",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "Redis cache hit ratio",
+      "type": "timeseries",
+      "description": "Redis keyspace hit ratio. Drops indicate ineffective cache usage or cold data."
+    },
+    {
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 37,
+      "title": "Redis Keyspace (Exporter)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "description": "Current key count by Redis database for the selected service Redis instance.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "unit": "short",
+          "custom": {
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 38,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (service, db) (redis_db_keys{job=\"monadiam-redis\", service=~\"$service\"})",
+          "legendFormat": "{{db}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Redis keys",
       "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "description": "Current number of keys with TTL by Redis database. This shows how much of the keyspace is temporary cache-like data.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "unit": "short",
+          "custom": {
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 39,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (service, db) (redis_db_keys_expiring{job=\"monadiam-redis\", service=~\"$service\"})",
+          "legendFormat": "{{db}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Redis expiring keys",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "description": "Expired and evicted key rate. Expired keys are normal for TTL caches; evicted keys mean Redis had to remove data because of memory pressure.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "unit": "ops",
+          "custom": {
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "id": 40,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service) (rate(redis_expired_keys_total{job=\"monadiam-redis\", service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "expired",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service) (rate(redis_evicted_keys_total{job=\"monadiam-redis\", service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "evicted",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Redis key churn rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "description": "Rate of Redis connections rejected because the configured client limit was reached. Any non-zero value is a capacity or connection leak signal.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0,
+          "unit": "ops",
+          "custom": {
+            "axisSoftMin": 0,
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "id": 41,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service) (rate(redis_rejected_connections_total{job=\"monadiam-redis\", service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "rejected",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Redis rejected clients",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "id": 30,
+      "panels": [],
+      "title": "Redis Client (App)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (service, connection) (redis_client_ready{job=\"monadiam-services\", service=~\"$service\"})",
+          "legendFormat": "{{connection}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Redis client ready",
+      "type": "timeseries",
+      "description": "Application Redis clients that are currently ready."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1,
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "max by (service, connection, status) (redis_client_status{job=\"monadiam-services\", service=~\"$service\"})",
+          "legendFormat": "{{connection}} {{status}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Redis client status",
+      "type": "timeseries",
+      "description": "Application Redis client connection status by service/client/status."
+    },
+    {
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "id": 42,
+      "title": "Redis Operations (OTel)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 44
+      },
+      "id": 33,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (db_operation_name, le) (rate({__name__=\"otel_db_spanmetrics_duration_seconds_bucket\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"redis\", span_kind=~\".*CLIENT\", db_operation_name!=\"\", db_operation_name!~\"^(CLIENT|client|HELLO|hello|INFO|info|SELECT|select|PIPELINE|pipeline)$\"}[$__rate_interval])))",
+          "legendFormat": "{{db_operation_name}} p50",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (db_operation_name, le) (rate({__name__=\"otel_db_spanmetrics_duration_seconds_bucket\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"redis\", span_kind=~\".*CLIENT\", db_operation_name!=\"\", db_operation_name!~\"^(CLIENT|client|HELLO|hello|INFO|info|SELECT|select|PIPELINE|pipeline)$\"}[$__rate_interval])))",
+          "legendFormat": "{{db_operation_name}} p95",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (db_operation_name, le) (rate({__name__=\"otel_db_spanmetrics_duration_seconds_bucket\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"redis\", span_kind=~\".*CLIENT\", db_operation_name!=\"\", db_operation_name!~\"^(CLIENT|client|HELLO|hello|INFO|info|SELECT|select|PIPELINE|pipeline)$\"}[$__rate_interval])))",
+          "legendFormat": "{{db_operation_name}} p99",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "Redis operation latency",
+      "type": "timeseries",
+      "description": "Application Redis command latency from OTel span metrics. Connection setup commands are excluded; Lua script operations are kept."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 44
+      },
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (db_operation_name) (rate({__name__=\"otel_db_spanmetrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"redis\", span_kind=~\".*CLIENT\", db_operation_name!=\"\", db_operation_name!~\"^(CLIENT|client|HELLO|hello|INFO|info|SELECT|select|PIPELINE|pipeline)$\"}[$__rate_interval]))",
+          "legendFormat": "{{db_operation_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Redis operation rate",
+      "type": "timeseries",
+      "description": "Application Redis command throughput from OTel span metrics. Connection setup commands are excluded; Lua script operations are kept."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "axisSoftMax": 0.1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 52
+      },
+      "id": 35,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (db_operation_name, status_code) (rate({__name__=\"otel_db_spanmetrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"redis\", span_kind=~\".*CLIENT\", db_operation_name!=\"\", db_operation_name!~\"^(CLIENT|client|HELLO|hello|INFO|info|SELECT|select|PIPELINE|pipeline)$\", status_code=~\".*ERROR|Error|ERROR\"}[$__rate_interval]))",
+          "legendFormat": "{{db_operation_name}} {{status_code}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Redis operation error rate",
+      "type": "timeseries",
+      "description": "Application Redis command error rate from OTel span metrics. Connection setup commands are excluded; Lua script operations are kept."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 52
+      },
+      "id": 36,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "clamp_max(sum(rate({__name__=\"otel_db_spanmetrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"redis\", span_kind=~\".*CLIENT\", db_operation_name!=\"\", db_operation_name!~\"^(CLIENT|client|HELLO|hello|INFO|info|SELECT|select|PIPELINE|pipeline)$\", status_code=~\".*ERROR|Error|ERROR\"}[$__rate_interval])) / clamp_min(sum(rate({__name__=\"otel_db_spanmetrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"redis\", span_kind=~\".*CLIENT\", db_operation_name!=\"\", db_operation_name!~\"^(CLIENT|client|HELLO|hello|INFO|info|SELECT|select|PIPELINE|pipeline)$\"}[$__rate_interval])), 0.001), 1)",
+          "legendFormat": "errors",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Redis operation error ratio",
+      "type": "timeseries",
+      "description": "Share of application Redis commands ending with error status. Connection setup commands are excluded; Lua script operations are kept."
     }
   ],
   "refresh": "10s",
@@ -232,8 +1121,8 @@
       {
         "current": {
           "selected": true,
-          "text": "All",
-          "value": "$__all"
+          "text": "identity-service",
+          "value": "identity-service"
         },
         "datasource": {
           "type": "prometheus",
@@ -241,11 +1130,17 @@
         },
         "definition": "label_values(up{job=\"monadiam-services\"}, service)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Service",
-        "multi": true,
+        "multi": false,
         "name": "service",
-        "options": [],
+        "options": [
+          {
+            "selected": true,
+            "text": "identity-service",
+            "value": "identity-service"
+          }
+        ],
         "query": {
           "query": "label_values(up{job=\"monadiam-services\"}, service)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
@@ -267,5 +1162,6 @@
   "title": "Redis",
   "uid": "monadiam-local-redis",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "style": "dark"
 }

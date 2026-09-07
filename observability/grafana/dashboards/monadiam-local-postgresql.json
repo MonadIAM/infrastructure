@@ -4,9 +4,94 @@
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Services",
+      "tooltip": "Open Services dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-services"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "PostgreSQL",
+      "tooltip": "Open PostgreSQL dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-postgresql"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Redis",
+      "tooltip": "Open Redis dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-redis"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Kafka",
+      "tooltip": "Open Kafka dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-kafka"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Queues",
+      "tooltip": "Open Queues dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-queues"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "MinIO",
+      "tooltip": "Open MinIO dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-minio"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "ClickHouse",
+      "tooltip": "Open ClickHouse dashboard",
+      "type": "dashboard",
+      "uid": "monadiam-local-clickhouse"
+    }
+  ],
   "panels": [
     {
       "collapsed": false,
@@ -18,7 +103,7 @@
       },
       "id": 20,
       "panels": [],
-      "title": "PostgreSQL",
+      "title": "PostgreSQL Server (Exporter)",
       "type": "row"
     },
     {
@@ -29,7 +114,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -43,15 +140,19 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -62,13 +163,14 @@
           },
           "editorMode": "code",
           "expr": "sum by (service, state) (pg_stat_activity_count{job=\"monadiam-postgresql\", service=~\"$service\"})",
-          "legendFormat": "{{service}} {{state}}",
+          "legendFormat": "{{state}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "PostgreSQL connections",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "PostgreSQL sessions by service and state from pg_stat_activity. Active and idle states help separate load from held connections."
     },
     {
       "datasource": {
@@ -78,7 +180,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -86,21 +200,24 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 1
+        "y": 9
       },
       "id": 22,
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
           "displayMode": "table",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -111,7 +228,7 @@
           },
           "editorMode": "code",
           "expr": "sum by (service) (rate(pg_stat_database_xact_commit{job=\"monadiam-postgresql\", service=~\"$service\"}[$__rate_interval]))",
-          "legendFormat": "{{service}} commits",
+          "legendFormat": "commits",
           "range": true,
           "refId": "A"
         },
@@ -122,13 +239,14 @@
           },
           "editorMode": "code",
           "expr": "sum by (service) (rate(pg_stat_database_xact_rollback{job=\"monadiam-postgresql\", service=~\"$service\"}[$__rate_interval]))",
-          "legendFormat": "{{service}} rollbacks",
+          "legendFormat": "rollbacks",
           "range": true,
           "refId": "B"
         }
       ],
       "title": "PostgreSQL transactions",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Commit and rollback throughput from pg_stat_database. Rollbacks should normally stay low."
     },
     {
       "datasource": {
@@ -140,7 +258,19 @@
           "unit": "percentunit",
           "decimals": 2,
           "min": 0,
-          "max": 1
+          "max": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -154,15 +284,19 @@
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "min",
+            "max"
           ],
           "displayMode": "table",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -173,13 +307,14 @@
           },
           "editorMode": "code",
           "expr": "sum by (service) (rate(pg_stat_database_blks_hit{job=\"monadiam-postgresql\", service=~\"$service\"}[$__rate_interval])) / clamp_min(sum by (service) (rate(pg_stat_database_blks_hit{job=\"monadiam-postgresql\", service=~\"$service\"}[$__rate_interval])) + sum by (service) (rate(pg_stat_database_blks_read{job=\"monadiam-postgresql\", service=~\"$service\"}[$__rate_interval])), 1)",
-          "legendFormat": "{{service}}",
+          "legendFormat": "cache hit",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "PostgreSQL cache hit ratio",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Buffer cache hit ratio by service/database. Lower values indicate more disk reads or cold cache."
     },
     {
       "datasource": {
@@ -189,7 +324,19 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
         },
         "overrides": []
       },
@@ -197,21 +344,25 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 1
       },
       "id": 24,
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
         },
         "tooltip": {
           "mode": "multi",
-          "sort": "none"
+          "sort": "desc"
         }
       },
       "targets": [
@@ -222,13 +373,638 @@
           },
           "editorMode": "code",
           "expr": "sum by (service, mode) (pg_locks_count{job=\"monadiam-postgresql\", service=~\"$service\"})",
-          "legendFormat": "{{service}} {{mode}}",
+          "legendFormat": "{{mode}}",
           "range": true,
           "refId": "A"
         }
       ],
       "title": "PostgreSQL locks",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Current PostgreSQL locks by service and lock mode. Non-zero exclusive locks can explain blocked writes."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 25,
+      "panels": [],
+      "title": "PostgreSQL Pool (App)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 26,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service, connection) (db_pool_active_connections{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"})",
+          "legendFormat": "{{connection}} active",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service, connection) (db_pool_idle_connections{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"})",
+          "legendFormat": "{{connection}} idle",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service, connection) (db_pool_total_connections{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"})",
+          "legendFormat": "{{connection}} total",
+          "range": true,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service, connection) (db_pool_max_connections{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"})",
+          "legendFormat": "{{connection}} max",
+          "range": true,
+          "refId": "D"
+        }
+      ],
+      "title": "Service pool connections",
+      "type": "timeseries",
+      "description": "Application-side PostgreSQL pool usage by service and pool role."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service, connection) (db_pool_waiting_requests{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"})",
+          "legendFormat": "{{connection}} waiting",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Service pool waiting requests",
+      "type": "timeseries",
+      "description": "Application requests waiting for a PostgreSQL pool connection. Non-zero sustained values indicate pool pressure."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "min": 0,
+          "max": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "id": 28,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service, connection) (db_pool_active_connections{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"}) / clamp_min(sum by (service, connection) (db_pool_max_connections{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"}), 1)",
+          "legendFormat": "{{connection}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Service pool utilization",
+      "type": "timeseries",
+      "description": "Application PostgreSQL pool utilization as active connections divided by configured capacity."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 8,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 29,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service, connection) (db_pool_active_connections{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"})",
+          "legendFormat": "{{connection}} active",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service, connection) (db_pool_max_connections{job=\"monadiam-services\", service=~\"$service\", connection=~\"$connection\"})",
+          "legendFormat": "{{connection}} max",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "Service pool capacity",
+      "type": "timeseries",
+      "description": "Configured and active PostgreSQL pool capacity exposed by the service."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "id": 30,
+      "panels": [],
+      "title": "PostgreSQL Client (OTel)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 35
+      },
+      "id": 31,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.50, sum by (service_name, le) (rate({__name__=~\"otel_db_spanmetrics_duration_seconds_bucket|otel_traces_span_metrics_duration_seconds_bucket\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (service_name, le) (rate({__name__=~\"otel_db_spanmetrics_duration_seconds_bucket|otel_traces_span_metrics_duration_seconds_bucket\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate({__name__=~\"otel_db_spanmetrics_duration_seconds_bucket|otel_traces_span_metrics_duration_seconds_bucket\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "range": true,
+          "refId": "C"
+        }
+      ],
+      "title": "DB operation latency",
+      "type": "timeseries",
+      "description": "Application database operation latency from OTel span metrics. Use p95/p99 for tail latency."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 35
+      },
+      "id": 32,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max",
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, db_operation_name) (rate({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\"}[$__rate_interval]))",
+          "legendFormat": "{{db_operation_name}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "DB operation rate",
+      "type": "timeseries",
+      "description": "Application database operation throughput from OTel span metrics."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "axisSoftMax": 0.1,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 43
+      },
+      "id": 33,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service_name, db_operation_name, status_code) (clamp_min(last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\", status_code=~\".*ERROR|Error|ERROR\"}[30s]) - (last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\", status_code=~\".*ERROR|Error|ERROR\"}[30s] offset 30s) or last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\", status_code=~\".*ERROR|Error|ERROR\"}[30s]) * 0), 0) / 30)",
+          "legendFormat": "{{db_operation_name}} {{status_code}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "DB operation error rate",
+      "type": "timeseries",
+      "description": "Application database operation error rate from OTel span metrics."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "Prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "decimals": 2,
+          "max": 1,
+          "custom": {
+            "axisSoftMax": 1,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 43
+      },
+      "id": 34,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Max",
+          "sortDesc": true,
+          "width": 320
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "Prometheus"
+          },
+          "editorMode": "code",
+          "expr": "clamp_max(sum by (service_name) (clamp_min(last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\", status_code=~\".*ERROR|Error|ERROR\"}[30s]) - (last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\", status_code=~\".*ERROR|Error|ERROR\"}[30s] offset 30s) or last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\", status_code=~\".*ERROR|Error|ERROR\"}[30s]) * 0), 0)) / clamp_min(sum by (service_name) (clamp_min(last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\"}[30s]) - (last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\"}[30s] offset 30s) or last_over_time({__name__=~\"otel_db_spanmetrics_calls_total|otel_traces_span_metrics_calls_total\", job=\"otel-metrics\", service_name=~\"$service\", db_system_name=\"postgresql\", span_kind=~\".*CLIENT\"}[30s]) * 0), 0)), 1), 1)",
+          "legendFormat": "errors",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "DB operation error ratio",
+      "type": "timeseries",
+      "description": "Share of application database operations ending with error status."
     }
   ],
   "refresh": "10s",
@@ -243,8 +1019,8 @@
       {
         "current": {
           "selected": true,
-          "text": "All",
-          "value": "$__all"
+          "text": "identity-service",
+          "value": "identity-service"
         },
         "datasource": {
           "type": "prometheus",
@@ -252,13 +1028,46 @@
         },
         "definition": "label_values(up{job=\"monadiam-services\"}, service)",
         "hide": 0,
-        "includeAll": true,
+        "includeAll": false,
         "label": "Service",
-        "multi": true,
+        "multi": false,
         "name": "service",
-        "options": [],
+        "options": [
+          {
+            "selected": true,
+            "text": "identity-service",
+            "value": "identity-service"
+          }
+        ],
         "query": {
           "query": "label_values(up{job=\"monadiam-services\"}, service)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "Prometheus"
+        },
+        "definition": "label_values(db_pool_active_connections{job=\"monadiam-services\", service=~\"$service\"}, connection)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Connection",
+        "multi": true,
+        "name": "connection",
+        "options": [],
+        "query": {
+          "query": "label_values(db_pool_active_connections{job=\"monadiam-services\", service=~\"$service\"}, connection)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -278,5 +1087,6 @@
   "title": "PostgreSQL",
   "uid": "monadiam-local-postgresql",
   "version": 1,
-  "weekStart": ""
+  "weekStart": "",
+  "style": "dark"
 }

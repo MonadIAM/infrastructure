@@ -13,6 +13,66 @@ processors:
     spike_limit_mib: 48
   batch: {}
 
+connectors:
+  spanmetrics/db:
+    namespace: db_spanmetrics
+    histogram:
+      unit: s
+      explicit:
+        buckets: [1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s]
+    dimensions:
+      - name: db.system.name
+      - name: db.namespace
+      - name: db.operation.name
+    exclude_dimensions:
+      - collector.instance.id
+    aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
+    metrics_flush_interval: 5s
+  spanmetrics/bullmq:
+    namespace: bullmq_spanmetrics
+    histogram:
+      unit: s
+      explicit:
+        buckets: [1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s, 10s, 30s, 60s]
+    dimensions:
+      - name: bullmq.queue.name
+      - name: bullmq.queue.operation
+      - name: bullmq.job.name
+    exclude_dimensions:
+      - collector.instance.id
+    aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
+    metrics_flush_interval: 5s
+  spanmetrics/kafka:
+    namespace: kafka_spanmetrics
+    histogram:
+      unit: s
+      explicit:
+        buckets: [1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s, 10s, 30s]
+    dimensions:
+      - name: messaging.system
+      - name: messaging.destination.name
+      - name: messaging.operation.name
+      - name: messaging.operation.type
+    exclude_dimensions:
+      - collector.instance.id
+    aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
+    metrics_flush_interval: 5s
+  spanmetrics/grpc:
+    namespace: grpc_spanmetrics
+    histogram:
+      unit: s
+      explicit:
+        buckets: [1ms, 5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2s, 5s]
+    dimensions:
+      - name: rpc.system
+      - name: rpc.service
+      - name: rpc.method
+      - name: rpc.grpc.status_code
+    exclude_dimensions:
+      - collector.instance.id
+    aggregation_temporality: AGGREGATION_TEMPORALITY_CUMULATIVE
+    metrics_flush_interval: 5s
+
 exporters:
   debug:
     verbosity: basic
@@ -23,6 +83,8 @@ exporters:
   prometheus:
     endpoint: 0.0.0.0:8889
     namespace: otel
+    resource_to_telemetry_conversion:
+      enabled: true
 
 extensions:
   health_check:
@@ -45,8 +107,8 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [otlp/tempo, debug]
+      exporters: [otlp/tempo, spanmetrics/db, spanmetrics/bullmq, spanmetrics/kafka, spanmetrics/grpc, debug]
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, spanmetrics/db, spanmetrics/bullmq, spanmetrics/kafka, spanmetrics/grpc]
       processors: [memory_limiter, batch]
       exporters: [prometheus]
