@@ -469,27 +469,10 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
 spec:
-  partitions: 1
+  partitions: ${PROJECTION_JOURNAL_PARTITIONS}
   replicas: 1
   config:
     retention.ms: "259200000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: projection-journal-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: projection-journal-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic

@@ -11,8 +11,16 @@ ROOT_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/../.." && pwd)"
 load_env
 require_env \
     KUBE_CONTEXT \
+    PROJECTION_JOURNAL_PARTITIONS \
     REDIS_CHART \
     REDIS_CHART_VERSION
+
+case "$PROJECTION_JOURNAL_PARTITIONS" in
+    *[!0-9]* | 0 | "")
+        echo "PROJECTION_JOURNAL_PARTITIONS must be a positive integer" >&2
+        exit 1
+        ;;
+esac
 
 wait_clickhouse_installation_completed() {
     namespace="$1"
@@ -66,7 +74,9 @@ cd "$ROOT_DIR"
 
 kubectl --context "$KUBE_CONTEXT" apply -k platform/postgresql/resources
 kubectl --context "$KUBE_CONTEXT" apply -k platform/redis/resources
-kubectl --context "$KUBE_CONTEXT" apply -k platform/kafka/resources
+kubectl kustomize platform/kafka/resources \
+    | sed "s/\${PROJECTION_JOURNAL_PARTITIONS}/$PROJECTION_JOURNAL_PARTITIONS/g" \
+    | kubectl --context "$KUBE_CONTEXT" apply -f -
 kubectl --context "$KUBE_CONTEXT" apply -k platform/clickhouse/resources
 kubectl --context "$KUBE_CONTEXT" apply -k platform/minio/resources
 

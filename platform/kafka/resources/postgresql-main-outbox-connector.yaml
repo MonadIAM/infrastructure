@@ -31,11 +31,20 @@ spec:
     publication.autocreate.mode: filtered
     snapshot.mode: no_data
     tombstones.on.delete: "false"
-    transforms: outbox
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    transforms: outbox,partition
     transforms.outbox.type: io.debezium.transforms.outbox.EventRouter
-    transforms.outbox.route.topic.replacement: ROUTEDBYVALUE
+    transforms.outbox.route.topic.replacement: ${routedByValue}
     transforms.outbox.route.by.field: destination_topic
     transforms.outbox.table.field.event.key: id
     transforms.outbox.table.field.event.type: action_type
     transforms.outbox.table.expand.json.payload: "true"
     transforms.outbox.table.fields.additional.placement: action_type:envelope:actionType
+    transforms.partition.type: io.debezium.transforms.partitions.PartitionRouting
+    transforms.partition.partition.payload.fields: payload.realm
+    transforms.partition.partition.topic.num: "${PROJECTION_JOURNAL_PARTITIONS}"
+    transforms.partition.partition.hash.function: murmur
+    transforms.partition.predicate: projectionJournal
+    predicates: projectionJournal
+    predicates.projectionJournal.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
+    predicates.projectionJournal.pattern: projection-journal
