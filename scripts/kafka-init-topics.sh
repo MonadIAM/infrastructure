@@ -11,6 +11,11 @@ RETENTION_RETRY=604800000
 RETENTION_DEAD=2592000000
 
 TOPICS=()
+if [[ ! "$PROJECTION_JOURNAL_PARTITIONS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "PROJECTION_JOURNAL_PARTITIONS must be a positive integer" >&2
+    exit 1
+fi
+
 topic_spec() {
     local spec="$1"
     local config
@@ -40,7 +45,7 @@ retry_topics() {
 }
 
 retry_topics identity-service reauthentication access-cache membership realm
-retry_topics access-control-service reauthentication account membership projection-journal
+retry_topics access-control-service reauthentication account membership
 retry_topics notification-service reauthentication access-cache notification message-dispatch
 retry_topics template-service reauthentication access-cache
 
@@ -64,11 +69,15 @@ while IFS= read -r topic; do
 done < <("${KAFKA_TOPICS[@]}" --list)
 
 create_topic() {
-    local fields topic args i
+    local fields topic partitions args i
     IFS='|' read -r -a fields <<< "$1"
     topic="${fields[0]}"
     [[ -n "${EXISTING_TOPIC_SET[$topic]+x}" ]] && return
-    args=(--create --if-not-exists --topic "$topic" --partitions "$PARTITIONS" --replication-factor "$REPLICATION_FACTOR")
+    partitions="$PARTITIONS"
+    if [[ "$topic" == "projection-journal" ]]; then
+        partitions="$PROJECTION_JOURNAL_PARTITIONS"
+    fi
+    args=(--create --if-not-exists --topic "$topic" --partitions "$partitions" --replication-factor "$REPLICATION_FACTOR")
     for ((i = 1; i < ${#fields[@]}; i += 1)); do
         args+=(--config "${fields[$i]}")
     done
@@ -78,5 +87,19 @@ create_topic() {
 for spec in "${TOPICS[@]}"; do
     create_topic "$spec"
 done
+
+projection_partitions=$("${KAFKA_TOPICS[@]}" --describe --topic projection-journal | sed -n 's/.*PartitionCount: \([0-9]*\).*/\1/p' | head -n 1)
+if [[ ! "$projection_partitions" =~ ^[0-9]+$ ]]; then
+    echo "Unable to determine projection-journal partition count" >&2
+    exit 1
+fi
+if ((projection_partitions < PROJECTION_JOURNAL_PARTITIONS)); then
+    "${KAFKA_TOPICS[@]}" --alter --topic projection-journal --partitions "$PROJECTION_JOURNAL_PARTITIONS"
+elif ((projection_partitions > PROJECTION_JOURNAL_PARTITIONS)); then
+    echo "projection-journal has $projection_partitions partitions; expected $PROJECTION_JOURNAL_PARTITIONS" >&2
+    exit 1
+fi
+
+"${KAFKA_TOPICS[@]}" --delete --if-exists --topic projection-journal-retry-access-control-service
 
 echo "Kafka topics are configured."
