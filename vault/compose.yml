@@ -57,6 +57,8 @@ services:
         condition: service_completed_successfully
       template-postgresql:
         condition: service_healthy
+      multitenancy-postgresql:
+        condition: service_healthy
       identity-postgresql:
         condition: service_healthy
       access-control-postgresql:

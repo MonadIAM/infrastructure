@@ -121,6 +121,8 @@ services:
     depends_on:
       template-postgresql:
         condition: service_healthy
+      multitenancy-postgresql:
+        condition: service_healthy
       access-control-postgresql:
         condition: service_healthy
       notification-postgresql:

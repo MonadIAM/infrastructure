@@ -48,6 +48,7 @@ retry_topics identity-service reauthentication access-cache membership realm
 retry_topics access-control-service reauthentication account membership
 retry_topics notification-service reauthentication access-cache notification message-dispatch
 retry_topics template-service reauthentication access-cache
+retry_topics multitenancy-service reauthentication access-cache
 
 topic_spec reauthentication "retention.ms=1800000"
 topic_spec reauthentication-dead "retention.ms=$RETENTION_DEAD"

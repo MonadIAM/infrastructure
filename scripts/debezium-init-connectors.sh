@@ -43,6 +43,10 @@ register_connector template-service template-service-outbox-connector \
     "$TEMPLATE_POSTGRES_DB" "$TEMPLATE_POSTGRES_USER" "$TEMPLATE_POSTGRES_PASSWORD" \
     template-postgresql 5432 "$TEMPLATE_POSTGRES_OUTBOX_SLOT" "$TEMPLATE_POSTGRES_OUTBOX_PUBLICATION"
 
+register_connector multitenancy-service multitenancy-service-outbox-connector \
+    "$MULTITENANCY_POSTGRES_DB" "$MULTITENANCY_POSTGRES_USER" "$MULTITENANCY_POSTGRES_PASSWORD" \
+    multitenancy-postgresql 5432 "$MULTITENANCY_POSTGRES_OUTBOX_SLOT" "$MULTITENANCY_POSTGRES_OUTBOX_PUBLICATION"
+
 register_connector access-control-service access-control-service-outbox-connector \
     "$ACCESS_CONTROL_POSTGRES_DB" "$ACCESS_CONTROL_POSTGRES_USER" "$ACCESS_CONTROL_POSTGRES_PASSWORD" \
     access-control-postgresql 5432 "$ACCESS_CONTROL_POSTGRES_OUTBOX_SLOT" "$ACCESS_CONTROL_POSTGRES_OUTBOX_PUBLICATION"

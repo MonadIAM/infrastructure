@@ -26,6 +26,10 @@ scrape_configs:
         labels:
           service: template-service
       - targets:
+          - multitenancy-service-app:4004
+        labels:
+          service: multitenancy-service
+      - targets:
           - access-control-service-app:4001
         labels:
           service: access-control-service
@@ -45,6 +49,10 @@ scrape_configs:
         labels:
           service: template-service
       - targets:
+          - multitenancy-postgresql-exporter:9187
+        labels:
+          service: multitenancy-service
+      - targets:
           - access-control-postgresql-exporter:9187
         labels:
           service: access-control-service
@@ -63,6 +71,10 @@ scrape_configs:
           - template-redis-exporter:9121
         labels:
           service: template-service
+      - targets:
+          - multitenancy-redis-exporter:9121
+        labels:
+          service: multitenancy-service
       - targets:
           - access-control-redis-exporter:9121
         labels:

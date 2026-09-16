@@ -31,6 +31,11 @@ vault kv put kv/template-service/runtime \
     postgresql_password="$TEMPLATE_POSTGRES_PASSWORD" \
     redis_password="$TEMPLATE_REDIS_PASSWORD" >/dev/null
 
+vault kv put kv/multitenancy-service/runtime \
+    postgresql_username="$MULTITENANCY_POSTGRES_USER" \
+    postgresql_password="$MULTITENANCY_POSTGRES_PASSWORD" \
+    redis_password="$MULTITENANCY_REDIS_PASSWORD" >/dev/null
+
 vault kv put kv/access-control-service/runtime \
     postgresql_username="$ACCESS_CONTROL_POSTGRES_USER" \
     postgresql_password="$ACCESS_CONTROL_POSTGRES_PASSWORD" \
@@ -52,6 +57,8 @@ create_key transit identity-audit-mask-hmac hmac key_size=32
 create_signing_key transit identity-audit-log-sig ed25519
 create_key transit template-audit-mask-hmac hmac key_size=32
 create_signing_key transit template-audit-log-sig ed25519
+create_key transit multitenancy-audit-mask-hmac hmac key_size=32
+create_signing_key transit multitenancy-audit-log-sig ed25519
 create_key transit access-control-audit-mask-hmac hmac key_size=32
 create_signing_key transit access-control-audit-log-sig ed25519
 create_key transit notification-audit-mask-hmac hmac key_size=32
@@ -62,6 +69,8 @@ for policy in \
     identity-service-transit \
     template-service \
     template-service-transit \
+    multitenancy-service \
+    multitenancy-service-transit \
     access-control-service \
     access-control-service-transit \
     notification-service \
@@ -72,6 +81,7 @@ done
 
 configure_approle identity-service identity-service,identity-service-transit
 configure_approle template-service template-service,template-service-transit
+configure_approle multitenancy-service multitenancy-service,multitenancy-service-transit
 configure_approle access-control-service access-control-service,access-control-service-transit
 configure_approle notification-service notification-service,notification-service-transit
 
