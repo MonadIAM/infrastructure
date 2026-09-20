@@ -26,6 +26,12 @@ Only the host-published ports above are service-indexed.
 
 ----
 
+### Ordered realm events
+
+The `realm` topic uses `REALM_PARTITIONS` (example: 4). Every outbox connector routes it by `payload.realm` with the same Debezium PartitionRouting transform used for `projection-journal`; the Kafka key remains the event UUID. Realm retries run inline in consumers, not through service-specific retry topics.
+
+Set the same partition count in the topic and all connector configurations. Stop affected writes and drain pending events/retries before changing routing or partition count. The initializer rejects an existing `realm` topic with a different partition count; it does not automatically repartition or delete old realm retry topics. After a dead-letter outcome, reconcile current state before replaying an old command.
+
 <details>
 <summary><strong>Shared Ports</strong></summary>
 
@@ -179,7 +185,7 @@ listener and rendered secret files.
 <summary><strong>Kafka and Debezium</strong></summary>
 
 - `messaging/compose.yml` starts Kafka, Kafka UI, Schema Registry, Kafka Connect, and the Debezium connector bootstrap container.
-- `scripts/kafka-init-topics.sh` creates platform topics and retry/dead-letter topics.
+- `scripts/kafka-init-topics.sh` creates platform and terminal dead-letter topics. The only delayed retry topic is `message-dispatch-retry-notification-service`; ordinary consumers retry inline with a finite budget. Drain old retry topics/queues before rollout; this script does not delete their messages.
 - `scripts/debezium-init-connectors.sh` registers outbox connectors.
 
 Schema Registry runs on Apicurio Registry with KafkaSQL storage. Its internal

@@ -19,7 +19,10 @@
     "value.converter.schemas.enable": "false",
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
 
-    "transforms": "outbox,partition",
+    "tasks.max": "1",
+    "producer.override.enable.idempotence": "true",
+    "producer.override.max.in.flight.requests.per.connection": "1",
+    "transforms": "outbox,partition,realmPartition",
     "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
     "transforms.outbox.route.topic.replacement": "${routedByValue}",
     "transforms.outbox.route.by.field": "destination_topic",
@@ -34,7 +37,15 @@
     "transforms.partition.partition.hash.function": "murmur",
     "transforms.partition.predicate": "projectionJournal",
 
-    "predicates": "projectionJournal",
+    "transforms.realmPartition.type": "io.debezium.transforms.partitions.PartitionRouting",
+    "transforms.realmPartition.partition.payload.fields": "payload.realm",
+    "transforms.realmPartition.partition.topic.num": "${REALM_PARTITIONS}",
+    "transforms.realmPartition.partition.hash.function": "murmur",
+    "transforms.realmPartition.predicate": "realm",
+
+    "predicates": "projectionJournal,realm",
+    "predicates.realm.type": "org.apache.kafka.connect.transforms.predicates.TopicNameMatches",
+    "predicates.realm.pattern": "realm",
     "predicates.projectionJournal.type": "org.apache.kafka.connect.transforms.predicates.TopicNameMatches",
     "predicates.projectionJournal.pattern": "projection-journal"
 }

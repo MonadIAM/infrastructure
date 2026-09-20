@@ -4,6 +4,13 @@ set -eu
 CONNECT_URL="http://kafka-connect:8083"
 CONNECTOR_TEMPLATE="/debezium/outbox.connector.json"
 
+case "${REALM_PARTITIONS:-}" in
+    *[!0-9]* | 0 | "")
+        echo "REALM_PARTITIONS must be a positive integer" >&2
+        exit 1
+        ;;
+esac
+
 log() {
     printf '%s\n' "$*"
 }

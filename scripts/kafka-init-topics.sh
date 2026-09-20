@@ -11,6 +11,11 @@ RETENTION_RETRY=604800000
 RETENTION_DEAD=2592000000
 
 TOPICS=()
+if [[ ! "$REALM_PARTITIONS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "REALM_PARTITIONS must be a positive integer" >&2
+    exit 1
+fi
+
 if [[ ! "$PROJECTION_JOURNAL_PARTITIONS" =~ ^[1-9][0-9]*$ ]]; then
     echo "PROJECTION_JOURNAL_PARTITIONS must be a positive integer" >&2
     exit 1
@@ -26,29 +31,16 @@ topic_spec() {
     TOPICS+=("$spec")
 }
 
-topic_triplet() {
+topic_pair() {
     topic_spec "$1" "retention.ms=$RETENTION_MAIN"
     topic_spec "$1-dead" "retention.ms=$RETENTION_DEAD"
 }
 
-for topic in realm account membership identifier service-client interface-client notification message-dispatch access-cache projection-journal; do
-    topic_triplet "$topic"
+for topic in realm account identifier service-client interface-client notification message-dispatch access-cache projection-journal; do
+    topic_pair "$topic"
 done
 
-retry_topics() {
-    local service="$1"
-    local topic
-    shift
-    for topic in "$@"; do
-        topic_spec "$topic-retry-$service" "retention.ms=$RETENTION_RETRY"
-    done
-}
-
-retry_topics identity-service reauthentication access-cache membership realm
-retry_topics access-control-service reauthentication account membership
-retry_topics notification-service reauthentication access-cache notification message-dispatch
-retry_topics template-service reauthentication access-cache
-retry_topics multitenancy-service reauthentication access-cache
+topic_spec message-dispatch-retry-notification-service "retention.ms=$RETENTION_RETRY"
 
 topic_spec reauthentication "retention.ms=1800000"
 topic_spec reauthentication-dead "retention.ms=$RETENTION_DEAD"
@@ -77,6 +69,8 @@ create_topic() {
     partitions="$PARTITIONS"
     if [[ "$topic" == "projection-journal" ]]; then
         partitions="$PROJECTION_JOURNAL_PARTITIONS"
+    elif [[ "$topic" == "realm" ]]; then
+        partitions="$REALM_PARTITIONS"
     fi
     args=(--create --if-not-exists --topic "$topic" --partitions "$partitions" --replication-factor "$REPLICATION_FACTOR")
     for ((i = 1; i < ${#fields[@]}; i += 1)); do
@@ -88,6 +82,12 @@ create_topic() {
 for spec in "${TOPICS[@]}"; do
     create_topic "$spec"
 done
+
+realm_partitions=$("${KAFKA_TOPICS[@]}" --describe --topic realm | sed -n 's/.*PartitionCount: \([0-9]*\).*/\1/p' | head -n 1)
+if [[ "$realm_partitions" != "$REALM_PARTITIONS" ]]; then
+    echo "realm has $realm_partitions partitions; expected $REALM_PARTITIONS. Drain the ordered stream before changing its partition count." >&2
+    exit 1
+fi
 
 projection_partitions=$("${KAFKA_TOPICS[@]}" --describe --topic projection-journal | sed -n 's/.*PartitionCount: \([0-9]*\).*/\1/p' | head -n 1)
 if [[ ! "$projection_partitions" =~ ^[0-9]+$ ]]; then
@@ -101,6 +101,5 @@ elif ((projection_partitions > PROJECTION_JOURNAL_PARTITIONS)); then
     exit 1
 fi
 
-"${KAFKA_TOPICS[@]}" --delete --if-exists --topic projection-journal-retry-access-control-service
 
 echo "Kafka topics are configured."
