@@ -170,9 +170,6 @@ Vault Agent:
 
 `identity-service/oauth` contains OAuth provider client secrets.
 
-`notification-service/runtime` also contains AWS access key fields for local
-SES/SNS configuration.
-
 Vault Transit keys are created for audit masking/signing and identity token
 operations. Service containers access Vault through their local Vault Agent Unix
 listener and rendered secret files.
@@ -217,14 +214,15 @@ Global Schema Registry rules are configured through `.env`:
 <details>
 <summary><strong>Commands</strong></summary>
 
-| Makefile       | Description                                     |
-|:---------------|:------------------------------------------------|
-| `make env`     | Create `.env` from `.env.example`.              |
-| `make up`      | Start local infrastructure with Docker Compose. |
-| `make down`    | Stop and remove containers and networks.        |
-| `make restart` | Run `make down` and `make up`.                  |
-| `make stop`    | Stop containers without removing them.          |
-| `make start`   | Start existing stopped containers.              |
+| Makefile       | Description                                      |
+|:---------------|:-------------------------------------------------|
+| `make env`     | Create `.env` from `.env.example`.               |
+| `make aws`     | Copy AWS credentials from `aws.csv` into `.env`. |
+| `make up`      | Start local infrastructure with Docker Compose.  |
+| `make down`    | Stop and remove containers and networks.         |
+| `make restart` | Run `make down` and `make up`.                   |
+| `make stop`    | Stop containers without removing them.           |
+| `make start`   | Start existing stopped containers.               |
 
 Service repositories should be started after this infrastructure is healthy.
 
