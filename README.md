@@ -18,6 +18,7 @@ application observability stack.
 | `2`   | `identity`       | `4002`        | `6002`               | `7002`          |
 | `3`   | `notification`   | `4003`        | `6003`               | `7003`          |
 | `4`   | `multitenancy`   | `4004`        | `6004`               | `7004`          |
+| `5`   | `hr`             | `4005`        | `6005`               | `7005`          |
 
 Service containers use internal PostgreSQL port `5432` and Redis port `6379`.
 Only the host-published ports above are service-indexed.
@@ -64,6 +65,7 @@ Set the same partition count in the topic and all connector configurations. Stop
 | `docker-compose.yml`                      | Root Compose include manifest                    |
 | `services/template/compose.yml`           | Template PostgreSQL + Redis                      |
 | `services/multitenancy/compose.yml`       | Multitenancy PostgreSQL + Redis                  |
+| `services/hr/compose.yml`                 | HR PostgreSQL + Redis                            |
 | `services/access-control/compose.yml`     | Access Control PostgreSQL + Redis                |
 | `services/identity/compose.yml`           | Identity PostgreSQL + Redis                      |
 | `services/notification/compose.yml`       | Notification PostgreSQL + Redis                  |
@@ -92,6 +94,7 @@ Set the same partition count in the topic and all connector configurations. Stop
 | `identity`       | `identity-postgresql`       | `identity-redis`       | `IDENTITY_POSTGRES_*`       | `IDENTITY_REDIS_*`       |
 | `notification`   | `notification-postgresql`   | `notification-redis`   | `NOTIFICATION_POSTGRES_*`   | `NOTIFICATION_REDIS_*`   |
 | `multitenancy`   | `multitenancy-postgresql`   | `multitenancy-redis`   | `MULTITENANCY_POSTGRES_*`   | `MULTITENANCY_REDIS_*`   |
+| `hr`             | `hr-postgresql`             | `hr-redis`             | `HR_POSTGRES_*`             | `HR_REDIS_*`             |
 
 PostgreSQL containers run with logical replication enabled for Debezium: `wal_level=logical`, `max_replication_slots=10`, `max_wal_senders=10`.
 
@@ -158,6 +161,7 @@ not operational log storage.
 | `notification`   | `notification-service`   | `kv/notification-service/runtime`     |                             |
 | `access-control` | `access-control-service` | `kv/access-control-service/runtime`   |                             |
 | `multitenancy`   | `multitenancy-service`   | `kv/multitenancy-service/runtime`     |                             |
+| `hr`             | `hr-service`             | `kv/hr-service/runtime`               |                             |
 
 Runtime KV payloads contain static local credentials rendered by each service's
 Vault Agent:
@@ -206,6 +210,7 @@ Global Schema Registry rules are configured through `.env`:
 | `identity`       | `identity-service-outbox-connector`       | `identity-postgresql:5432`       |
 | `notification`   | `notification-service-outbox-connector`   | `notification-postgresql:5432`   |
 | `multitenancy`   | `multitenancy-service-outbox-connector`   | `multitenancy-postgresql:5432`   |
+| `hr`             | `hr-service-outbox-connector`             | `hr-postgresql:5432`             |
 
 </details>
 

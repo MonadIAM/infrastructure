@@ -40,6 +40,24 @@ services:
       postgres_net:
     mem_limit: 64m
 
+  hr-postgresql-exporter:
+    <<: *base
+    image: ${POSTGRES_EXPORTER_IMAGE:?}
+    container_name: hr-postgresql-exporter
+    depends_on:
+      hr-postgresql:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_URI: "hr-postgresql:5432/${HR_POSTGRES_DB:?}?sslmode=disable"
+      DATA_SOURCE_PASS: ${HR_POSTGRES_PASSWORD:?}
+      DATA_SOURCE_USER: ${HR_POSTGRES_USER:?}
+    networks:
+      monitoring_net:
+        aliases:
+          - hr-postgresql-exporter
+      postgres_net:
+    mem_limit: 64m
+
   access-control-postgresql-exporter:
     <<: *base
     image: ${POSTGRES_EXPORTER_IMAGE:?}
@@ -127,6 +145,24 @@ services:
       monitoring_net:
         aliases:
           - multitenancy-redis-exporter
+      redis_net:
+    mem_limit: 64m
+
+  hr-redis-exporter:
+    <<: *base
+    image: ${REDIS_EXPORTER_IMAGE:?}
+    container_name: hr-redis-exporter
+    depends_on:
+      hr-redis:
+        condition: service_healthy
+    environment:
+      REDIS_PASSWORD: ${HR_REDIS_PASSWORD:?}
+      REDIS_EXPORTER_REDIS_ONLY_METRICS: "true"
+      REDIS_ADDR: redis://hr-redis:6379
+    networks:
+      monitoring_net:
+        aliases:
+          - hr-redis-exporter
       redis_net:
     mem_limit: 64m
 

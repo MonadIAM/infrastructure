@@ -1,0 +1,59 @@
+x-base: &base
+  restart: on-failure
+  env_file:
+    - ../../.env
+
+services:
+  hr-redis:
+    <<: *base
+    image: ${REDIS_IMAGE:?}
+    container_name: hr-redis
+    ports:
+      - "127.0.0.1:${HR_REDIS_PUBLISHED_PORT:?}:6379"
+    volumes:
+      - hr_redis_data:/data
+    command: ["sh", "-c", "exec redis-server --appendonly yes --port 6379 --requirepass \"$${HR_REDIS_PASSWORD}\""]
+    networks:
+      redis_net:
+        aliases:
+          - hr-redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -p 6379 -a \"$${HR_REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  hr-postgresql:
+    <<: *base
+    image: ${POSTGRES_IMAGE:?}
+    container_name: hr-postgresql
+    environment:
+      POSTGRES_PASSWORD: ${HR_POSTGRES_PASSWORD:?}
+      POSTGRES_USER: ${HR_POSTGRES_USER:?}
+      POSTGRES_DB: ${HR_POSTGRES_DB:?}
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    ports:
+      - "127.0.0.1:${HR_POSTGRES_PUBLISHED_PORT:?}:5432"
+    volumes:
+      - hr_postgresql_data:/var/lib/postgresql/data
+    networks:
+      postgres_net:
+        aliases:
+          - hr-postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  hr_postgresql_data:
+  hr_redis_data:
+
+networks:
+  postgres_net:
+    name: ${DOCKER_NETWORK_POSTGRES:?}
+  redis_net:
+    name: ${DOCKER_NETWORK_REDIS:?}

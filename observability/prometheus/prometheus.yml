@@ -30,6 +30,10 @@ scrape_configs:
         labels:
           service: multitenancy-service
       - targets:
+          - hr-service-app:4005
+        labels:
+          service: hr-service
+      - targets:
           - access-control-service-app:4001
         labels:
           service: access-control-service
@@ -53,6 +57,10 @@ scrape_configs:
         labels:
           service: multitenancy-service
       - targets:
+          - hr-postgresql-exporter:9187
+        labels:
+          service: hr-service
+      - targets:
           - access-control-postgresql-exporter:9187
         labels:
           service: access-control-service
@@ -75,6 +83,10 @@ scrape_configs:
           - multitenancy-redis-exporter:9121
         labels:
           service: multitenancy-service
+      - targets:
+          - hr-redis-exporter:9121
+        labels:
+          service: hr-service
       - targets:
           - access-control-redis-exporter:9121
         labels:

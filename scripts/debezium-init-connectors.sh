@@ -54,6 +54,10 @@ register_connector multitenancy-service multitenancy-service-outbox-connector \
     "$MULTITENANCY_POSTGRES_DB" "$MULTITENANCY_POSTGRES_USER" "$MULTITENANCY_POSTGRES_PASSWORD" \
     multitenancy-postgresql 5432 "$MULTITENANCY_POSTGRES_OUTBOX_SLOT" "$MULTITENANCY_POSTGRES_OUTBOX_PUBLICATION"
 
+register_connector hr-service hr-service-outbox-connector \
+    "$HR_POSTGRES_DB" "$HR_POSTGRES_USER" "$HR_POSTGRES_PASSWORD" \
+    hr-postgresql 5432 "$HR_POSTGRES_OUTBOX_SLOT" "$HR_POSTGRES_OUTBOX_PUBLICATION"
+
 register_connector access-control-service access-control-service-outbox-connector \
     "$ACCESS_CONTROL_POSTGRES_DB" "$ACCESS_CONTROL_POSTGRES_USER" "$ACCESS_CONTROL_POSTGRES_PASSWORD" \
     access-control-postgresql 5432 "$ACCESS_CONTROL_POSTGRES_OUTBOX_SLOT" "$ACCESS_CONTROL_POSTGRES_OUTBOX_PUBLICATION"
