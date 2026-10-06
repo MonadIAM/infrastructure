@@ -11,6 +11,13 @@ case "${REALM_PARTITIONS:-}" in
         ;;
 esac
 
+case "${POSITION_PARTITIONS:-}" in
+    *[!0-9]* | 0 | "")
+        echo "POSITION_PARTITIONS must be a positive integer" >&2
+        exit 1
+        ;;
+esac
+
 log() {
     printf '%s\n' "$*"
 }

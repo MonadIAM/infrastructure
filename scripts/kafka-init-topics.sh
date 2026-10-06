@@ -16,6 +16,11 @@ if [[ ! "$REALM_PARTITIONS" =~ ^[1-9][0-9]*$ ]]; then
     exit 1
 fi
 
+if [[ ! "$POSITION_PARTITIONS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "POSITION_PARTITIONS must be a positive integer" >&2
+    exit 1
+fi
+
 if [[ ! "$PROJECTION_JOURNAL_PARTITIONS" =~ ^[1-9][0-9]*$ ]]; then
     echo "PROJECTION_JOURNAL_PARTITIONS must be a positive integer" >&2
     exit 1
@@ -36,7 +41,7 @@ topic_pair() {
     topic_spec "$1-dead" "retention.ms=$RETENTION_DEAD"
 }
 
-for topic in realm account identifier service-client interface-client notification message-dispatch access-cache projection-journal; do
+for topic in realm position account identifier service-client interface-client notification message-dispatch access-cache projection-journal; do
     topic_pair "$topic"
 done
 
@@ -71,6 +76,8 @@ create_topic() {
         partitions="$PROJECTION_JOURNAL_PARTITIONS"
     elif [[ "$topic" == "realm" ]]; then
         partitions="$REALM_PARTITIONS"
+    elif [[ "$topic" == "position" ]]; then
+        partitions="$POSITION_PARTITIONS"
     fi
     args=(--create --if-not-exists --topic "$topic" --partitions "$partitions" --replication-factor "$REPLICATION_FACTOR")
     for ((i = 1; i < ${#fields[@]}; i += 1)); do
@@ -86,6 +93,12 @@ done
 realm_partitions=$("${KAFKA_TOPICS[@]}" --describe --topic realm | sed -n 's/.*PartitionCount: \([0-9]*\).*/\1/p' | head -n 1)
 if [[ "$realm_partitions" != "$REALM_PARTITIONS" ]]; then
     echo "realm has $realm_partitions partitions; expected $REALM_PARTITIONS. Drain the ordered stream before changing its partition count." >&2
+    exit 1
+fi
+
+position_partitions=$("${KAFKA_TOPICS[@]}" --describe --topic position | sed -n 's/.*PartitionCount: \([0-9]*\).*/\1/p' | head -n 1)
+if [[ "$position_partitions" != "$POSITION_PARTITIONS" ]]; then
+    echo "position has $position_partitions partitions; expected $POSITION_PARTITIONS. Drain the ordered stream before changing its partition count." >&2
     exit 1
 fi
 

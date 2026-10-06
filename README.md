@@ -31,6 +31,8 @@ Only the host-published ports above are service-indexed.
 
 The `realm` topic uses `REALM_PARTITIONS` (example: 4). Every outbox connector routes it by `payload.realm` with the same Debezium PartitionRouting transform used for `projection-journal`; the Kafka key remains the event UUID. Realm retries run inline in consumers, not through service-specific retry topics.
 
+The `position` topic uses `POSITION_PARTITIONS` (example: 4) and routes messages by `payload.input.organization`. HR and Multitenancy process placement validation, leadership references and position cleanup through this stream. Retries run inline; exhausted events go to `position-dead`.
+
 Set the same partition count in the topic and all connector configurations. Stop affected writes and drain pending events/retries before changing routing or partition count. The initializer rejects an existing `realm` topic with a different partition count; it does not automatically repartition or delete old realm retry topics. After a dead-letter outcome, reconcile current state before replaying an old command.
 
 <details>
