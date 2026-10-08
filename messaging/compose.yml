@@ -121,7 +121,7 @@ services:
     depends_on:
       template-postgresql:
         condition: service_healthy
-      multitenancy-postgresql:
+      organization-postgresql:
         condition: service_healthy
       hr-postgresql:
         condition: service_healthy

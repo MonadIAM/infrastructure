@@ -57,9 +57,9 @@ register_connector template-service template-service-outbox-connector \
     "$TEMPLATE_POSTGRES_DB" "$TEMPLATE_POSTGRES_USER" "$TEMPLATE_POSTGRES_PASSWORD" \
     template-postgresql 5432 "$TEMPLATE_POSTGRES_OUTBOX_SLOT" "$TEMPLATE_POSTGRES_OUTBOX_PUBLICATION"
 
-register_connector multitenancy-service multitenancy-service-outbox-connector \
-    "$MULTITENANCY_POSTGRES_DB" "$MULTITENANCY_POSTGRES_USER" "$MULTITENANCY_POSTGRES_PASSWORD" \
-    multitenancy-postgresql 5432 "$MULTITENANCY_POSTGRES_OUTBOX_SLOT" "$MULTITENANCY_POSTGRES_OUTBOX_PUBLICATION"
+register_connector organization-service organization-service-outbox-connector \
+    "$ORGANIZATION_POSTGRES_DB" "$ORGANIZATION_POSTGRES_USER" "$ORGANIZATION_POSTGRES_PASSWORD" \
+    organization-postgresql 5432 "$ORGANIZATION_POSTGRES_OUTBOX_SLOT" "$ORGANIZATION_POSTGRES_OUTBOX_PUBLICATION"
 
 register_connector hr-service hr-service-outbox-connector \
     "$HR_POSTGRES_DB" "$HR_POSTGRES_USER" "$HR_POSTGRES_PASSWORD" \

@@ -1,12 +1,12 @@
 name: infra
 
 include:
-  - services/template/compose.yml
-  - services/multitenancy/compose.yml
-  - services/hr/compose.yml
   - services/access-control/compose.yml
   - services/notification/compose.yml
+  - services/organization/compose.yml
   - services/identity/compose.yml
+  - services/template/compose.yml
+  - services/hr/compose.yml
   - observability/compose.yml
   - audit-archive/compose.yml
   - messaging/compose.yml

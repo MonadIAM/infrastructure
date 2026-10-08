@@ -22,21 +22,21 @@ services:
       postgres_net:
     mem_limit: 64m
 
-  multitenancy-postgresql-exporter:
+  organization-postgresql-exporter:
     <<: *base
     image: ${POSTGRES_EXPORTER_IMAGE:?}
-    container_name: multitenancy-postgresql-exporter
+    container_name: organization-postgresql-exporter
     depends_on:
-      multitenancy-postgresql:
+      organization-postgresql:
         condition: service_healthy
     environment:
-      DATA_SOURCE_URI: "multitenancy-postgresql:5432/${MULTITENANCY_POSTGRES_DB:?}?sslmode=disable"
-      DATA_SOURCE_PASS: ${MULTITENANCY_POSTGRES_PASSWORD:?}
-      DATA_SOURCE_USER: ${MULTITENANCY_POSTGRES_USER:?}
+      DATA_SOURCE_URI: "organization-postgresql:5432/${ORGANIZATION_POSTGRES_DB:?}?sslmode=disable"
+      DATA_SOURCE_PASS: ${ORGANIZATION_POSTGRES_PASSWORD:?}
+      DATA_SOURCE_USER: ${ORGANIZATION_POSTGRES_USER:?}
     networks:
       monitoring_net:
         aliases:
-          - multitenancy-postgresql-exporter
+          - organization-postgresql-exporter
       postgres_net:
     mem_limit: 64m
 
@@ -130,21 +130,21 @@ services:
       redis_net:
     mem_limit: 64m
 
-  multitenancy-redis-exporter:
+  organization-redis-exporter:
     <<: *base
     image: ${REDIS_EXPORTER_IMAGE:?}
-    container_name: multitenancy-redis-exporter
+    container_name: organization-redis-exporter
     depends_on:
-      multitenancy-redis:
+      organization-redis:
         condition: service_healthy
     environment:
-      REDIS_PASSWORD: ${MULTITENANCY_REDIS_PASSWORD:?}
+      REDIS_PASSWORD: ${ORGANIZATION_REDIS_PASSWORD:?}
       REDIS_EXPORTER_REDIS_ONLY_METRICS: "true"
-      REDIS_ADDR: redis://multitenancy-redis:6379
+      REDIS_ADDR: redis://organization-redis:6379
     networks:
       monitoring_net:
         aliases:
-          - multitenancy-redis-exporter
+          - organization-redis-exporter
       redis_net:
     mem_limit: 64m
 

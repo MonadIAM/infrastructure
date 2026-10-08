@@ -26,9 +26,9 @@ scrape_configs:
         labels:
           service: template-service
       - targets:
-          - multitenancy-service-app:4004
+          - organization-service-app:4004
         labels:
-          service: multitenancy-service
+          service: organization-service
       - targets:
           - hr-service-app:4005
         labels:
@@ -53,9 +53,9 @@ scrape_configs:
         labels:
           service: template-service
       - targets:
-          - multitenancy-postgresql-exporter:9187
+          - organization-postgresql-exporter:9187
         labels:
-          service: multitenancy-service
+          service: organization-service
       - targets:
           - hr-postgresql-exporter:9187
         labels:
@@ -80,9 +80,9 @@ scrape_configs:
         labels:
           service: template-service
       - targets:
-          - multitenancy-redis-exporter:9121
+          - organization-redis-exporter:9121
         labels:
-          service: multitenancy-service
+          service: organization-service
       - targets:
           - hr-redis-exporter:9121
         labels:

@@ -17,7 +17,7 @@ application observability stack.
 | `1`   | `access-control` | `4001`        | `6001`               | `7001`          |
 | `2`   | `identity`       | `4002`        | `6002`               | `7002`          |
 | `3`   | `notification`   | `4003`        | `6003`               | `7003`          |
-| `4`   | `multitenancy`   | `4004`        | `6004`               | `7004`          |
+| `4`   | `organization`   | `4004`        | `6004`               | `7004`          |
 | `5`   | `hr`             | `4005`        | `6005`               | `7005`          |
 
 Service containers use internal PostgreSQL port `5432` and Redis port `6379`.
@@ -31,7 +31,7 @@ Only the host-published ports above are service-indexed.
 
 The `realm` topic uses `REALM_PARTITIONS` (example: 4). Every outbox connector routes it by `payload.realm` with the same Debezium PartitionRouting transform used for `projection-journal`; the Kafka key remains the event UUID. Realm retries run inline in consumers, not through service-specific retry topics.
 
-The `position` topic uses `POSITION_PARTITIONS` (example: 4) and routes messages by `payload.input.organization`. HR and Multitenancy process placement validation, leadership references and position cleanup through this stream. Retries run inline; exhausted events go to `position-dead`.
+The `position` topic uses `POSITION_PARTITIONS` (example: 4) and routes messages by `payload.input.organization`. HR and Organization process placement validation, leadership references and position cleanup through this stream. Retries run inline; exhausted events go to `position-dead`.
 
 Set the same partition count in the topic and all connector configurations. Stop affected writes and drain pending events/retries before changing routing or partition count. The initializer rejects an existing `realm` topic with a different partition count; it does not automatically repartition or delete old realm retry topics. After a dead-letter outcome, reconcile current state before replaying an old command.
 
@@ -66,7 +66,7 @@ Set the same partition count in the topic and all connector configurations. Stop
 |:------------------------------------------|:-------------------------------------------------|
 | `docker-compose.yml`                      | Root Compose include manifest                    |
 | `services/template/compose.yml`           | Template PostgreSQL + Redis                      |
-| `services/multitenancy/compose.yml`       | Multitenancy PostgreSQL + Redis                  |
+| `services/organization/compose.yml`       | Organization PostgreSQL + Redis                  |
 | `services/hr/compose.yml`                 | HR PostgreSQL + Redis                            |
 | `services/access-control/compose.yml`     | Access Control PostgreSQL + Redis                |
 | `services/identity/compose.yml`           | Identity PostgreSQL + Redis                      |
@@ -95,7 +95,7 @@ Set the same partition count in the topic and all connector configurations. Stop
 | `access-control` | `access-control-postgresql` | `access-control-redis` | `ACCESS_CONTROL_POSTGRES_*` | `ACCESS_CONTROL_REDIS_*` |
 | `identity`       | `identity-postgresql`       | `identity-redis`       | `IDENTITY_POSTGRES_*`       | `IDENTITY_REDIS_*`       |
 | `notification`   | `notification-postgresql`   | `notification-redis`   | `NOTIFICATION_POSTGRES_*`   | `NOTIFICATION_REDIS_*`   |
-| `multitenancy`   | `multitenancy-postgresql`   | `multitenancy-redis`   | `MULTITENANCY_POSTGRES_*`   | `MULTITENANCY_REDIS_*`   |
+| `organization`   | `organization-postgresql`   | `organization-redis`   | `ORGANIZATION_POSTGRES_*`   | `ORGANIZATION_REDIS_*`   |
 | `hr`             | `hr-postgresql`             | `hr-redis`             | `HR_POSTGRES_*`             | `HR_REDIS_*`             |
 
 PostgreSQL containers run with logical replication enabled for Debezium: `wal_level=logical`, `max_replication_slots=10`, `max_wal_senders=10`.
@@ -162,7 +162,7 @@ not operational log storage.
 | `identity`       | `identity-service`       | `kv/identity-service/runtime`         | `kv/identity-service/oauth` |
 | `notification`   | `notification-service`   | `kv/notification-service/runtime`     |                             |
 | `access-control` | `access-control-service` | `kv/access-control-service/runtime`   |                             |
-| `multitenancy`   | `multitenancy-service`   | `kv/multitenancy-service/runtime`     |                             |
+| `organization`   | `organization-service`   | `kv/organization-service/runtime`     |                             |
 | `hr`             | `hr-service`             | `kv/hr-service/runtime`               |                             |
 
 Runtime KV payloads contain static local credentials rendered by each service's
@@ -211,7 +211,7 @@ Global Schema Registry rules are configured through `.env`:
 | `access-control` | `access-control-service-outbox-connector` | `access-control-postgresql:5432` |
 | `identity`       | `identity-service-outbox-connector`       | `identity-postgresql:5432`       |
 | `notification`   | `notification-service-outbox-connector`   | `notification-postgresql:5432`   |
-| `multitenancy`   | `multitenancy-service-outbox-connector`   | `multitenancy-postgresql:5432`   |
+| `organization`   | `organization-service-outbox-connector`   | `organization-postgresql:5432`   |
 | `hr`             | `hr-service-outbox-connector`             | `hr-postgresql:5432`             |
 
 </details>
