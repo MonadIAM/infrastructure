@@ -1,40 +1,79 @@
-# @monadiam/infra
+# @monadiam/stand-infrastructure
 
-Local MonadIAM infrastructure for `k3d`/`k3s`.
+Platform | Stand Infrastructure: k3d/k3s, PostgreSQL/Redis, Kafka/Debezium messaging,
+Vault secrets, ClickHouse, Go tooling and observability with Prometheus, Grafana,
+Loki and Tempo.
+
+### Requirements
+
+- ***Make*** — runs the prepared project commands from the repository root.
+- ***Go 1.27+*** — builds and runs the CLI, development checks and tests on the host.
+- ***Docker*** — runs the k3s nodes managed by k3d; the Docker engine must be running.
+- ***k3d*** — creates, starts and stops the Kubernetes cluster.
+- ***kubectl and Helm*** — apply manifests, install charts and check readiness.
+- ***Network access*** — required for container registries, Helm repositories and
+  Gateway API release manifests during deployment.
 
 ----
 
 <details>
-<summary><strong>Local Deployment</strong></summary>
+<summary><strong>Host Ports</strong></summary>
 
-1. Install required tools:
+| Component          | Host address       | Purpose                          |
+| :----------------- | :----------------- | :------------------------------- |
+| Kubernetes API     | `127.0.0.1:6550`   | Cluster management               |
+| Gateway HTTP       | `127.0.0.1:8080`   | HTTP ingress                     |
+| Gateway HTTPS      | `127.0.0.1:8443`   | HTTPS ingress                    |
+| Container registry | `127.0.0.1:5001`   | Images for the local k3d cluster |
 
-```sh
-docker
-k3d
-kubectl
-helm
-openssl
-jq
-```
+Bindings are defined in `bootstrap/k3d/cluster.yaml`. Gateway listeners use
+`monadiam.localhost` and `*.monadiam.localhost`. Application routes and service
+deployments must be supplied separately; creating the gateway does not deploy them.
 
-2. Generate local environment file:
+</details>
 
-```sh
-make env
-```
+----
 
-3. Start the cluster and reconcile the platform stack:
+<details>
+<summary><strong>Structure</strong></summary>
 
-```sh
-make start
-```
-
-4. Check current state:
-
-```sh
-make status
-make vault-status
+```text
+stand/
+├── Makefile                            # Cluster, platform and development commands
+├── .env.example                        # Environment settings and chart versions
+├── main.go                             # CLI entry point and cancellation
+├── go.mod                              # Go module and dependencies
+├── go.sum                              # Dependency checksums
+├── cli/                                # Go application and component tests
+│   ├── cli.go                          # Command-line parsing
+│   ├── commands.go                     # Command handlers
+│   ├── types.go                        # CLI options and handler types
+│   ├── config/                         # Dotenv loading, initialization and validation
+│   ├── platform/
+│   │   ├── command/                    # Subprocess execution and cancellable polling
+│   │   ├── helm/                       # Chart installation and retries
+│   │   ├── kubernetes/                 # Context selection, manifests and readiness
+│   │   ├── stand/                      # Cluster lifecycle and platform reconciliation
+│   │   │   └── definitions.go          # Phases, releases, operators and secrets
+│   │   └── vault/                      # Initialization, unseal and bootstrap
+│   │       └── definitions.go          # Credential and role definitions
+│   └── tests/integration/              # Real CLI and isolated k3d lifecycle tests
+│       └── testdata/                   # Ephemeral ports and a dedicated image registry
+├── bootstrap/k3d/cluster.yaml           # k3s nodes, registry and host bindings
+├── clusters/local/                     # Namespaces and storage configuration
+├── infrastructure/
+│   ├── networking/                     # Istio and Gateway API
+│   ├── security/                       # cert-manager and Vault Secrets Operator
+│   ├── operators/                      # CloudNativePG, Strimzi and ClickHouse
+│   ├── observability/                  # Prometheus, Grafana, Loki, Tempo and OTel
+│   └── storage/                        # Retain storage class
+└── platform/
+    ├── postgresql/                     # CNPG cluster and monitoring resources
+    ├── redis/                          # Redis chart values and TLS resources
+    ├── kafka/                          # Kafka, Connect, topics and outbox connector
+    ├── clickhouse/                     # ClickHouse cluster and monitoring resources
+    ├── vault/                          # Server values, certificates and HCL policies
+    └── secrets/                        # Secret contract
 ```
 
 </details>
@@ -42,17 +81,37 @@ make vault-status
 ----
 
 <details>
-<summary><strong>Project Commands</strong></summary>
+<summary><strong>Commands</strong></summary>
 
-| Makefile            | Description                                      |
-|:--------------------|:-------------------------------------------------|
-| `make env`          | Generate `.env` from `.env.example`.             |
-| `make start`        | Create or start the local k3d cluster and stack. |
-| `make resume`       | Reconcile stack against an existing cluster.     |
-| `make stop`         | Stop the local k3d cluster.                      |
-| `make restart`      | Restart the local cluster and reconcile stack.   |
-| `make status`       | Show cluster, workloads, and platform status.    |
-| `make vault-status` | Show Vault initialization and seal status.       |
+| Makefile            | CLI                                       | Description                                                           |
+| :------------------ | :---------------------------------------- | :-------------------------------------------------------------------- |
+| **Infrastructure**  |                                           |                                                                       |
+| `make env`          | `infra config init`                       | Create a private environment file; preserve an existing file.         |
+| `make start`        | `infra cluster start`                     | Create or start the cluster and reconcile the platform.               |
+| `make resume`       | `infra cluster resume`                    | Start and reconcile an existing cluster; fail if absent.              |
+| `make stop`         | `infra cluster stop`                      | Stop the cluster without deleting it.                                 |
+| `make restart`      | `infra cluster restart`                   | Stop, start and reconcile the existing cluster.                       |
+| `make recreate`     | `infra cluster recreate --confirm-delete` | Delete and recreate the cluster; cluster data may be lost.            |
+| `make status`       | `infra cluster status`                    | Show cluster nodes, releases and platform resources.                  |
+| **Development**     |                                           |                                                                       |
+| `make build`        | —                                         | Build the standalone CLI at `build/infra`.                            |
+| `make lint`         | —                                         | Run golangci-lint and gofmt checks.                                   |
+| `make lint-fix`     | —                                         | Apply gofmt formatting.                                               |
+| `make env-check`    | `infra config validate`                   | Validate environment settings without network calls.                  |
+| **Platform**        |                                           |                                                                       |
+| `make reconcile`    | `infra platform reconcile`                | Reconcile the platform in a running cluster.                          |
+| `make vault-status` | `infra vault status`                      | Show initialization, seal status and unseal threshold.                |
+| **Test**            |                                           |                                                                       |
+| `make utest`        | —                                         | Run Ginkgo tests with the race detector, without k3s.                 |
+| `make itest`        | —                                         | Test bootstrap, reconciliation and restart in a separate k3d cluster. |
+
+| CLI option         | Purpose                                                         |
+| :----------------- | :-------------------------------------------------------------- |
+| `--env-file`       | Dotenv path; `--env-file=` disables file loading.               |
+| `--timeout`        | Total operation timeout, e.g. `60m`; not used by `config init`. |
+| `--component`      | Platform component to reconcile; defaults to `all`.             |
+| `--confirm-delete` | Allow cluster deletion, only for `cluster recreate`.            |
+| `--help`           | General or command-specific help.                               |
 
 </details>
 

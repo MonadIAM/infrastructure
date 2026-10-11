@@ -88,17 +88,6 @@ metadata:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: minio-operator
-  labels:
-    app.kubernetes.io/name: minio-operator
-    app.kubernetes.io/component: object-storage-operator
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-    istio-injection: disabled
----
-apiVersion: v1
-kind: Namespace
-metadata:
   name: monadiam-data
   labels:
     app.kubernetes.io/name: monadiam-data

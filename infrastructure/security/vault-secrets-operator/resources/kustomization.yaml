@@ -26,5 +26,3 @@ resources:
   - clickhouse-main-app-static-secret.yaml
   - clickhouse-main-intercluster-static-secret.yaml
   - clickhouse-operator-static-secret.yaml
-  - minio-main-root-static-secret.yaml
-  - minio-main-archiver-static-secret.yaml

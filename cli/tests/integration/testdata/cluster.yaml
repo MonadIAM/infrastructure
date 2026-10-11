@@ -1,0 +1,32 @@
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+servers: 1
+agents: 1
+image: rancher/k3s:v1.35.5-k3s1
+kubeAPI:
+  host: "127.0.0.1"
+  hostIP: "127.0.0.1"
+registries:
+  create:
+    name: ${INTEGRATION_REGISTRY}
+    host: "127.0.0.1"
+  config: |
+    mirrors:
+      "${INTEGRATION_REGISTRY}:5000":
+        endpoint:
+          - http://${INTEGRATION_REGISTRY}:5000
+options:
+  k3d:
+    wait: true
+    timeout: "180s"
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: false
+  k3s:
+    extraArgs:
+      - arg: "--disable=traefik"
+        nodeFilters:
+          - server:*
+      - arg: "--secrets-encryption"
+        nodeFilters:
+          - server:*
