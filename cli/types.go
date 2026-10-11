@@ -28,9 +28,10 @@ const usage = `Usage:
   infra cluster status [options]
   infra platform reconcile [--component=all] [options]
   infra vault status [options]
+  infra seaweedfs reconcile [options]
 
 Options: --env-file=.env, --timeout=60m
 Components: all, cert-manager, metrics-server, istio, gateway, vault,
-            operators, clusters, observability
+            operators, clusters, seaweedfs, observability
 Run from the stand repository root. Use --env-file= for environment-only configuration.
 `

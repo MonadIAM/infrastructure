@@ -1,0 +1,50 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: seaweedfs-main
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: seaweedfs
+      app.kubernetes.io/instance: seaweedfs-main
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: seaweedfs
+              app.kubernetes.io/instance: seaweedfs-main
+      ports:
+        - protocol: TCP
+          port: 9333
+        - protocol: TCP
+          port: 19333
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 18080
+        - protocol: TCP
+          port: 8888
+        - protocol: TCP
+          port: 18888
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: seaweedfs-main-bootstrap
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monadiam-apps
+          podSelector:
+            matchLabels:
+              monadiam.io/seaweedfs-client: "true"
+      ports:
+        - protocol: TCP
+          port: 8333
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monadiam-observability
+      ports:
+        - protocol: TCP
+          port: 9327

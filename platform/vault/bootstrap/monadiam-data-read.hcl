@@ -29,3 +29,11 @@ path "kv/data/monadiam-data/clickhouse/*" {
 path "kv/metadata/monadiam-data/clickhouse/*" {
   capabilities = ["read"]
 }
+
+path "kv/data/monadiam-data/seaweedfs/*" {
+  capabilities = ["read"]
+}
+
+path "kv/metadata/monadiam-data/seaweedfs/*" {
+  capabilities = ["read"]
+}

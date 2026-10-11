@@ -30,11 +30,18 @@ func (fixture *clusterFixture) prepare(ctx context.Context) {
 	source, err := filepath.Abs("../../..")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	directories := []string{"clusters", "infrastructure", "platform"}
+	directories := []string{"clusters", "infrastructure", "platform", "cli"}
 
 	for _, directory := range directories {
 		err := os.CopyFS(filepath.Join(fixture.directory, directory), os.DirFS(filepath.Join(source, directory)))
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	}
+
+	files := []string{"go.mod", "go.sum", "main.go"}
+	for _, file := range files {
+		data, err := os.ReadFile(filepath.Join(source, file))
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		gomega.Expect(os.WriteFile(filepath.Join(fixture.directory, file), data, 0600)).To(gomega.Succeed())
 	}
 
 	fixture.prepareEnvironment(source)

@@ -19,7 +19,7 @@ func (client Client) EnsureCredentials(ctx context.Context) error {
 		}
 	}
 
-	return nil
+	return client.ensureSeaweedFS(ctx)
 }
 
 func (client Client) get(ctx context.Context, path string) (map[string]string, int, error) {

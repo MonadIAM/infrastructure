@@ -92,6 +92,67 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 		}
 	})
 
+	Describe("[Function] - ensureSeaweedFS", func() {
+		BeforeEach(func() {
+			client.Environment["SEAWEEDFS_AUDIT_LOG_BUCKET"] = "audit-archive"
+			client.Environment["SEAWEEDFS_AUDIT_LOG_RETENTION_DAYS"] = "1095"
+			client.Environment["SEAWEEDFS_CHANGE_LOG_BUCKET"] = "change-log-archive"
+			client.Environment["SEAWEEDFS_CHANGE_LOG_RETENTION_DAYS"] = "365"
+		})
+
+		It("[case] - generates independent keys once and preserves them on reconciliation", func() {
+			// Arrange
+			var stored map[string]string
+			writes := 0
+			run = func(_ context.Context, request command.Request) (command.Result, error) {
+				if slices.Contains(request.Args, "get") {
+					if stored == nil {
+						return command.Result{Stderr: []byte("No value found at kv/path")}, errors.New("not found")
+					}
+
+					data, err := json.Marshal(map[string]any{"data": map[string]any{"data": stored, "metadata": map[string]int{"version": 1}}})
+					return command.Result{Output: data}, err
+				}
+
+				writes++
+				_, payload, _ := bytes.Cut(request.Input, []byte("\n"))
+				err := json.Unmarshal(payload, &stored)
+
+				return command.Result{}, err
+			}
+
+			// Act
+			firstErr := client.ensureSeaweedFS(context.Background())
+			secondErr := client.ensureSeaweedFS(context.Background())
+
+			// Assert
+			Expect(firstErr).To(Succeed())
+			Expect(secondErr).To(Succeed())
+			Expect(writes).To(Equal(1))
+			Expect(stored).To(HaveLen(5))
+			Expect(stored["SEAWEEDFS_ADMIN_ACCESS_KEY"]).To(HaveLen(64))
+			Expect(stored["SEAWEEDFS_ADMIN_SECRET_KEY"]).To(HaveLen(64))
+			Expect(stored["SEAWEEDFS_ARCHIVER_ACCESS_KEY"]).NotTo(Equal(stored["SEAWEEDFS_ADMIN_ACCESS_KEY"]))
+			Expect(stored["SEAWEEDFS_ARCHIVER_SECRET_KEY"]).NotTo(Equal(stored["SEAWEEDFS_ADMIN_SECRET_KEY"]))
+			Expect(requests[1].Args).To(ContainElement("-cas=0"))
+			Expect(requests).To(HaveEach(HaveField("Sensitive", BeTrue())))
+		})
+
+		It("[case] - refuses to replace incomplete existing credentials", func() {
+			// Arrange
+			run = func(_ context.Context, _ command.Request) (command.Result, error) {
+				return command.Result{Output: []byte(`{"data":{"data":{"SEAWEEDFS_ADMIN_ACCESS_KEY":"existing"},"metadata":{"version":1}}}`)}, nil
+			}
+
+			// Act
+			err := client.ensureSeaweedFS(context.Background())
+
+			// Assert
+			Expect(err).To(HaveOccurred())
+			Expect(requests).To(HaveLen(1))
+		})
+	})
+
 	Describe("[Function] - ensureCredential", func() {
 		It("[case] - preserves existing credentials", func() {
 			// Arrange

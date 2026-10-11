@@ -2,12 +2,15 @@
 
 package integration
 
-import "io/fs"
+import (
+	"io/fs"
+)
 
 type clusterFixture struct {
 	name        string
 	directory   string
 	environment []string
+	archives    map[string]string
 }
 
 type resource struct {

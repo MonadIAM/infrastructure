@@ -8,20 +8,31 @@ import (
 
 	"github.com/MonadIAM/infrastructure/cli/config"
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
+	"github.com/MonadIAM/infrastructure/cli/platform/seaweedfs"
 	"github.com/MonadIAM/infrastructure/cli/platform/stand"
 )
 
 var commands = map[string]commandHandler{
-	"config init":        initializeConfiguration,
-	"config validate":    validateConfiguration,
-	"cluster start":      startCluster,
-	"cluster resume":     resumeCluster,
-	"cluster stop":       stopCluster,
-	"cluster restart":    restartCluster,
-	"cluster recreate":   recreateCluster,
-	"cluster status":     clusterStatus,
-	"platform reconcile": reconcilePlatform,
-	"vault status":       vaultStatus,
+	"config init":         initializeConfiguration,
+	"config validate":     validateConfiguration,
+	"cluster start":       startCluster,
+	"cluster resume":      resumeCluster,
+	"cluster stop":        stopCluster,
+	"cluster restart":     restartCluster,
+	"cluster recreate":    recreateCluster,
+	"cluster status":      clusterStatus,
+	"platform reconcile":  reconcilePlatform,
+	"vault status":        vaultStatus,
+	"seaweedfs reconcile": reconcileSeaweedFS,
+}
+
+func reconcileSeaweedFS(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
+	settings, err := seaweedfs.Load(environment)
+	if err != nil {
+		return err
+	}
+
+	return seaweedfs.Reconcile(ctx, settings, output)
 }
 
 func initializeConfiguration(_ context.Context, _ config.Environment, options commandOptions, output io.Writer) error {

@@ -6,7 +6,7 @@ GOLANGCI_LINT := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lin
 ENV_FILE ?= .env
 COMPONENT ?= all
 
-.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile vault-status utest itest
+.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile vault-status seaweedfs utest itest
 
 # Infrastructure
 env:
@@ -39,6 +39,8 @@ reconcile:
 	$(GO) run . platform reconcile --component "$(COMPONENT)" --env-file "$(ENV_FILE)"
 vault-status:
 	$(GO) run . vault status --env-file "$(ENV_FILE)"
+seaweedfs:
+	$(GO) run . platform reconcile --component seaweedfs --env-file "$(ENV_FILE)"
 
 # Test
 utest:

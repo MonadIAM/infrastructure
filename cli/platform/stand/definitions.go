@@ -46,6 +46,10 @@ func (platform Platform) phases() []phaseDefinition {
 			Run:  platform.Clusters,
 		},
 		{
+			Name: "seaweedfs",
+			Run:  platform.SeaweedFS,
+		},
+		{
 			Name: "observability",
 			Run:  platform.Observability,
 		},
@@ -54,6 +58,14 @@ func (platform Platform) phases() []phaseDefinition {
 
 func releaseDefinitions(environment config.Environment) map[string]helm.Release {
 	return map[string]helm.Release{
+		"seaweedfs-main": {
+			Name:      "seaweedfs-main",
+			Chart:     "seaweedfs/seaweedfs",
+			Version:   environment["SEAWEEDFS_CHART_VERSION"],
+			Namespace: dataNamespace,
+			Values:    "platform/seaweedfs/helm/values.yaml",
+			Arguments: []string{"--set-string", "image.tag=" + environment["SEAWEEDFS_VERSION"], "--wait", "--timeout", "600s"},
+		},
 		"cert-manager": {
 			Name:      "cert-manager",
 			Chart:     environment["CERT_MANAGER_CHART"],
@@ -191,6 +203,21 @@ func operatorDefinitions() []operatorDefinition {
 
 func secretDefinitions() []secretDefinition {
 	return []secretDefinition{
+		{
+			Namespace:   dataNamespace,
+			Name:        "seaweedfs-main-s3",
+			Destination: "seaweedfs-main-s3",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "seaweedfs-main-admin",
+			Destination: "seaweedfs-main-admin",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "seaweedfs-main-archiver",
+			Destination: "seaweedfs-main-archiver",
+		},
 		{
 			Namespace:   "monadiam-apps",
 			Name:        "monadiam-bootstrap",

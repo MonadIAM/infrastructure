@@ -59,6 +59,9 @@ func (fixture clusterFixture) credentials(ctx context.Context) (map[string]strin
 	secrets := map[string][]string{
 		"monadiam-apps": {"monadiam-bootstrap"},
 		"monadiam-data": {
+			"seaweedfs-main-s3",
+			"seaweedfs-main-admin",
+			"seaweedfs-main-archiver",
 			"monadiam-data-bootstrap",
 			"postgresql-main-superuser",
 			"postgresql-main-app",

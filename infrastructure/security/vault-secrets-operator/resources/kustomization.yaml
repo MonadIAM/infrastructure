@@ -2,6 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  - seaweedfs-main-s3-static-secret.yaml
+  - seaweedfs-main-admin-static-secret.yaml
+  - seaweedfs-main-archiver-static-secret.yaml
   - ca-certificate.yaml
   - app-serviceaccount.yaml
   - data-serviceaccount.yaml

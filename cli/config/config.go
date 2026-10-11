@@ -121,6 +121,8 @@ func Validate(environment Environment) error {
 		"VAULT_KEY_SHARES",
 		"VAULT_KEY_THRESHOLD",
 		"PROJECTION_JOURNAL_PARTITIONS",
+		"SEAWEEDFS_AUDIT_LOG_RETENTION_DAYS",
+		"SEAWEEDFS_CHANGE_LOG_RETENTION_DAYS",
 	}
 
 	for _, key := range keys {
