@@ -74,10 +74,10 @@
       "keepTime": true,
       "tags": [],
       "targetBlank": false,
-      "title": "MinIO",
-      "tooltip": "Open MinIO dashboard",
+      "title": "SeaweedFS",
+      "tooltip": "Open SeaweedFS dashboard",
       "type": "dashboard",
-      "uid": "monadiam-local-minio"
+      "uid": "monadiam-local-seaweedfs"
     },
     {
       "asDropdown": false,
@@ -103,7 +103,7 @@
       },
       "id": 50,
       "panels": [],
-      "title": "MinIO Cluster (Exporter)",
+      "title": "SeaweedFS Cluster (Exporter)",
       "type": "row"
     },
     {
@@ -114,7 +114,7 @@
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
-          "unit": "bytes"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -149,15 +149,15 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "max(minio_cluster_capacity_usable_total_bytes{job=\"monadiam-minio-cluster\"})",
-          "legendFormat": "usable capacity",
+          "expr": "max(up{job=\"monadiam-seaweedfs\"})",
+          "legendFormat": "availability",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "MinIO cluster capacity",
+      "title": "SeaweedFS availability",
       "type": "stat",
-      "description": "Object storage capacity usage reported by MinIO exporter."
+      "description": "Prometheus scrape availability for the local SeaweedFS process."
     },
     {
       "datasource": {
@@ -217,15 +217,15 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (drive) (minio_node_drive_free_bytes{job=\"monadiam-minio-cluster\"})",
-          "legendFormat": "{{drive}}",
+          "expr": "max by (name) (SeaweedFS_volumeServer_resource{job=\"monadiam-seaweedfs\",type=\"free\"})",
+          "legendFormat": "{{name}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "MinIO drive free",
+      "title": "SeaweedFS volume disk free",
       "type": "timeseries",
-      "description": "Free drive space reported by MinIO."
+      "description": "Free disk space reported by the volume server."
     },
     {
       "gridPos": {
@@ -235,7 +235,7 @@
         "y": 9
       },
       "id": 57,
-      "title": "MinIO Buckets (Exporter)",
+      "title": "SeaweedFS Buckets (Exporter)",
       "type": "row"
     },
     {
@@ -296,15 +296,15 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (bucket) (minio_bucket_usage_total_bytes{job=\"monadiam-minio-bucket\"})",
+          "expr": "max by (bucket) (SeaweedFS_s3_bucket_size_bytes{job=\"monadiam-seaweedfs\"})",
           "legendFormat": "{{bucket}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "MinIO bucket usage",
+      "title": "SeaweedFS bucket usage",
       "type": "timeseries",
-      "description": "Stored object size by bucket."
+      "description": "Logical object storage size per bucket."
     },
     {
       "datasource": {
@@ -364,15 +364,15 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "max by (bucket) (minio_bucket_usage_object_total{job=\"monadiam-minio-bucket\"})",
+          "expr": "max by (bucket) (SeaweedFS_s3_bucket_object_count{job=\"monadiam-seaweedfs\"})",
           "legendFormat": "{{bucket}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "MinIO objects",
+      "title": "SeaweedFS objects",
       "type": "timeseries",
-      "description": "Object count by bucket."
+      "description": "Logical object count per bucket."
     },
     {
       "gridPos": {
@@ -382,7 +382,7 @@
         "y": 18
       },
       "id": 58,
-      "title": "MinIO S3 API (Exporter)",
+      "title": "SeaweedFS S3 API (Exporter)",
       "type": "row"
     },
     {
@@ -392,7 +392,7 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
+          "unit": "reqps",
           "min": 0,
           "color": {
             "mode": "palette-classic"
@@ -443,15 +443,15 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (bucket, api) (rate(minio_bucket_requests_total{job=\"monadiam-minio-bucket\"}[$__rate_interval]))",
-          "legendFormat": "{{bucket}} {{api}}",
+          "expr": "sum by (bucket, type) (rate(SeaweedFS_s3_request_total{job=\"monadiam-seaweedfs\"}[$__rate_interval]))",
+          "legendFormat": "{{bucket}} {{type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "MinIO S3 request rate",
+      "title": "SeaweedFS S3 request rate",
       "type": "timeseries",
-      "description": "S3 request throughput grouped by API and status."
+      "description": "S3 request throughput by bucket and operation."
     },
     {
       "datasource": {
@@ -511,8 +511,8 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (bucket, api) (rate(minio_bucket_requests_4xx_errors_total{job=\"monadiam-minio-bucket\"}[$__rate_interval]))",
-          "legendFormat": "{{bucket}} {{api}} 4xx",
+          "expr": "sum by (bucket, type) (rate(SeaweedFS_s3_request_total{job=\"monadiam-seaweedfs\",code=~\"4..\"}[$__rate_interval]))",
+          "legendFormat": "{{bucket}} {{type}} 4xx",
           "range": true,
           "refId": "A"
         },
@@ -522,13 +522,13 @@
             "uid": "Prometheus"
           },
           "editorMode": "code",
-          "expr": "sum by (bucket, api) (rate(minio_bucket_requests_5xx_errors_total{job=\"monadiam-minio-bucket\"}[$__rate_interval]))",
-          "legendFormat": "{{bucket}} {{api}} 5xx",
+          "expr": "sum by (bucket, type) (rate(SeaweedFS_s3_request_total{job=\"monadiam-seaweedfs\",code=~\"5..\"}[$__rate_interval]))",
+          "legendFormat": "{{bucket}} {{type}} 5xx",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "MinIO S3 errors",
+      "title": "SeaweedFS S3 errors",
       "type": "timeseries",
       "description": "S3 error rate grouped by API/status."
     }
@@ -549,8 +549,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "MinIO",
-  "uid": "monadiam-local-minio",
+  "title": "SeaweedFS",
+  "uid": "monadiam-local-seaweedfs",
   "version": 1,
   "weekStart": "",
   "style": "dark"

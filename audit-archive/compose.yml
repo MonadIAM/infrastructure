@@ -48,36 +48,65 @@ services:
     networks:
       kafka_net:
 
-  minio:
-    <<: *base
-    image: ${MINIO_IMAGE:?}
-    container_name: minio
-    command: server /data --address ":${MINIO_API_INTERNAL_PORT:?}" --console-address ":${MINIO_CONSOLE_INTERNAL_PORT:?}"
+  seaweedfs:
+    restart: on-failure
+    image: ${SEAWEEDFS_IMAGE:?}
     environment:
-      MINIO_PROMETHEUS_AUTH_TYPE: public
+      SEAWEEDFS_ADMIN_ACCESS_KEY: ${SEAWEEDFS_ADMIN_ACCESS_KEY:?}
+      SEAWEEDFS_ADMIN_SECRET_KEY: ${SEAWEEDFS_ADMIN_SECRET_KEY:?}
+      SEAWEEDFS_ARCHIVER_ACCESS_KEY: ${SEAWEEDFS_ARCHIVER_ACCESS_KEY:?}
+      SEAWEEDFS_ARCHIVER_SECRET_KEY: ${SEAWEEDFS_ARCHIVER_SECRET_KEY:?}
+      SEAWEEDFS_AUDIT_LOG_BUCKET: ${SEAWEEDFS_AUDIT_LOG_BUCKET:?}
+      SEAWEEDFS_CHANGE_LOG_BUCKET: ${SEAWEEDFS_CHANGE_LOG_BUCKET:?}
+    entrypoint: ["sh", "/scripts/seaweedfs-entrypoint.sh"]
+    command:
+      - mini
+      - -dir=/data
+      - -ip=seaweedfs
+      - -ip.bind=0.0.0.0
+      - -s3.config=/tmp/credentials.json
+      - -s3.port=${SEAWEEDFS_API_INTERNAL_PORT:?}
+      - -s3.port.iceberg=0
+      - -s3.port.lance=0
+      - -s3.autoCreateBucket=false
+      - -s3.allowDeleteBucketNotEmpty=false
+      - -webdav=false
+      - -admin.ui=true
+      - -admin.port=${SEAWEEDFS_ADMIN_INTERNAL_PORT:?}
+      - -filer.exposeDirectoryData=false
+      - -master.telemetry=false
+      - -master.port=${SEAWEEDFS_MASTER_INTERNAL_PORT:?}
+      - -metricsPort=${SEAWEEDFS_METRICS_INTERNAL_PORT:?}
     ports:
-      - "${MINIO_CONSOLE_PORT:?}:${MINIO_CONSOLE_INTERNAL_PORT:?}"
-      - "${MINIO_API_PORT:?}:${MINIO_API_INTERNAL_PORT:?}"
+      - "127.0.0.1:${SEAWEEDFS_API_PORT:?}:${SEAWEEDFS_API_INTERNAL_PORT:?}"
+      - "127.0.0.1:${SEAWEEDFS_ADMIN_PORT:?}:${SEAWEEDFS_ADMIN_INTERNAL_PORT:?}"
     volumes:
-      - minio_data:/data
+      - seaweedfs_data:/data
+      - ../scripts/seaweedfs-entrypoint.sh:/scripts/seaweedfs-entrypoint.sh:ro
+    configs:
+      - source: seaweedfs_credentials
+        target: /config/credentials.json
     networks:
       monitoring_net:
-        aliases:
-          - minio
       kafka_net:
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:${SEAWEEDFS_MASTER_INTERNAL_PORT:?}/cluster/status"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
 
-  minio-init:
-    image: ${MINIO_MC_IMAGE:?}
-    container_name: minio-init
+  seaweedfs-init:
+    image: ${SEAWEEDFS_CLI_IMAGE:?}
     env_file:
       - ../.env
     depends_on:
-      minio:
-        condition: service_started
+      seaweedfs:
+        condition: service_healthy
+    entrypoint: ["sh", "/scripts/seaweedfs-init.sh"]
     volumes:
-      - ./minio/policy.archiver.json:/minio/policy.archiver.json:ro
-      - ../scripts:/scripts:ro
-    entrypoint: ["sh", "/scripts/minio-init.sh"]
+      - ../scripts/seaweedfs-init.sh:/scripts/seaweedfs-init.sh:ro
+      - ./seaweedfs:/config:ro
     networks:
       kafka_net:
 
@@ -88,7 +117,7 @@ services:
     depends_on:
       clickhouse-init:
         condition: service_completed_successfully
-      minio-init:
+      seaweedfs-init:
         condition: service_completed_successfully
     volumes:
       - ../scripts:/scripts:ro
@@ -98,7 +127,11 @@ services:
 
 volumes:
   clickhouse_data:
-  minio_data:
+  seaweedfs_data:
+
+configs:
+  seaweedfs_credentials:
+    file: ./seaweedfs/credentials.json
 
 networks:
   monitoring_net:

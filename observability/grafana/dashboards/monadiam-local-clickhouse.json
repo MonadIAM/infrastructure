@@ -74,10 +74,10 @@
       "keepTime": true,
       "tags": [],
       "targetBlank": false,
-      "title": "MinIO",
-      "tooltip": "Open MinIO dashboard",
+      "title": "SeaweedFS",
+      "tooltip": "Open SeaweedFS dashboard",
       "type": "dashboard",
-      "uid": "monadiam-local-minio"
+      "uid": "monadiam-local-seaweedfs"
     },
     {
       "asDropdown": false,

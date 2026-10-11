@@ -3,7 +3,7 @@
 Local Docker infrastructure for MonadIAM services.
 
 This repository owns the shared local runtime: per-service PostgreSQL and Redis,
-Kafka + Kafka Connect/Debezium, Vault, ClickHouse, MinIO, and a lightweight
+Kafka + Kafka Connect/Debezium, Vault, ClickHouse, SeaweedFS, and a lightweight
 application observability stack.
 
 ----
@@ -38,22 +38,22 @@ Set the same partition count in the topic and all connector configurations. Stop
 <details>
 <summary><strong>Shared Ports</strong></summary>
 
-| Component       | Host port | Container port | Variable                   |
-|:----------------|:----------|:---------------|:---------------------------|
-| Kafka UI        | `8080`    | `8080`         | `KAFKA_UI_PORT`            |
-| Kafka Connect   | `8083`    | `8083`         | `KAFKA_CONNECT_PORT`       |
-| Schema Registry | `8081`    | `8080`         | `SCHEMA_REGISTRY_PORT`     |
-| Vault           | `8200`    | `8200`         | `VAULT_PUBLISHED_PORT`     |
-| ClickHouse      | `9000`    | `9000`         | `CLICKHOUSE_NATIVE_PORT`   |
-| ClickHouse      | `8123`    | `8123`         | `CLICKHOUSE_HTTP_PORT`     |
-| MinIO API       | `9010`    | `9000`         | `MINIO_API_PORT`           |
-| MinIO Console   | `9011`    | `9090`         | `MINIO_CONSOLE_PORT`       |
-| Prometheus      | `9090`    | `9090`         | `PROMETHEUS_PORT`          |
-| Grafana         | `3000`    | `3000`         | `GRAFANA_PORT`             |
-| Loki            | `3100`    | `3100`         | `LOKI_PORT`                |
-| Tempo           | `3200`    | `3200`         | `TEMPO_PORT`               |
-| OTel Collector  | `4317`    | `4317`         | `OTEL_COLLECTOR_GRPC_PORT` |
-| OTel Collector  | `4318`    | `4318`         | `OTEL_COLLECTOR_HTTP_PORT` |
+| Component          | Host port | Container port | Variable                   |
+|:-------------------|:----------|:---------------|:---------------------------|
+| Kafka UI           | `8080`    | `8080`         | `KAFKA_UI_PORT`            |
+| Kafka Connect      | `8083`    | `8083`         | `KAFKA_CONNECT_PORT`       |
+| Schema Registry    | `8081`    | `8080`         | `SCHEMA_REGISTRY_PORT`     |
+| Vault              | `8200`    | `8200`         | `VAULT_PUBLISHED_PORT`     |
+| ClickHouse         | `9000`    | `9000`         | `CLICKHOUSE_NATIVE_PORT`   |
+| ClickHouse         | `8123`    | `8123`         | `CLICKHOUSE_HTTP_PORT`     |
+| SeaweedFS API      | `9010`    | `8333`         | `SEAWEEDFS_API_PORT`       |
+| SeaweedFS Admin UI | `9011`    | `23646`        | `SEAWEEDFS_ADMIN_PORT`     |
+| Prometheus         | `9090`    | `9090`         | `PROMETHEUS_PORT`          |
+| Grafana            | `3000`    | `3000`         | `GRAFANA_PORT`             |
+| Loki               | `3100`    | `3100`         | `LOKI_PORT`                |
+| Tempo              | `3200`    | `3200`         | `TEMPO_PORT`               |
+| OTel Collector     | `4317`    | `4317`         | `OTEL_COLLECTOR_GRPC_PORT` |
+| OTel Collector     | `4318`    | `4318`         | `OTEL_COLLECTOR_HTTP_PORT` |
 
 </details>
 
@@ -72,7 +72,7 @@ Set the same partition count in the topic and all connector configurations. Stop
 | `services/identity/compose.yml`           | Identity PostgreSQL + Redis                      |
 | `services/notification/compose.yml`       | Notification PostgreSQL + Redis                  |
 | `messaging/compose.yml`                   | Kafka, Kafka UI, Kafka Connect, Debezium init    |
-| `audit-archive/compose.yml`               | ClickHouse, MinIO, archive init/job              |
+| `audit-archive/compose.yml`               | ClickHouse, SeaweedFS, archive init/job          |
 | `observability/compose.yml`               | Prometheus, Grafana, Loki, Tempo, OTel/exporters |
 | `observability/prometheus/prometheus.yml` | Application metrics scrape config                |
 | `observability/grafana/provisioning/`     | Datasources and dashboard provisioning           |
@@ -126,7 +126,7 @@ flowchart TD
     grafana --> tempo
 
     service -->|audit/change commands only| clickhouse[ClickHouse WORM]
-    clickhouse --> minio[MinIO cold WORM]
+    clickhouse --> seaweedfs[SeaweedFS cold WORM]
 ```
 
 Service compose projects must join `DOCKER_NETWORK_MONITORING=monitoring-net`.
@@ -144,7 +144,7 @@ Existing service `.env` files are not rewritten automatically. Add these
 variables manually or recreate them from `.env.local.example`.
 
 Grafana is available at `http://localhost:3000`; the provisioned dashboards are
-`Services`, `PostgreSQL`, `Redis`, `Kafka`, `ClickHouse`, and `MinIO`, with
+`Services`, `PostgreSQL`, `Redis`, `Kafka`, `ClickHouse`, and `SeaweedFS`, with
 `Services` as the home dashboard. ClickHouse query/audit data is still not used
 as a Grafana datasource: audit/change logs remain an investigation WORM path,
 not operational log storage.

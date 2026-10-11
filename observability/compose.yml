@@ -249,6 +249,9 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
+    configs:
+      - source: seaweedfs_metrics_target
+        target: /etc/prometheus/seaweedfs-targets.yml
     networks:
       monitoring_net:
         aliases:
@@ -337,6 +340,13 @@ services:
         aliases:
           - grafana
     mem_limit: 384m
+
+configs:
+  seaweedfs_metrics_target:
+    content: |
+      - targets: ["seaweedfs:${SEAWEEDFS_METRICS_INTERNAL_PORT:?}"]
+        labels:
+          cluster: local
 
 volumes:
   grafana_data:

@@ -120,18 +120,7 @@ scrape_configs:
         target_label: clickhouse_error
         replacement: $1
 
-  - job_name: monadiam-minio-cluster
-    metrics_path: /minio/v2/metrics/cluster
-    static_configs:
-      - targets:
-          - minio:9000
-        labels:
-          cluster: local
-
-  - job_name: monadiam-minio-bucket
-    metrics_path: /minio/v2/metrics/bucket
-    static_configs:
-      - targets:
-          - minio:9000
-        labels:
-          cluster: local
+  - job_name: monadiam-seaweedfs
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/seaweedfs-targets.yml
