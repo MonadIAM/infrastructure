@@ -1,0 +1,62 @@
+services:
+  kafka:
+    image: monadiam-infrastructure-kafka:local
+    build:
+      context: ../../../..
+      dockerfile: Dockerfile
+      target: kafka-runtime
+      args:
+        KAFKA_IMAGE: ${KAFKA_IMAGE:?}
+    environment:
+      KAFKA_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qg
+    command: ["kafka", "start", "--env-file="]
+    volumes:
+      - ../../../../messaging/kafka/server.properties:/etc/kafka/server.properties:ro
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:29092 >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  postgresql:
+    image: ${POSTGRES_IMAGE:?}
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test-only
+      POSTGRES_DB: test
+    command: ["postgres", "-c", "wal_level=logical"]
+    volumes:
+      - ./outbox.sql:/docker-entrypoint-initdb.d/outbox.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  connect:
+    image: ${KAFKA_CONNECT_IMAGE:?}
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: integration-connect
+      CONFIG_STORAGE_TOPIC: integration-connect-configs
+      OFFSET_STORAGE_TOPIC: integration-connect-offsets
+      STATUS_STORAGE_TOPIC: integration-connect-status
+      CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      STATUS_STORAGE_REPLICATION_FACTOR: "1"
+    ports:
+      - "127.0.0.1::8083"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/ >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  kafka-data:

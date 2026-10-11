@@ -32,7 +32,11 @@ services:
       start_period: 20s
 
   clickhouse-init:
-    image: ${CLICKHOUSE_IMAGE:?}
+    image: monadiam-infrastructure-cli:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: cli
     container_name: clickhouse-init
     env_file:
       - ../.env
@@ -42,15 +46,24 @@ services:
       kafka-init:
         condition: service_completed_successfully
     volumes:
-      - ../scripts:/scripts:ro
       - ./clickhouse/schema:/schema:ro
-    entrypoint: ["bash", "/scripts/clickhouse-init.sh"]
+    environment:
+      CLICKHOUSE_SCHEMA_DIR: /schema
+    command: ["clickhouse", "reconcile", "--env-file="]
     networks:
       kafka_net:
 
   seaweedfs:
     restart: on-failure
-    image: ${SEAWEEDFS_IMAGE:?}
+    image: monadiam-infrastructure-seaweedfs:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: seaweedfs-runtime
+      args:
+        SEAWEEDFS_IMAGE: ${SEAWEEDFS_IMAGE:?}
+    env_file:
+      - ../.env
     environment:
       SEAWEEDFS_ADMIN_ACCESS_KEY: ${SEAWEEDFS_ADMIN_ACCESS_KEY:?}
       SEAWEEDFS_ADMIN_SECRET_KEY: ${SEAWEEDFS_ADMIN_SECRET_KEY:?}
@@ -58,8 +71,11 @@ services:
       SEAWEEDFS_ARCHIVER_SECRET_KEY: ${SEAWEEDFS_ARCHIVER_SECRET_KEY:?}
       SEAWEEDFS_AUDIT_LOG_BUCKET: ${SEAWEEDFS_AUDIT_LOG_BUCKET:?}
       SEAWEEDFS_CHANGE_LOG_BUCKET: ${SEAWEEDFS_CHANGE_LOG_BUCKET:?}
-    entrypoint: ["sh", "/scripts/seaweedfs-entrypoint.sh"]
     command:
+      - seaweedfs
+      - start
+      - --env-file=
+      - --
       - mini
       - -dir=/data
       - -ip=seaweedfs
@@ -82,10 +98,6 @@ services:
       - "127.0.0.1:${SEAWEEDFS_ADMIN_PORT:?}:${SEAWEEDFS_ADMIN_INTERNAL_PORT:?}"
     volumes:
       - seaweedfs_data:/data
-      - ../scripts/seaweedfs-entrypoint.sh:/scripts/seaweedfs-entrypoint.sh:ro
-    configs:
-      - source: seaweedfs_credentials
-        target: /config/credentials.json
     networks:
       monitoring_net:
       kafka_net:
@@ -97,41 +109,44 @@ services:
       start_period: 10s
 
   seaweedfs-init:
-    image: ${SEAWEEDFS_CLI_IMAGE:?}
+    image: monadiam-infrastructure-cli:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: cli
     env_file:
       - ../.env
     depends_on:
       seaweedfs:
         condition: service_healthy
-    entrypoint: ["sh", "/scripts/seaweedfs-init.sh"]
+    environment:
+      SEAWEEDFS_CONFIG_DIR: /config
+    command: ["seaweedfs", "reconcile", "--env-file="]
     volumes:
-      - ../scripts/seaweedfs-init.sh:/scripts/seaweedfs-init.sh:ro
       - ./seaweedfs:/config:ro
     networks:
       kafka_net:
 
   clickhouse-archiver:
     <<: *base
-    image: ${CLICKHOUSE_IMAGE:?}
+    image: monadiam-infrastructure-cli:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: cli
     container_name: clickhouse-archiver
     depends_on:
       clickhouse-init:
         condition: service_completed_successfully
       seaweedfs-init:
         condition: service_completed_successfully
-    volumes:
-      - ../scripts:/scripts:ro
-    entrypoint: ["sh", "/scripts/clickhouse-archiver-entrypoint.sh"]
+    command: ["archive", "loop", "--env-file="]
     networks:
       kafka_net:
 
 volumes:
   clickhouse_data:
   seaweedfs_data:
-
-configs:
-  seaweedfs_credentials:
-    file: ./seaweedfs/credentials.json
 
 networks:
   monitoring_net:

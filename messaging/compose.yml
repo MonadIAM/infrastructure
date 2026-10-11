@@ -6,13 +6,18 @@ x-base: &base
 services:
   kafka:
     <<: *base
-    image: ${KAFKA_IMAGE:?}
+    image: monadiam-infrastructure-kafka:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: kafka-runtime
+      args:
+        KAFKA_IMAGE: ${KAFKA_IMAGE:?}
     container_name: kafka
     volumes:
       - ./kafka/server.properties:/etc/kafka/server.properties:ro
-      - ../scripts:/scripts:ro
       - kafka_data:/var/lib/kafka/data
-    entrypoint: ["bash", "/scripts/kafka-start.sh"]
+    command: ["kafka", "start", "--env-file="]
     networks:
       kafka_net:
     healthcheck:
@@ -27,16 +32,18 @@ services:
       start_period: 30s
 
   kafka-init:
-    image: ${KAFKA_IMAGE:?}
+    image: monadiam-infrastructure-cli:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: cli
     container_name: kafka-init
     env_file:
       - ../.env
     depends_on:
       kafka:
         condition: service_healthy
-    volumes:
-      - ../scripts:/scripts:ro
-    entrypoint: ["bash", "/scripts/kafka-init-topics.sh"]
+    command: ["kafka", "reconcile", "--env-file="]
     networks:
       kafka_net:
 
@@ -111,13 +118,16 @@ services:
       start_period: 30s
 
   debezium-init:
-    image: ${KAFKA_CONNECT_IMAGE:?}
+    image: monadiam-infrastructure-cli:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: cli
     container_name: debezium-init
     env_file:
       - ../.env
     volumes:
       - ./debezium/outbox.connector.json:/debezium/outbox.connector.json:ro
-      - ../scripts:/scripts:ro
     depends_on:
       template-postgresql:
         condition: service_healthy
@@ -133,7 +143,11 @@ services:
         condition: service_healthy
       identity-postgresql:
         condition: service_healthy
-    entrypoint: ["sh", "/scripts/debezium-init-connectors.sh"]
+    command:
+      - debezium
+      - reconcile
+      - --env-file=
+      - --template=/debezium/outbox.connector.json
     networks:
       kafka_net:
       postgres_net:
