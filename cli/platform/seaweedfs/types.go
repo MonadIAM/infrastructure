@@ -7,21 +7,18 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/MonadIAM/infrastructure/cli/config"
-	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
 )
 
 type Settings struct {
-	Endpoint       string
-	Region         string
-	AdminKey       string
-	AdminSecret    string
-	ArchiverKey    string
-	ArchiverSecret string
-	ConfigDir      string
-	Timeout        time.Duration
-	Buckets        []Bucket
+	Endpoint       string        `koanf:"SEAWEEDFS_ENDPOINT"`
+	Region         string        `koanf:"SEAWEEDFS_REGION"`
+	AdminKey       string        `koanf:"SEAWEEDFS_ADMIN_ACCESS_KEY"`
+	AdminSecret    string        `koanf:"SEAWEEDFS_ADMIN_SECRET_KEY"`
+	ArchiverKey    string        `koanf:"SEAWEEDFS_ARCHIVER_ACCESS_KEY"`
+	ArchiverSecret string        `koanf:"SEAWEEDFS_ARCHIVER_SECRET_KEY"`
+	ConfigDir      string        `koanf:"SEAWEEDFS_CONFIG_DIR"`
+	Timeout        time.Duration `koanf:"INFRA_TIMEOUT"`
+	Buckets        []Bucket      `koanf:"-"`
 }
 
 type Bucket struct {
@@ -50,43 +47,9 @@ type bucketConfiguration struct {
 	Lifecycle []byte
 }
 
-func Load(environment config.Environment) (Settings, error) {
-	settings := Settings{
-		Endpoint:       environment.Get("SEAWEEDFS_ENDPOINT", "http://seaweedfs:8333"),
-		Region:         environment.Get("SEAWEEDFS_REGION", "us-east-1"),
-		AdminKey:       environment["SEAWEEDFS_ADMIN_ACCESS_KEY"],
-		AdminSecret:    environment["SEAWEEDFS_ADMIN_SECRET_KEY"],
-		ArchiverKey:    environment["SEAWEEDFS_ARCHIVER_ACCESS_KEY"],
-		ArchiverSecret: environment["SEAWEEDFS_ARCHIVER_SECRET_KEY"],
-		ConfigDir:      environment.Get("SEAWEEDFS_CONFIG_DIR", "audit-archive/seaweedfs"),
-	}
-	var err error
-	settings.Timeout, err = environment.Duration("INFRA_TIMEOUT", "2m")
-	if err != nil {
-		return settings, err
-	}
-
-	bucketKinds := []string{"AUDIT_LOG", "CHANGE_LOG"}
-
-	for _, kind := range bucketKinds {
-		days, err := environment.PositiveInt("SEAWEEDFS_" + kind + "_RETENTION_DAYS")
-		if err != nil {
-			return settings, err
-		}
-
-		settings.Buckets = append(settings.Buckets, Bucket{
-			Name: environment["SEAWEEDFS_"+kind+"_BUCKET"],
-			Days: days,
-		})
-	}
-
-	return settings, settings.Validate()
-}
-
 func (settings Settings) Validate() error {
-	err := infrahttp.ValidateURL(settings.Endpoint)
-	if err != nil {
-		return err
+	if settings.Endpoint == "" {
+		return errors.New("SeaweedFS endpoint is required")
 	}
 
 	if settings.AdminKey == "" || settings.AdminSecret == "" || settings.ArchiverKey == "" || settings.ArchiverSecret == "" {
@@ -126,7 +89,7 @@ func (bucket Bucket) Validate() error {
 	}
 
 	if bucket.Days <= 0 {
-		return fmt.Errorf("%s retention must be positive", bucket.Name)
+		return fmt.Errorf("seaweedfs.Bucket.Validate: %s retention must be positive", bucket.Name)
 	} else {
 		return nil
 	}

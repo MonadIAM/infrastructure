@@ -5,16 +5,15 @@ import (
 	"time"
 
 	"github.com/MonadIAM/infrastructure/cli/config"
-	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
 )
 
 type Settings struct {
-	Address     string
-	InitDir     string
-	PoliciesDir string
-	LocalToken  string
-	Timeout     time.Duration
-	Environment config.Environment
+	Address     string             `koanf:"VAULT_ADDR"`
+	InitDir     string             `koanf:"VAULT_INIT_DIR"`
+	PoliciesDir string             `koanf:"VAULT_POLICIES_DIR"`
+	LocalToken  string             `koanf:"VAULT_TOKEN"`
+	Timeout     time.Duration      `koanf:"INFRA_TIMEOUT"`
+	Environment config.Environment `koanf:"-"`
 }
 
 type sealStatus struct {
@@ -83,27 +82,9 @@ type tokenResponse struct {
 	} `json:"data"`
 }
 
-func Load(environment config.Environment) (Settings, error) {
-	settings := Settings{
-		Address:     environment.Get("VAULT_ADDR", "http://vault:8200"),
-		InitDir:     environment.Get("VAULT_INIT_DIR", "/vault/init"),
-		PoliciesDir: environment.Get("VAULT_POLICIES_DIR", "vault/policies"),
-		LocalToken:  environment["VAULT_TOKEN"],
-		Environment: environment,
-	}
-	var err error
-	settings.Timeout, err = environment.Duration("INFRA_TIMEOUT", "2m")
-	if err == nil {
-		return settings, settings.Validate()
-	} else {
-		return settings, err
-	}
-}
-
 func (settings Settings) Validate() error {
-	err := infrahttp.ValidateURL(settings.Address)
-	if err != nil {
-		return err
+	if settings.Address == "" {
+		return errors.New("vault address is required")
 	}
 
 	if settings.InitDir == "" || settings.PoliciesDir == "" || settings.LocalToken == "" || settings.Timeout <= 0 {

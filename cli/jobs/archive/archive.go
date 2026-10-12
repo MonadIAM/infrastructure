@@ -12,31 +12,45 @@ import (
 
 	"github.com/minio/minio-go/v7"
 
+	"github.com/MonadIAM/infrastructure/cli/config"
 	"github.com/MonadIAM/infrastructure/cli/platform/clickhouse"
-	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
 	"github.com/MonadIAM/infrastructure/cli/platform/seaweedfs"
 )
 
+type Job struct {
+	settings Settings
+	client   *clickhouse.Client
+	storage  *minio.Client
+	output   io.Writer
+}
+
 var partitionPattern = regexp.MustCompile(`^[0-9]{6}$`)
 
-func Run(ctx context.Context, settings Settings, output io.Writer) error {
-	err := settings.Validate()
+func New(settings Settings, output io.Writer) *Job {
+	return &Job{settings: settings, output: output}
+}
+
+func (job *Job) Run(ctx context.Context) error {
+	err := job.settings.Validate()
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, settings.Timeout)
+	ctx, cancel := context.WithTimeout(ctx, job.settings.Timeout)
 	defer cancel()
 
-	client := clickhouse.Client(settings.ClickHouse, true)
-	client.HTTP.Timeout = settings.Timeout
-	storage, err := seaweedfs.Client(settings.Storage, false)
+	querySettings := job.settings.ClickHouse
+	querySettings.Timeout = job.settings.Timeout
+	job.client = clickhouse.New(querySettings, true)
+	job.storage, err = seaweedfs.New(job.settings.Storage).Client(false)
 	if err != nil {
 		return err
 	}
 
-	for _, source := range tableDefinitions(settings) {
-		err := archiveTable(ctx, client, storage, settings, source, output)
+	sources := job.tables()
+
+	for _, source := range sources {
+		err := job.archiveTable(ctx, source)
 		if err != nil {
 			return err
 		}
@@ -45,9 +59,47 @@ func Run(ctx context.Context, settings Settings, output io.Writer) error {
 	return nil
 }
 
-func archiveTable(ctx context.Context, client infrahttp.Client, storage *minio.Client, settings Settings, source table, output io.Writer) error {
-	query := fmt.Sprintf("SELECT DISTINCT partition FROM system.parts WHERE database = 'audit' AND table = '%s' AND active AND partition <= toString(toYYYYMM(now() - INTERVAL %d DAY)) ORDER BY partition", source.Name, settings.AfterDays)
-	partitions, err := clickhouse.Query(ctx, client, query)
+func (job *Job) Loop(ctx context.Context) error {
+	err := job.settings.Validate()
+	if err != nil {
+		return err
+	}
+
+	for {
+		err := ctx.Err()
+		if err != nil {
+			return err
+		}
+
+		err = job.Run(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
+			_, writeErr := fmt.Fprintf(job.output, "Archive cycle failed: %v; retrying next cycle.\n", err)
+			if writeErr != nil {
+				return writeErr
+			}
+		}
+
+		timer := time.NewTimer(job.settings.Interval)
+
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+}
+
+func (job *Job) archiveTable(ctx context.Context, source table) error {
+	parameters := map[string]string{
+		"table":      source.Name,
+		"after_days": strconv.Itoa(job.settings.AfterDays),
+	}
+	partitions, err := job.client.Query(ctx, partitionsQuery, parameters)
 	if err != nil {
 		return err
 	}
@@ -57,12 +109,12 @@ func archiveTable(ctx context.Context, client infrahttp.Client, storage *minio.C
 			return errors.New("unexpected archive partition")
 		}
 
-		err := archivePartition(ctx, client, storage, settings, source, partition)
+		err := job.archivePartition(ctx, source, partition)
 		if err != nil {
-			return fmt.Errorf("archive %s/%s: %w", source.Name, partition, err)
+			return fmt.Errorf("archive.Job.archiveTable: archive %s/%s: %w", source.Name, partition, err)
 		}
 
-		_, err = fmt.Fprintf(output, "Verified archive %s/%s.\n", source.Name, partition)
+		_, err = fmt.Fprintf(job.output, "Verified archive %s/%s.\n", source.Name, partition)
 		if err != nil {
 			return err
 		}
@@ -71,8 +123,75 @@ func archiveTable(ctx context.Context, client infrahttp.Client, storage *minio.C
 	return nil
 }
 
-func count(ctx context.Context, client infrahttp.Client, query string) (uint64, error) {
-	value, err := clickhouse.Query(ctx, client, query)
+func (job *Job) archivePartition(ctx context.Context, source table, partition string) error {
+	parameters := map[string]string{
+		"table":     source.Name,
+		"partition": partition,
+	}
+	logged, err := job.count(ctx, loggedPartitionQuery, parameters)
+	if err != nil {
+		return err
+	}
+
+	if logged > 0 {
+		return nil
+	}
+
+	rows, err := job.count(ctx, sourceCountQuery, parameters)
+	if err != nil {
+		return err
+	}
+
+	key := partition + ".parquet"
+	archiveParameters := map[string]string{
+		"table":      source.Name,
+		"partition":  partition,
+		"url":        strings.TrimRight(job.settings.Storage.Endpoint, "/") + "/" + source.Bucket + "/" + key,
+		"access_key": job.settings.Storage.ArchiverKey,
+		"secret_key": job.settings.Storage.ArchiverSecret,
+	}
+	err = job.exportMissing(ctx, source, key, archiveParameters)
+	if err != nil {
+		return err
+	}
+
+	exported, err := job.count(ctx, archiveCountQuery, archiveParameters)
+	if err != nil {
+		return err
+	}
+
+	current, err := job.count(ctx, sourceCountQuery, parameters)
+	if err != nil {
+		return err
+	}
+
+	if exported != rows || current != rows {
+		return errors.New("archive row count mismatch; archive is not marked complete")
+	}
+
+	parameters["row_count"] = strconv.FormatUint(exported, 10)
+	_, err = job.client.Query(ctx, recordArchiveQuery, parameters)
+	return err
+}
+
+func (job *Job) exportMissing(ctx context.Context, source table, key string, parameters map[string]string) error {
+	_, err := job.storage.StatObject(ctx, source.Bucket, key, minio.StatObjectOptions{})
+	if err == nil {
+		return nil
+	}
+
+	code := minio.ToErrorResponse(err).Code
+	if code != "NoSuchKey" && code != "NotFound" {
+		return errors.New("cannot inspect archive object")
+	}
+
+	query := fmt.Sprintf(exportQuery, source.Projection)
+	_, err = job.client.Query(ctx, query, parameters)
+	return err
+}
+
+func (job *Job) count(ctx context.Context, query string, parameters map[string]string) (uint64, error) {
+	value, err := job.client.Query(ctx, query, parameters)
 	if err != nil {
 		return 0, err
 	}
@@ -85,97 +204,32 @@ func count(ctx context.Context, client infrahttp.Client, query string) (uint64, 
 	}
 }
 
-func archivePartition(ctx context.Context, client infrahttp.Client, storage *minio.Client, settings Settings, source table, partition string) error {
-	filter := fmt.Sprintf("table_name = '%s' AND partition = '%s'", source.Name, partition)
-	logged, err := count(ctx, client, "SELECT count() FROM audit.archive_log WHERE "+filter)
+func Load(environment config.Environment) (Settings, error) {
+	settings := Settings{Timeout: 30 * time.Minute}
+	err := environment.Decode(&settings)
 	if err != nil {
-		return err
+		return settings, err
 	}
 
-	if logged > 0 {
-		return nil
-	}
-
-	sourceQuery := fmt.Sprintf("SELECT count() FROM audit.%s WHERE toYYYYMM(created_at) = %s", source.Name, partition)
-	rows, err := count(ctx, client, sourceQuery)
+	settings.ClickHouse, err = clickhouse.Load(environment)
 	if err != nil {
-		return err
+		return settings, err
 	}
 
-	key := partition + ".parquet"
-	address := strings.TrimRight(settings.Storage.Endpoint, "/") + "/" + source.Bucket + "/" + key
-	function := "s3(" + clickhouse.Quote(address) + ", " + clickhouse.Quote(settings.Storage.ArchiverKey) + ", " + clickhouse.Quote(settings.Storage.ArchiverSecret) + ", 'Parquet')"
-	err = exportMissing(ctx, client, storage, source, partition, key, function)
+	settings.Storage, err = seaweedfs.Load(environment)
 	if err != nil {
-		return err
+		return settings, err
 	}
 
-	exported, err := count(ctx, client, "SELECT count() FROM "+function)
+	seconds, err := environment.PositiveInt("ARCHIVE_INTERVAL_SECONDS")
 	if err != nil {
-		return err
+		return settings, err
 	}
 
-	current, err := count(ctx, client, sourceQuery)
-	if err != nil {
-		return err
+	if seconds > int((24*time.Hour*365)/time.Second) {
+		return settings, errors.New("archive interval must not exceed one year")
 	}
 
-	if exported != rows || current != rows {
-		return errors.New("archive row count mismatch; archive is not marked complete")
-	}
-
-	query := fmt.Sprintf("INSERT INTO audit.archive_log (table_name, partition, row_count, archived_at) VALUES ('%s', '%s', %d, now64(3))", source.Name, partition, exported)
-	_, err = clickhouse.Query(ctx, client, query)
-	return err
-}
-
-func exportMissing(ctx context.Context, client infrahttp.Client, storage *minio.Client, source table, partition, key, function string) error {
-	_, err := storage.StatObject(ctx, source.Bucket, key, minio.StatObjectOptions{})
-	if err == nil {
-		return nil
-	}
-
-	code := minio.ToErrorResponse(err).Code
-	if code != "NoSuchKey" && code != "NotFound" {
-		return errors.New("cannot inspect archive object")
-	}
-
-	query := fmt.Sprintf("INSERT INTO FUNCTION %s SELECT %s FROM audit.%s WHERE toYYYYMM(created_at) = %s", function, source.Projection, source.Name, partition)
-	_, err = clickhouse.Query(ctx, client, query)
-	return err
-}
-
-func Loop(ctx context.Context, settings Settings, output io.Writer) error {
-	err := settings.Validate()
-	if err != nil {
-		return err
-	}
-
-	for {
-		err := ctx.Err()
-		if err != nil {
-			return err
-		}
-
-		err = Run(ctx, settings, output)
-		if err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-
-			_, writeErr := fmt.Fprintf(output, "Archive cycle failed: %v; retrying next cycle.\n", err)
-			if writeErr != nil {
-				return writeErr
-			}
-		}
-
-		timer := time.NewTimer(settings.Interval)
-
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		case <-timer.C:
-		}
-	}
+	settings.Interval = time.Duration(seconds) * time.Second
+	return settings, settings.Validate()
 }

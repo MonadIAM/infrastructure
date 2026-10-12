@@ -8,10 +8,43 @@ run:
 linters:
   default: standard
   enable:
+    - decorder
+    - errorlint
+    - funcorder
     - gocognit
+    - noinlineerr
+    - recvcheck
+    - revive
+    - wsl_v5
   settings:
+    decorder:
+      dec-order:
+        - type
+        - const
+        - var
+        - func
+      disable-dec-order-check: false
+      disable-dec-num-check: true
+    funcorder:
+      constructor: true
+      struct-method: true
+      alphabetical: false
+      function: false
     gocognit:
       min-complexity: 15
+    revive:
+      rules:
+        - name: receiver-naming
+        - name: unused-receiver
+    wsl_v5:
+      default: none
+      enable:
+        - after-block
+  exclusions:
+    rules:
+      - path: _test\.go$
+        linters:
+          - decorder
 
 formatters:
   enable:

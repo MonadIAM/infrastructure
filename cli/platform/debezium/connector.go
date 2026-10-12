@@ -3,25 +3,12 @@ package debezium
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
-	"time"
 )
 
 type Connector struct {
 	Name   string
 	Config map[string]string
-}
-
-type connectClient struct {
-	http          *http.Client
-	endpoint      string
-	retryInterval time.Duration
-}
-
-type requestError struct {
-	status    int
-	temporary bool
 }
 
 func (connector Connector) Validate() error {
@@ -42,17 +29,9 @@ func (connector Connector) Validate() error {
 
 	for _, key := range required {
 		if connector.Config[key] == "" {
-			return fmt.Errorf("connector %s requires %s", connector.Name, key)
+			return fmt.Errorf("debezium.Connector.Validate: connector %s requires %s", connector.Name, key)
 		}
 	}
 
 	return nil
-}
-
-func (failure requestError) Error() string {
-	if failure.status == 0 {
-		return "Kafka Connect request failed"
-	} else {
-		return fmt.Sprintf("Kafka Connect returned HTTP %d", failure.status)
-	}
 }

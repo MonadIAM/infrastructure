@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/minio/minio-go/v7"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 
+	"github.com/MonadIAM/infrastructure/cli/config"
 	"github.com/MonadIAM/infrastructure/cli/platform/clickhouse"
 	"github.com/MonadIAM/infrastructure/cli/platform/seaweedfs"
 )
@@ -31,7 +31,7 @@ func (fixture composeFixture) initialize(ctx context.Context) error {
 	for _, command := range commands {
 		output, err := fixture.cli(ctx, command...)
 		if err != nil {
-			return fmt.Errorf("%s: %w\n%s", strings.Join(command, " "), err, output)
+			return fmt.Errorf("integration.composeFixture.initialize: %s: %w\n%s", strings.Join(command, " "), err, output)
 		}
 	}
 
@@ -50,15 +50,15 @@ func (fixture composeFixture) clickhouse(ctx context.Context, query string) (str
 
 func (fixture composeFixture) storage(ctx context.Context) (*minio.Client, seaweedfs.Settings) {
 	ginkgo.GinkgoHelper()
-	environment, err := godotenv.Read("../../../.env.example")
+	environment, err := config.ReadFile("../../../.env.example")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	address, err := fixture.compose(ctx, "port", "seaweedfs", "8333")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-	environment["SEAWEEDFS_ENDPOINT"] = "http://" + strings.TrimSpace(address)
+	gomega.Expect(environment.Set("SEAWEEDFS_ENDPOINT", "http://"+strings.TrimSpace(address))).To(gomega.Succeed())
 
 	settings, err := seaweedfs.Load(environment)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-	client, err := seaweedfs.Client(settings, false)
+	client, err := seaweedfs.New(settings).Client(false)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	return client, settings
@@ -74,11 +74,34 @@ func (fixture composeFixture) seedArchive(ctx context.Context, createdAt time.Ti
 	for _, query := range queries {
 		output, err := fixture.clickhouse(ctx, query)
 		if err != nil {
-			return fmt.Errorf("seed archive: %w\n%s", err, output)
+			return fmt.Errorf("integration.composeFixture.seedArchive: seed archive: %w\n%s", err, output)
 		}
 	}
 
 	return nil
+}
+
+func (fixture composeFixture) readArchive(ctx context.Context, client *minio.Client, settings seaweedfs.Settings, partition string) (map[string]archiveObject, error) {
+	objects := make(map[string]archiveObject)
+	key := partition + ".parquet"
+
+	for _, bucket := range settings.Buckets {
+		object, err := client.StatObject(ctx, bucket.Name, key, minio.StatObjectOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("integration.composeFixture.readArchive: inspect archive %s: %w", bucket.Name, err)
+		}
+
+		address := "http://seaweedfs:8333/" + bucket.Name + "/" + key
+		query := "SELECT toString(id), service FROM s3(" + clickhouse.Quote(address) + ", " + clickhouse.Quote(settings.ArchiverKey) + ", " + clickhouse.Quote(settings.ArchiverSecret) + ", 'Parquet')"
+		rows, err := fixture.clickhouse(ctx, query)
+		if err != nil {
+			return nil, fmt.Errorf("integration.composeFixture.readArchive: read archive %s: %w", bucket.Name, err)
+		}
+
+		objects[bucket.Name] = archiveObject{size: object.Size, rows: strings.TrimSpace(rows)}
+	}
+
+	return objects, nil
 }
 
 func readObject(ctx context.Context, client *minio.Client, bucket, key string) (string, error) {
@@ -91,27 +114,4 @@ func readObject(ctx context.Context, client *minio.Client, bucket, key string) (
 	closeErr := object.Close()
 
 	return string(data), errors.Join(readErr, closeErr)
-}
-
-func (fixture composeFixture) readArchive(ctx context.Context, client *minio.Client, settings seaweedfs.Settings, partition string) (map[string]archiveObject, error) {
-	objects := make(map[string]archiveObject)
-	key := partition + ".parquet"
-
-	for _, bucket := range settings.Buckets {
-		object, err := client.StatObject(ctx, bucket.Name, key, minio.StatObjectOptions{})
-		if err != nil {
-			return nil, fmt.Errorf("inspect archive %s: %w", bucket.Name, err)
-		}
-
-		address := "http://seaweedfs:8333/" + bucket.Name + "/" + key
-		query := "SELECT toString(id), service FROM s3(" + clickhouse.Quote(address) + ", " + clickhouse.Quote(settings.ArchiverKey) + ", " + clickhouse.Quote(settings.ArchiverSecret) + ", 'Parquet')"
-		rows, err := fixture.clickhouse(ctx, query)
-		if err != nil {
-			return nil, fmt.Errorf("read archive %s: %w", bucket.Name, err)
-		}
-
-		objects[bucket.Name] = archiveObject{size: object.Size, rows: strings.TrimSpace(rows)}
-	}
-
-	return objects, nil
 }

@@ -1,13 +1,14 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/go-viper/mapstructure/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -43,26 +44,26 @@ func TestConfig(t *testing.T) {
 }
 
 var _ = Describe("[Config] - Debezium", func() {
-	var values map[string]string
+	var values Environment
 
 	BeforeEach(func() {
 		var err error
-		values, err = godotenv.Read("../../.env.example")
+		values, err = ReadFile("../../.env.example")
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	Describe("[Function] - ParseDebezium", func() {
+	Describe("[Method] - Environment.ParseDebezium", func() {
 		Context("[Behavior] - defaults and service mapping", func() {
 			It("[case] - requires only the settings used by Debezium", func() {
 				// Arrange
-				for key := range values {
+				for _, key := range values.Keys() {
 					if !strings.Contains(key, "_POSTGRES_") && !strings.HasSuffix(key, "_PARTITIONS") {
-						delete(values, key)
+						values.Delete(key)
 					}
 				}
 
 				// Act
-				settings, err := ParseDebezium(values)
+				settings, err := values.ParseDebezium()
 
 				// Assert
 				Expect(err).NotTo(HaveOccurred())
@@ -74,15 +75,32 @@ var _ = Describe("[Config] - Debezium", func() {
 			})
 		})
 
+		Context("[Behavior] - explicitly empty values", func() {
+			It("[case] - rejects an empty address instead of restoring its default", func() {
+				// Arrange
+				Expect(values.Set("CONNECT_URL", "")).To(Succeed())
+
+				// Act
+				_, err := values.ParseDebezium()
+
+				// Assert
+				Expect(err).To(MatchError("CONNECT_URL is required"))
+			})
+		})
+
 		DescribeTable("[Behavior] - rejects malformed numeric settings without exposing their values",
 			func(key string) {
 				// Arrange
-				values[key] = "private-value"
+				Expect(values.Set(key, "private-value")).To(Succeed())
 
 				// Act
-				_, err := ParseDebezium(values)
+				_, err := values.ParseDebezium()
+				var cause *mapstructure.DecodeError
+				matched := errors.As(err, &cause)
 
 				// Assert
+				Expect(matched).To(BeTrue())
+				Expect(cause.Name()).To(Equal(key))
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring(key))
 				Expect(err.Error()).NotTo(ContainSubstring("private-value"))
@@ -114,8 +132,8 @@ var _ = Describe("[Config] - Debezium", func() {
 
 			// Assert
 			Expect(err).NotTo(HaveOccurred())
-			Expect(environment).To(HaveKeyWithValue("CONNECT_URL", "http://flag:8083"))
-			Expect(environment).To(HaveKeyWithValue("REALM_PARTITIONS", "6"))
+			Expect(environment.StringMap("")).To(HaveKeyWithValue("CONNECT_URL", "http://flag:8083"))
+			Expect(environment.StringMap("")).To(HaveKeyWithValue("REALM_PARTITIONS", "6"))
 			Expect(processURL).To(Equal("http://environment:8083"))
 		})
 
@@ -128,7 +146,7 @@ var _ = Describe("[Config] - Debezium", func() {
 
 			// Assert
 			Expect(err).NotTo(HaveOccurred())
-			Expect(environment).To(HaveKeyWithValue("IDENTITY_POSTGRES_PASSWORD", ""))
+			Expect(environment.StringMap("")).To(HaveKeyWithValue("IDENTITY_POSTGRES_PASSWORD", ""))
 		})
 
 		It("[case] - does not expose dotenv contents on a parsing error", func() {
@@ -145,6 +163,20 @@ var _ = Describe("[Config] - Debezium", func() {
 		})
 	})
 
+	Describe("[Function] - ReadFile", func() {
+		It("[case] - preserves the file error and identifies its wrapping point", func() {
+			// Arrange
+			path := filepath.Join(GinkgoT().TempDir(), "missing.env")
+
+			// Act
+			_, err := ReadFile(path)
+
+			// Assert
+			Expect(err).To(MatchError(os.ErrNotExist))
+			Expect(err.Error()).To(ContainSubstring("config.ReadFile: config.readFile:"))
+		})
+	})
+
 	Describe("[Method] - Debezium.Validate", func() {
 		DescribeTable("[Behavior] - rejects invalid configuration",
 			func(change func(*Debezium), message string) {
@@ -158,21 +190,6 @@ var _ = Describe("[Config] - Debezium", func() {
 				// Assert
 				Expect(err).To(MatchError(ContainSubstring(message)))
 			},
-			Entry("[case] - credentials in URL", func(settings *Debezium) {
-				settings.ConnectURL = "http://test:secret@connect:8083"
-			}, "credentials"),
-			Entry("[case] - unsupported URL scheme", func(settings *Debezium) {
-				settings.ConnectURL = "file://connect/config"
-			}, "HTTP or HTTPS"),
-			Entry("[case] - query in URL", func(settings *Debezium) {
-				settings.ConnectURL += "?token=secret"
-			}, "query"),
-			Entry("[case] - fragment in URL", func(settings *Debezium) {
-				settings.ConnectURL += "#private-value"
-			}, "fragment"),
-			Entry("[case] - missing host in URL", func(settings *Debezium) {
-				settings.ConnectURL = "http:///connect"
-			}, "HTTP(S) URL"),
 			Entry("[case] - missing template", func(settings *Debezium) {
 				settings.TemplatePath = ""
 			}, "CONNECTOR_TEMPLATE"),

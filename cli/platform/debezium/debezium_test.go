@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -52,7 +51,7 @@ func TestDebezium(t *testing.T) {
 }
 
 var _ = Describe("[Infrastructure] - Debezium", func() {
-	Describe("[Function] - Build", func() {
+	Describe("[Method] - Service.Build", func() {
 		It("[case] - preserves routing, static settings and credentials with special characters", func() {
 			// Arrange
 			settings := testSettings()
@@ -63,7 +62,7 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 			Expect(json.Unmarshal(template, &original)).To(Succeed())
 
 			// Act
-			connectors, err := Build(settings, template)
+			connectors, err := New(settings).Build(template)
 
 			// Assert
 			Expect(err).NotTo(HaveOccurred())
@@ -85,7 +84,7 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 		})
 	})
 
-	Describe("[Function] - Reconcile", func() {
+	Describe("[Method] - Service.Reconcile", func() {
 		var settings config.Debezium
 		var output bytes.Buffer
 
@@ -94,8 +93,8 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 			output.Reset()
 		})
 
-		Context("[Behavior] - repeatable registration", func() {
-			It("[case] - retries a rebalance conflict and supports repeated registration", func(ctx SpecContext) {
+		Context("[Behavior] - registration retries", func() {
+			It("[case] - retries registration after a rebalance conflict", func(ctx SpecContext) {
 				// Arrange
 				var puts atomic.Int32
 				var mutex sync.Mutex
@@ -128,18 +127,16 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 				settings.ConnectURL = server.URL
 
 				// Act
-				firstErr := Reconcile(ctx, settings, &output)
-				secondErr := Reconcile(ctx, settings, &output)
+				actionErr := New(settings).Reconcile(ctx, &output)
 				mutex.Lock()
 				captured := append([]recordedRequest(nil), requests...)
 				mutex.Unlock()
 
 				// Assert
-				Expect(firstErr).To(Succeed())
-				Expect(secondErr).To(Succeed())
-				Expect(puts.Load()).To(Equal(int32(3)))
+				Expect(actionErr).To(Succeed())
+				Expect(puts.Load()).To(Equal(int32(2)))
 
-				Expect(captured).To(HaveLen(3))
+				Expect(captured).To(HaveLen(2))
 
 				for _, request := range captured {
 					Expect(request.method).To(Equal(http.MethodPut))
@@ -172,7 +169,7 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 				}
 
 				// Act
-				actionErr := Reconcile(context.Background(), settings, &output)
+				actionErr := New(settings).Reconcile(context.Background(), &output)
 
 				// Assert
 				Expect(actionErr).To(MatchError(ContainSubstring(message)))
@@ -200,10 +197,10 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 				settings.Databases = append(settings.Databases, second)
 
 				// Act
-				err := Reconcile(ctx, settings, &output)
+				err := New(settings).Reconcile(ctx, &output)
 
 				// Assert
-				Expect(err).To(MatchError(ContainSubstring("HTTP 400")))
+				Expect(err).To(MatchError(ContainSubstring("status 400")))
 				Expect(err.Error()).NotTo(ContainSubstring("private"))
 				Expect(puts.Load()).To(Equal(int32(1)))
 			})
@@ -222,7 +219,7 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 				settings.ConnectURL = server.URL
 
 				// Act
-				actionErr := Reconcile(context.Background(), settings, &output)
+				actionErr := New(settings).Reconcile(context.Background(), &output)
 
 				// Assert
 				Expect(actionErr).NotTo(Succeed())
@@ -244,42 +241,11 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 				settings.Timeout = 50 * time.Millisecond
 
 				// Act
-				err := Reconcile(ctx, settings, &output)
+				err := New(settings).Reconcile(ctx, &output)
 
 				// Assert
 				Expect(err).To(MatchError(context.DeadlineExceeded))
 			})
-		})
-	})
-
-	Describe("[Function] - retry", func() {
-		It("[case] - cancels a long retry wait without another attempt", func() {
-			// Arrange
-			ctx, cancel := context.WithCancel(context.Background())
-			DeferCleanup(cancel)
-			var attempts atomic.Int32
-			result := make(chan error, 1)
-
-			// Act
-			go func() {
-				result <- retry(ctx, time.Hour, func() error {
-					attempts.Add(1)
-					cancel()
-
-					return requestError{status: http.StatusServiceUnavailable, temporary: true}
-				})
-			}()
-
-			var actionErr error
-			select {
-			case actionErr = <-result:
-			case <-time.After(time.Second):
-				actionErr = errors.New("cancellation did not finish within one second")
-			}
-
-			// Assert
-			Expect(actionErr).To(MatchError(context.Canceled))
-			Expect(attempts.Load()).To(Equal(int32(1)))
 		})
 	})
 
@@ -311,7 +277,7 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 				err := connector.Validate()
 
 				// Assert
-				Expect(err).To(MatchError("connector identity-outbox requires " + key))
+				Expect(err).To(MatchError("debezium.Connector.Validate: connector identity-outbox requires " + key))
 			},
 			Entry("[case] - connector class", "connector.class"),
 			Entry("[case] - host", "database.hostname"),

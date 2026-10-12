@@ -4,15 +4,30 @@ package integration
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/go-resty/resty/v2"
+
 	"github.com/MonadIAM/infrastructure/cli/config"
 )
 
-func waitRunningConnector(ctx context.Context, endpoint string) error {
+type connectClient struct {
+	http *resty.Client
+}
+
+type connectorStatus struct {
+	Connector taskStatus   `json:"connector"`
+	Tasks     []taskStatus `json:"tasks"`
+}
+
+func newConnectClient(endpoint string) *connectClient {
+	return &connectClient{http: resty.New().SetBaseURL(endpoint).SetTimeout(5 * time.Second)}
+}
+
+func (client *connectClient) waitRunning(ctx context.Context, name string) error {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
@@ -21,38 +36,46 @@ func waitRunningConnector(ctx context.Context, endpoint string) error {
 
 	for {
 		var status connectorStatus
-		err := readConnectJSON(ctx, endpoint, &status)
+		err := client.readJSON(ctx, "/connectors/"+name+"/status", &status)
 		if err == nil && status.running() {
 			return nil
 		}
 
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("waiting for running connector: %w (last status: %+v; last error: %v)", ctx.Err(), status, err)
+			return fmt.Errorf("integration.connectClient.waitRunning: last status %+v: %w", status, errors.Join(ctx.Err(), err))
 		case <-ticker.C:
 		}
 	}
 }
 
-func readConnectJSON(ctx context.Context, endpoint string, destination any) error {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+func (client *connectClient) readJSON(ctx context.Context, path string, destination any) error {
+	response, err := client.http.R().SetContext(ctx).SetResult(destination).Get(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("integration.connectClient.readJSON: %w", err)
 	}
 
-	client := http.Client{Timeout: 5 * time.Second}
-	response, err := client.Do(request)
+	if response.StatusCode() != http.StatusOK {
+		return fmt.Errorf("integration.connectClient.readJSON: connect returned HTTP %d", response.StatusCode())
+	} else {
+		return nil
+	}
+}
+
+func (status connectorStatus) running() bool {
+	return status.Connector.State == "RUNNING" &&
+		len(status.Tasks) == 1 &&
+		status.Tasks[0].State == "RUNNING"
+}
+
+func (fixture composeFixture) deliverOutbox(ctx context.Context) (string, error) {
+	query := `INSERT INTO system.outbox (id, destination_topic, action_type, payload) VALUES ('00000000-0000-4000-8000-000000000001', 'realm', 'create', '{"realm":"00000000-0000-4000-8000-000000000002","proof":"outbox-delivered"}')`
+	output, err := fixture.compose(ctx, "exec", "-T", "postgresql", "psql", "-U", "test", "-d", "test", "-c", query)
 	if err != nil {
-		return err
+		return output, err
 	}
 
-	defer func() { _ = response.Body.Close() }()
-
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("connect returned HTTP %d", response.StatusCode)
-	}
-
-	return json.NewDecoder(response.Body).Decode(destination)
+	return fixture.compose(ctx, "exec", "-T", "kafka", "/opt/kafka/bin/kafka-console-consumer.sh", "--bootstrap-server", "kafka:29092", "--topic", "realm", "--from-beginning", "--max-messages", "1", "--timeout-ms", "30000")
 }
 
 func integrationSettings(endpoint string) config.Debezium {
@@ -77,14 +100,4 @@ func integrationSettings(endpoint string) config.Debezium {
 			},
 		},
 	}
-}
-
-func (fixture composeFixture) deliverOutbox(ctx context.Context) (string, error) {
-	query := `INSERT INTO system.outbox (id, destination_topic, action_type, payload) VALUES ('00000000-0000-4000-8000-000000000001', 'realm', 'create', '{"realm":"00000000-0000-4000-8000-000000000002","proof":"outbox-delivered"}')`
-	output, err := fixture.compose(ctx, "exec", "-T", "postgresql", "psql", "-U", "test", "-d", "test", "-c", query)
-	if err != nil {
-		return output, err
-	}
-
-	return fixture.compose(ctx, "exec", "-T", "kafka", "/opt/kafka/bin/kafka-console-consumer.sh", "--bootstrap-server", "kafka:29092", "--topic", "realm", "--from-beginning", "--max-messages", "1", "--timeout-ms", "30000")
 }

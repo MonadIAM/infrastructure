@@ -9,10 +9,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/joho/godotenv"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/MonadIAM/infrastructure/cli/config"
 	"github.com/MonadIAM/infrastructure/cli/platform/clickhouse"
 	"github.com/MonadIAM/infrastructure/cli/platform/seaweedfs"
 )
@@ -23,7 +23,7 @@ func TestArchive(t *testing.T) {
 }
 
 var _ = Describe("[Job] - Archive", func() {
-	Describe("[Function] - archivePartition", func() {
+	Describe("[Method] - Job.archivePartition", func() {
 		Context("[Behavior] - completed partitions", func() {
 			It("[case] - does not revisit source rows that can expire through TTL", func() {
 				// Arrange
@@ -31,23 +31,24 @@ var _ = Describe("[Job] - Archive", func() {
 				queries := make(chan string, 8)
 				server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 					requests.Add(1)
-					data, err := io.ReadAll(request.Body)
+					err := request.ParseMultipartForm(1 << 20)
 					if err != nil {
 						writer.WriteHeader(http.StatusBadRequest)
 
 						return
 					}
 
-					queries <- string(data)
+					queries <- request.FormValue("query")
 					_, _ = io.WriteString(writer, "1")
 				}))
 				DeferCleanup(server.Close)
 				settings := Settings{}
 				settings.ClickHouse.Address = server.URL
-				client := clickhouse.Client(settings.ClickHouse, true)
+				client := clickhouse.New(settings.ClickHouse, true)
+				job := Job{settings: settings, client: client}
 
 				// Act
-				err := archivePartition(context.Background(), client, nil, settings, table{Name: "audit_log"}, "202501")
+				err := job.archivePartition(context.Background(), table{Name: "audit_log"}, "202501")
 
 				var captured []string
 				for len(queries) > 0 {
@@ -63,7 +64,7 @@ var _ = Describe("[Job] - Archive", func() {
 
 		DescribeTable("[Behavior] - handles a Parquet object left by an interrupted cycle", func(exported string, success bool) {
 			// Arrange
-			environment, err := godotenv.Read("../../../.env.example")
+			environment, err := config.ReadFile("../../../.env.example")
 			Expect(err).NotTo(HaveOccurred())
 			settings, err := Load(environment)
 			Expect(err).NotTo(HaveOccurred())
@@ -78,14 +79,14 @@ var _ = Describe("[Job] - Archive", func() {
 					return
 				}
 
-				data, err := io.ReadAll(request.Body)
+				err := request.ParseMultipartForm(1 << 20)
 				if err != nil {
 					writer.WriteHeader(http.StatusBadRequest)
 
 					return
 				}
 
-				query := string(data)
+				query := request.FormValue("query")
 
 				switch {
 				case strings.Contains(query, "INSERT INTO FUNCTION"):
@@ -103,9 +104,10 @@ var _ = Describe("[Job] - Archive", func() {
 			DeferCleanup(server.Close)
 			settings.ClickHouse.Address = server.URL
 			settings.Storage.Endpoint = server.URL
-			client := clickhouse.Client(settings.ClickHouse, true)
-			storage, err := seaweedfs.Client(settings.Storage, false)
+			client := clickhouse.New(settings.ClickHouse, true)
+			storage, err := seaweedfs.New(settings.Storage).Client(false)
 			Expect(err).NotTo(HaveOccurred())
+			job := Job{settings: settings, client: client, storage: storage}
 			source := table{
 				Name:       "audit_log",
 				Bucket:     "audit-archive",
@@ -113,7 +115,7 @@ var _ = Describe("[Job] - Archive", func() {
 			}
 
 			// Act
-			err = archivePartition(context.Background(), client, storage, settings, source, "202501")
+			err = job.archivePartition(context.Background(), source, "202501")
 
 			// Assert
 			Expect(exports.Load()).To(BeZero())
@@ -130,10 +132,10 @@ var _ = Describe("[Job] - Archive", func() {
 		)
 	})
 
-	Describe("[Function] - Loop", func() {
+	Describe("[Method] - Job.Loop", func() {
 		It("[case] - honors cancellation before starting a cycle", func() {
 			// Arrange
-			environment, err := godotenv.Read("../../../.env.example")
+			environment, err := config.ReadFile("../../../.env.example")
 			Expect(err).NotTo(HaveOccurred())
 			settings, err := Load(environment)
 			Expect(err).NotTo(HaveOccurred())
@@ -141,7 +143,7 @@ var _ = Describe("[Job] - Archive", func() {
 			cancel()
 
 			// Act
-			actionErr := Loop(ctx, settings, io.Discard)
+			actionErr := New(settings, io.Discard).Loop(ctx)
 
 			// Assert
 			Expect(actionErr).To(MatchError(context.Canceled))

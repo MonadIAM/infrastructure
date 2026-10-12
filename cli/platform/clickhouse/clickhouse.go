@@ -5,46 +5,62 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/go-resty/resty/v2"
+
+	"github.com/MonadIAM/infrastructure/cli/config"
 	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
 )
 
-func Client(settings Settings, writer bool) infrahttp.Client {
+type Client struct {
+	settings Settings
+	http     *resty.Client
+}
+
+func New(settings Settings, writer bool) *Client {
 	client := infrahttp.New(settings.Address)
-	client.User, client.Password = settings.User, settings.Password
+	client.SetBasicAuth(settings.User, settings.Password)
 	if writer {
-		client.User, client.Password = settings.WriterUser, settings.WriterPassword
+		client.SetBasicAuth(settings.WriterUser, settings.WriterPassword)
 	}
 
-	client.HTTP.Timeout = settings.Timeout
-	return client
+	client.SetTimeout(settings.Timeout)
+	return &Client{settings: settings, http: client}
 }
 
-func Query(ctx context.Context, client infrahttp.Client, query string) (string, error) {
-	body, err := client.Do(ctx, http.MethodPost, "/?wait_end_of_query=1&log_queries=0", []byte(query))
-	if err == nil {
-		return strings.TrimSpace(string(body)), nil
+func (client *Client) Query(ctx context.Context, query string, parameters map[string]string) (string, error) {
+	fields := map[string]string{"query": query}
+	escape := strings.NewReplacer("\\", "\\\\", "\t", "\\t", "\n", "\\n", "\r", "\\r", "\x00", "\\0")
+	for name, value := range parameters {
+		fields["param_"+name] = escape.Replace(value)
+	}
+
+	response, err := client.http.R().
+		SetContext(ctx).
+		SetMultipartFormData(fields).
+		Post("/?wait_end_of_query=1&log_queries=0")
+	if err != nil {
+		return "", fmt.Errorf("clickhouse.Client.Query: %w", infrahttp.RequestError{Cause: err})
+	}
+
+	if response.IsSuccess() {
+		return strings.TrimSpace(response.String()), nil
 	} else {
-		return "", err
+		return "", fmt.Errorf("clickhouse.Client.Query: HTTP status %d", response.StatusCode())
 	}
 }
 
-func Quote(value string) string {
-	escaped := strings.NewReplacer("\\", "\\\\", "'", "\\'", "\n", "\\n", "\r", "\\r", "\x00", "\\0").Replace(value)
-	return "'" + escaped + "'"
-}
-
-func Statements(settings Settings) ([]string, error) {
-	err := settings.Validate()
+func (client *Client) Statements() ([]string, error) {
+	err := client.settings.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	files, err := filepath.Glob(filepath.Join(settings.SchemaDir, "*.sql"))
+	files, err := filepath.Glob(filepath.Join(client.settings.SchemaDir, "*.sql"))
 	if err != nil {
 		return nil, err
 	}
@@ -54,10 +70,10 @@ func Statements(settings Settings) ([]string, error) {
 	}
 
 	replace := strings.NewReplacer(
-		"{{writer_user}}", "`"+settings.WriterUser+"`",
-		"{{reader_user}}", "`"+settings.ReaderUser+"`",
-		"'{{writer_password}}'", Quote(settings.WriterPassword),
-		"'{{reader_password}}'", Quote(settings.ReaderPassword),
+		"{{writer_user}}", "`"+client.settings.WriterUser+"`",
+		"{{reader_user}}", "`"+client.settings.ReaderUser+"`",
+		"'{{writer_password}}'", Quote(client.settings.WriterPassword),
+		"'{{reader_password}}'", Quote(client.settings.ReaderPassword),
 	)
 	var result []string
 
@@ -78,6 +94,46 @@ func Statements(settings Settings) ([]string, error) {
 	}
 
 	return result, nil
+}
+
+func (client *Client) Reconcile(ctx context.Context, output io.Writer) error {
+	statements, err := client.Statements()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, client.settings.Timeout)
+	defer cancel()
+
+	for index, statement := range statements {
+		_, err := client.Query(ctx, statement, nil)
+		if err != nil {
+			return fmt.Errorf("clickhouse.Client.Reconcile: ClickHouse schema statement %d: %w", index+1, err)
+		}
+	}
+
+	_, err = fmt.Fprintf(output, "Applied %d ClickHouse schema statements.\n", len(statements))
+	return err
+}
+
+func Load(environment config.Environment) (Settings, error) {
+	settings := Settings{
+		Address:   "http://clickhouse:8123",
+		SchemaDir: "audit-archive/clickhouse/schema",
+		Timeout:   2 * time.Minute,
+	}
+
+	err := environment.Decode(&settings)
+	if err != nil {
+		return settings, err
+	}
+
+	return settings, settings.Validate()
+}
+
+func Quote(value string) string {
+	escaped := strings.NewReplacer("\\", "\\\\", "'", "\\'", "\n", "\\n", "\r", "\\r", "\x00", "\\0").Replace(value)
+	return "'" + escaped + "'"
 }
 
 func splitStatements(source string) ([]string, error) {
@@ -120,28 +176,6 @@ func splitStatements(source string) ([]string, error) {
 
 	result = appendStatement(result, source[start:])
 	return result, nil
-}
-
-func Reconcile(ctx context.Context, settings Settings, output io.Writer) error {
-	statements, err := Statements(settings)
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, settings.Timeout)
-	defer cancel()
-
-	client := Client(settings, false)
-
-	for index, statement := range statements {
-		_, err := Query(ctx, client, statement)
-		if err != nil {
-			return fmt.Errorf("ClickHouse schema statement %d: %w", index+1, err)
-		}
-	}
-
-	_, err = fmt.Fprintf(output, "Applied %d ClickHouse schema statements.\n", len(statements))
-	return err
 }
 
 func appendStatement(statements []string, source string) []string {

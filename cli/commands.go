@@ -16,160 +16,171 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/platform/vault"
 )
 
-var commands = map[string]commandHandler{
-	"config validate":      validateConfiguration,
-	"aws import":           importAWS,
-	"kafka reconcile":      reconcileKafka,
-	"kafka start":          startKafka,
-	"debezium reconcile":   reconcileDebezium,
-	"vault initialize":     initializeVault,
-	"vault bootstrap":      bootstrapVault,
-	"clickhouse reconcile": reconcileClickHouse,
-	"seaweedfs reconcile":  reconcileSeaweedFS,
-	"seaweedfs start":      startSeaweedFS,
-	"archive run":          runArchive,
-	"archive loop":         loopArchive,
+type application struct {
+	environment config.Environment
+	options     commandOptions
+	output      io.Writer
 }
 
-func validateConfiguration(_ context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := config.ParseDebezium(environment)
+var commands = map[string]commandHandler{
+	"config validate":      (*application).validateConfiguration,
+	"aws import":           (*application).importAWS,
+	"kafka reconcile":      (*application).reconcileKafka,
+	"kafka start":          (*application).startKafka,
+	"debezium reconcile":   (*application).reconcileDebezium,
+	"vault initialize":     (*application).initializeVault,
+	"vault bootstrap":      (*application).bootstrapVault,
+	"clickhouse reconcile": (*application).reconcileClickHouse,
+	"seaweedfs reconcile":  (*application).reconcileSeaweedFS,
+	"seaweedfs start":      (*application).startSeaweedFS,
+	"archive run":          (*application).runArchive,
+	"archive loop":         (*application).loopArchive,
+}
+
+func (app *application) validateConfiguration(_ context.Context) error {
+	settings, err := app.environment.ParseDebezium()
 	if err != nil {
 		return err
 	}
 
-	connectors, err := debezium.LoadConnectors(settings)
+	connectors, err := debezium.New(settings).LoadConnectors()
 	if err != nil {
 		return err
 	}
 
-	_, err = kafka.Load(environment)
+	_, err = kafka.Load(app.environment)
 	if err != nil {
 		return err
 	}
 
-	_, err = schema.Load(environment)
+	_, err = schema.Load(app.environment)
 	if err != nil {
 		return err
 	}
 
-	vaultSettings, err := vault.Load(environment)
+	vaultSettings, err := vault.Load(app.environment)
 	if err != nil {
 		return err
 	}
 
-	err = vault.ValidateBootstrap(vaultSettings)
+	err = vault.New(vaultSettings).ValidateBootstrap()
 	if err != nil {
 		return err
 	}
 
-	storage, err := seaweedfs.Load(environment)
+	storage, err := seaweedfs.Load(app.environment)
 	if err != nil {
 		return err
 	}
 
-	err = seaweedfs.ValidateTemplates(storage)
+	err = seaweedfs.New(storage).ValidateTemplates()
 	if err != nil {
 		return err
 	}
 
-	database, err := clickhouse.Load(environment)
+	database, err := clickhouse.Load(app.environment)
 	if err != nil {
 		return err
 	}
 
-	_, err = clickhouse.Statements(database)
+	_, err = clickhouse.New(database, false).Statements()
 	if err != nil {
 		return err
 	}
 
-	_, err = archive.Load(environment)
+	_, err = archive.Load(app.environment)
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintf(output, "Infrastructure configuration is valid (%d connectors); Kafka, Schema Registry, Vault, ClickHouse, SeaweedFS and archiver settings checked.\n", len(connectors))
+	_, err = fmt.Fprintf(app.output, "Infrastructure configuration is valid (%d connectors); Kafka, Schema Registry, Vault, ClickHouse, SeaweedFS and archiver settings checked.\n", len(connectors))
 	return err
 }
 
-func importAWS(_ context.Context, _ config.Environment, options commandOptions, output io.Writer) error {
-	return aws.Import(options.csvFile, options.envFile, output)
+func (app *application) importAWS(_ context.Context) error {
+	return aws.New(app.options.csvFile, app.options.envFile).Run(app.output)
 }
 
-func reconcileKafka(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := kafka.Load(environment)
+func (app *application) reconcileKafka(ctx context.Context) error {
+	settings, err := kafka.Load(app.environment)
 	if err == nil {
-		return kafka.Reconcile(ctx, settings, output)
+		return kafka.New(settings).Reconcile(ctx, app.output)
 	} else {
 		return err
 	}
 }
 
-func startKafka(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	return kafka.Start(ctx, environment, output)
+func (app *application) startKafka(ctx context.Context) error {
+	return kafka.Start(ctx, app.environment, app.output)
 }
 
-func reconcileDebezium(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := config.ParseDebezium(environment)
+func (app *application) reconcileDebezium(ctx context.Context) error {
+	settings, err := app.environment.ParseDebezium()
 	if err == nil {
-		return debezium.Reconcile(ctx, settings, output)
+		return debezium.New(settings).Reconcile(ctx, app.output)
 	} else {
 		return err
 	}
 }
 
-func initializeVault(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := vault.Load(environment)
+func (app *application) initializeVault(ctx context.Context) error {
+	settings, err := vault.Load(app.environment)
 	if err == nil {
-		return vault.Initialize(ctx, settings, output)
+		return vault.New(settings).Initialize(ctx, app.output)
 	} else {
 		return err
 	}
 }
 
-func bootstrapVault(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := vault.Load(environment)
+func (app *application) bootstrapVault(ctx context.Context) error {
+	settings, err := vault.Load(app.environment)
 	if err == nil {
-		return vault.Bootstrap(ctx, settings, output)
+		return vault.New(settings).Bootstrap(ctx, app.output)
 	} else {
 		return err
 	}
 }
 
-func reconcileClickHouse(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := clickhouse.Load(environment)
+func (app *application) reconcileClickHouse(ctx context.Context) error {
+	settings, err := clickhouse.Load(app.environment)
 	if err == nil {
-		return clickhouse.Reconcile(ctx, settings, output)
+		return clickhouse.New(settings, false).Reconcile(ctx, app.output)
 	} else {
 		return err
 	}
 }
 
-func reconcileSeaweedFS(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := seaweedfs.Load(environment)
+func (app *application) reconcileSeaweedFS(ctx context.Context) error {
+	settings, err := seaweedfs.Load(app.environment)
 	if err == nil {
-		return seaweedfs.Reconcile(ctx, settings, output)
+		return seaweedfs.New(settings).Reconcile(ctx, app.output)
 	} else {
 		return err
 	}
 }
 
-func startSeaweedFS(_ context.Context, environment config.Environment, options commandOptions, _ io.Writer) error {
-	return seaweedfs.Start(environment, options.arguments)
-}
-
-func runArchive(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := archive.Load(environment)
+func (app *application) startSeaweedFS(_ context.Context) error {
+	settings, err := seaweedfs.Load(app.environment)
 	if err == nil {
-		return archive.Run(ctx, settings, output)
+		return seaweedfs.New(settings).Start(app.options.arguments)
 	} else {
 		return err
 	}
 }
 
-func loopArchive(ctx context.Context, environment config.Environment, _ commandOptions, output io.Writer) error {
-	settings, err := archive.Load(environment)
+func (app *application) runArchive(ctx context.Context) error {
+	settings, err := archive.Load(app.environment)
 	if err == nil {
-		return archive.Loop(ctx, settings, output)
+		return archive.New(settings, app.output).Run(ctx)
+	} else {
+		return err
+	}
+}
+
+func (app *application) loopArchive(ctx context.Context) error {
+	settings, err := archive.Load(app.environment)
+	if err == nil {
+		return archive.New(settings, app.output).Loop(ctx)
 	} else {
 		return err
 	}

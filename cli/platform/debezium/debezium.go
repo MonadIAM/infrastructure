@@ -1,40 +1,48 @@
 package debezium
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"regexp"
 	"strconv"
-	"strings"
-	"time"
+
+	"github.com/go-resty/resty/v2"
 
 	"github.com/MonadIAM/infrastructure/cli/config"
+	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
 )
+
+type Service struct {
+	settings config.Debezium
+	client   *resty.Client
+}
 
 var placeholder = regexp.MustCompile(`\$\{([^{}]+)\}`)
 
-func LoadConnectors(settings config.Debezium) ([]Connector, error) {
-	err := settings.Validate()
+func New(settings config.Debezium) *Service {
+	return &Service{settings: settings}
+}
+
+func (service *Service) LoadConnectors() ([]Connector, error) {
+	err := service.settings.Validate()
 	if err != nil {
 		return nil, err
 	}
 
-	template, err := os.ReadFile(settings.TemplatePath)
+	template, err := os.ReadFile(service.settings.TemplatePath)
 	if err == nil {
-		return Build(settings, template)
+		return service.Build(template)
 	} else {
-		return nil, fmt.Errorf("cannot read connector template %s", settings.TemplatePath)
+		return nil, fmt.Errorf("debezium.Service.LoadConnectors: read connector template %s: %w", service.settings.TemplatePath, err)
 	}
 }
 
-func Build(settings config.Debezium, template []byte) ([]Connector, error) {
-	err := settings.Validate()
+func (service *Service) Build(template []byte) ([]Connector, error) {
+	err := service.settings.Validate()
 	if err != nil {
 		return nil, err
 	}
@@ -45,11 +53,10 @@ func Build(settings config.Debezium, template []byte) ([]Connector, error) {
 		return nil, errors.New("connector template must be a nonempty JSON object with string values")
 	}
 
-	connectors := make([]Connector, 0, len(settings.Databases))
+	connectors := make([]Connector, 0, len(service.settings.Databases))
 
-	for _, database := range settings.Databases {
-		values := templateValues(settings, database)
-		connector, err := renderConnector(database.Service, fields, values)
+	for _, database := range service.settings.Databases {
+		connector, err := service.renderConnector(database, fields)
 		if err != nil {
 			return nil, err
 		}
@@ -60,8 +67,70 @@ func Build(settings config.Debezium, template []byte) ([]Connector, error) {
 	return connectors, nil
 }
 
-func templateValues(settings config.Debezium, database config.Database) map[string]string {
-	return map[string]string{
+func (service *Service) Reconcile(ctx context.Context, output io.Writer) error {
+	connectors, err := service.LoadConnectors()
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, service.settings.Timeout)
+	defer cancel()
+
+	service.client = infrahttp.New(service.settings.ConnectURL).
+		SetTimeout(service.settings.RequestTimeout).
+		SetRetryCount(int(service.settings.Timeout/service.settings.RetryInterval) + 1).
+		SetRetryWaitTime(service.settings.RetryInterval).
+		SetRetryMaxWaitTime(service.settings.RetryInterval).
+		AddRetryCondition(func(response *resty.Response, err error) bool {
+			if response != nil && response.StatusCode() != 0 {
+				code := response.StatusCode()
+				return code == 409 || code == 429 || code >= 500
+			} else {
+				return err != nil
+			}
+		})
+
+	_, err = fmt.Fprintln(output, "Waiting for Kafka Connect...")
+	if err != nil {
+		return err
+	}
+
+	err = service.waitUntilReady(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, connector := range connectors {
+		err := service.register(ctx, connector)
+		if err != nil {
+			return err
+		}
+
+		_, err = fmt.Fprintf(output, "Registered connector %s.\n", connector.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = fmt.Fprintf(output, "Registered %d outbox connectors.\n", len(connectors))
+	return err
+}
+
+func (service *Service) waitUntilReady(ctx context.Context) error {
+	response, err := service.client.R().SetContext(ctx).Get("/")
+	if err != nil {
+		return fmt.Errorf("debezium.Service.waitUntilReady: %w", infrahttp.RequestError{Cause: err})
+	}
+
+	if response.IsSuccess() {
+		return nil
+	} else {
+		return fmt.Errorf("debezium.Service.waitUntilReady: HTTP status %d", response.StatusCode())
+	}
+}
+
+func (service *Service) renderConnector(database config.Database, fields map[string]string) (Connector, error) {
+	values := map[string]string{
 		"SERVICE_NAME":                  database.Service,
 		"POSTGRES_ROUTE_HOST":           database.Host,
 		"POSTGRES_ROUTE_PORT":           "5432",
@@ -70,16 +139,14 @@ func templateValues(settings config.Debezium, database config.Database) map[stri
 		"POSTGRES_PASSWORD":             database.Password,
 		"POSTGRES_OUTBOX_SLOT":          database.Slot,
 		"POSTGRES_OUTBOX_PUBLICATION":   database.Publication,
-		"REALM_PARTITIONS":              strconv.Itoa(settings.RealmPartitions),
-		"POSITION_PARTITIONS":           strconv.Itoa(settings.PositionPartitions),
-		"PROJECTION_JOURNAL_PARTITIONS": strconv.Itoa(settings.ProjectionJournalPartitions),
+		"REALM_PARTITIONS":              strconv.Itoa(service.settings.RealmPartitions),
+		"POSITION_PARTITIONS":           strconv.Itoa(service.settings.PositionPartitions),
+		"PROJECTION_JOURNAL_PARTITIONS": strconv.Itoa(service.settings.ProjectionJournalPartitions),
 		"routedByValue":                 "${routedByValue}",
 	}
-}
 
-func renderConnector(service string, fields map[string]string, values map[string]string) (Connector, error) {
 	connector := Connector{
-		Name:   service + "-outbox-connector",
+		Name:   database.Service + "-outbox-connector",
 		Config: make(map[string]string, len(fields)),
 	}
 
@@ -99,137 +166,18 @@ func renderConnector(service string, fields map[string]string, values map[string
 	return connector, connector.Validate()
 }
 
-func Reconcile(ctx context.Context, settings config.Debezium, output io.Writer) error {
-	connectors, err := LoadConnectors(settings)
+func (service *Service) register(ctx context.Context, connector Connector) error {
+	response, err := service.client.R().
+		SetContext(ctx).
+		SetBody(connector.Config).
+		Put("/connectors/" + connector.Name + "/config")
 	if err != nil {
-		return err
+		return fmt.Errorf("debezium.Service.register: connector %s: %w", connector.Name, infrahttp.RequestError{Cause: err})
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, settings.Timeout)
-	defer cancel()
-
-	client := connectClient{
-		http: &http.Client{
-			Timeout: settings.RequestTimeout,
-			CheckRedirect: func(*http.Request, []*http.Request) error {
-				return http.ErrUseLastResponse
-			},
-		},
-		endpoint:      strings.TrimRight(settings.ConnectURL, "/"),
-		retryInterval: settings.RetryInterval,
-	}
-
-	_, err = fmt.Fprintln(output, "Waiting for Kafka Connect...")
-	if err != nil {
-		return err
-	}
-
-	err = client.waitUntilReady(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, connector := range connectors {
-		err := client.register(ctx, connector)
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintf(output, "Registered connector %s.\n", connector.Name)
-		if err != nil {
-			return err
-		}
-	}
-
-	_, err = fmt.Fprintf(output, "Registered %d outbox connectors.\n", len(connectors))
-	return err
-}
-
-func (client connectClient) waitUntilReady(ctx context.Context) error {
-	err := retry(ctx, client.retryInterval, func() error {
-		return client.request(ctx, http.MethodGet, "/", nil)
-	})
-	if err == nil {
+	if response.IsSuccess() {
 		return nil
 	} else {
-		return fmt.Errorf("waiting for Kafka Connect: %w", err)
-	}
-}
-
-func (client connectClient) register(ctx context.Context, connector Connector) error {
-	body, err := json.Marshal(connector.Config)
-	if err != nil {
-		return fmt.Errorf("cannot encode connector %s", connector.Name)
-	}
-
-	path := "/connectors/" + connector.Name + "/config"
-	err = retry(ctx, client.retryInterval, func() error {
-		return client.request(ctx, http.MethodPut, path, body)
-	})
-	if err == nil {
-		return nil
-	} else {
-		return fmt.Errorf("registering connector %s: %w", connector.Name, err)
-	}
-}
-
-func (client connectClient) request(ctx context.Context, method string, path string, body []byte) error {
-	request, err := http.NewRequestWithContext(ctx, method, client.endpoint+path, bytes.NewReader(body))
-	if err != nil {
-		return errors.New("cannot create Kafka Connect request")
-	}
-
-	if body != nil {
-		request.Header.Set("Content-Type", "application/json")
-	}
-
-	response, err := client.http.Do(request)
-	if err != nil {
-		contextErr := ctx.Err()
-		if contextErr == nil {
-			return requestError{temporary: true}
-		} else {
-			return contextErr
-		}
-	}
-
-	defer func() { _ = response.Body.Close() }()
-
-	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
-	if response.StatusCode >= 200 && response.StatusCode < 300 {
-		return nil
-	} else {
-		return requestError{
-			status:    response.StatusCode,
-			temporary: response.StatusCode == 409 || response.StatusCode == 429 || response.StatusCode >= 500,
-		}
-	}
-}
-
-func retry(ctx context.Context, interval time.Duration, action func() error) error {
-	for {
-		err := ctx.Err()
-		if err != nil {
-			return err
-		}
-
-		err = action()
-		if err == nil {
-			return nil
-		}
-
-		var failure requestError
-		if !errors.As(err, &failure) || !failure.temporary {
-			return err
-		}
-
-		timer := time.NewTimer(interval)
-
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return fmt.Errorf("%w (last error: %v)", ctx.Err(), err)
-		case <-timer.C:
-		}
+		return fmt.Errorf("debezium.Service.register: connector %s: HTTP status %d", connector.Name, response.StatusCode())
 	}
 }

@@ -73,15 +73,15 @@ local/
 │
 ├── cli/                                # Go application and tests
 │   ├── cli.go                          # Argument parsing and command dispatch
-│   ├── commands.go                     # Command handlers
-│   ├── types.go                        # CLI option and handler types
+│   ├── commands.go                     # Command handlers and invocation state
+│   ├── types.go                        # CLI handler type and usage text
 │   ├── cli_test.go                     # Command-line scenarios
-│   ├── config/                         # Environment loading and connector settings
+│   ├── config/                         # koanf loading and typed settings
 │   ├── platform/
 │   │   ├── aws/                        # AWS CSV import into dotenv
 │   │   ├── clickhouse/                 # SQL schema, users and grants
 │   │   ├── debezium/                   # Connector configuration and registration
-│   │   ├── http/                       # Shared HTTP client
+│   │   ├── http/                       # Resty defaults and safe HTTP errors
 │   │   ├── kafka/                      # Startup, topics and partition checks
 │   │   │   └── definitions.go          # Topic catalog and retention defaults
 │   │   ├── schema/                     # Schema Registry rule validation
@@ -93,10 +93,10 @@ local/
 │   │       └── definitions.go          # Archive tables and export projections
 │   └── tests/
 │       └── integration/                # Disposable bootstrap, outbox and archive tests
-│           ├── types.go                # Shared fixture and result types
-│           ├── compose_helpers.go      # Compose and CLI execution
+│           ├── types.go                # Shared status and result types
+│           ├── compose_helpers.go      # Compose fixture and CLI execution
 │           ├── bootstrap_helpers.go    # Storage and Vault fixtures
-│           ├── debezium_helpers.go     # Connector readiness and outbox fixtures
+│           ├── debezium_helpers.go     # Connect client and outbox fixtures
 │           ├── integration_test.go     # Ginkgo suite entry point
 │           ├── bootstrap_test.go       # Bootstrap, permissions and archive scenarios
 │           ├── debezium_test.go        # Connector, outbox and Kafka scenarios

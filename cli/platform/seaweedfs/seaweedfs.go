@@ -8,73 +8,85 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
 
-	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
+	"github.com/MonadIAM/infrastructure/cli/config"
 )
 
-func Client(settings Settings, admin bool) (*minio.Client, error) {
-	endpoint, err := url.Parse(settings.Endpoint)
+type Service struct {
+	settings Settings
+	client   *minio.Client
+}
+
+func New(settings Settings) *Service {
+	return &Service{settings: settings}
+}
+
+func (service *Service) Client(admin bool) (*minio.Client, error) {
+	endpoint, err := url.Parse(service.settings.Endpoint)
 	if err != nil {
-		return nil, errors.New("invalid SeaweedFS endpoint")
+		return nil, fmt.Errorf("seaweedfs.Service.Client: invalid endpoint: %w", RequestError{Cause: err})
 	}
 
-	key, secret := settings.ArchiverKey, settings.ArchiverSecret
+	if endpoint.Scheme != "http" && endpoint.Scheme != "https" {
+		return nil, errors.New("SeaweedFS endpoint must use HTTP or HTTPS")
+	}
+
+	key, secret := service.settings.ArchiverKey, service.settings.ArchiverSecret
 	if admin {
-		key, secret = settings.AdminKey, settings.AdminSecret
+		key, secret = service.settings.AdminKey, service.settings.AdminSecret
 	}
 
 	return minio.New(endpoint.Host, &minio.Options{
 		Creds:        credentials.NewStaticV4(key, secret, ""),
 		Secure:       endpoint.Scheme == "https",
-		Region:       settings.Region,
+		Region:       service.settings.Region,
 		BucketLookup: minio.BucketLookupPath,
 	})
 }
 
-func ValidateTemplates(settings Settings) error {
-	_, err := configurations(settings)
+func (service *Service) ValidateTemplates() error {
+	_, err := service.configurations()
 	return err
 }
 
-func Reconcile(ctx context.Context, settings Settings, output io.Writer) error {
-	err := settings.Validate()
+func (service *Service) Reconcile(ctx context.Context, output io.Writer) error {
+	err := service.settings.Validate()
 	if err != nil {
 		return err
 	}
 
-	configurations, err := configurations(settings)
+	configurations, err := service.configurations()
 	if err != nil {
 		return err
 	}
 
-	client, err := Client(settings, true)
+	service.client, err = service.Client(true)
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, settings.Timeout)
+	ctx, cancel := context.WithTimeout(ctx, service.settings.Timeout)
 	defer cancel()
 
-	err = infrahttp.Wait(ctx, time.Second, func() error {
-		_, err := client.ListBuckets(ctx)
-		return safeError(err)
-	})
+	err = service.waitUntilReady(ctx)
 	if err != nil {
 		return err
 	}
 
 	for _, configuration := range configurations {
-		err := configureBucket(ctx, client, settings.Region, configuration)
+		err := service.configureBucket(ctx, configuration)
 		if err != nil {
-			return fmt.Errorf("configure bucket %s: %w", configuration.Bucket.Name, safeError(err))
+			return fmt.Errorf("seaweedfs.Service.Reconcile: configure bucket %s: %w", configuration.Bucket.Name, RequestError{Cause: err})
 		}
 	}
 
@@ -82,20 +94,167 @@ func Reconcile(ctx context.Context, settings Settings, output io.Writer) error {
 	return err
 }
 
-func configurations(settings Settings) ([]bucketConfiguration, error) {
-	policy, err := os.ReadFile(filepath.Join(settings.ConfigDir, "policy.archiver.json"))
+func (service *Service) WriteCredentials(path string) error {
+	err := service.settings.Validate()
+	if err != nil {
+		return err
+	}
+
+	document := credentialFile{Identities: []identity{
+		{
+			Name: "admin",
+			Credentials: []credential{{
+				AccessKey: service.settings.AdminKey,
+				SecretKey: service.settings.AdminSecret,
+			}},
+			Actions: []string{"Admin", "Read", "Write", "List", "Tagging"},
+		},
+		{
+			Name: "archiver",
+			Credentials: []credential{{
+				AccessKey: service.settings.ArchiverKey,
+				SecretKey: service.settings.ArchiverSecret,
+			}},
+			Actions: []string{
+				"Read:" + service.settings.Buckets[0].Name + "/*",
+				"Write:" + service.settings.Buckets[0].Name + "/*",
+				"Read:" + service.settings.Buckets[1].Name + "/*",
+				"Write:" + service.settings.Buckets[1].Name + "/*",
+			},
+		},
+	}}
+	data, err := json.Marshal(document)
+	if err != nil {
+		return err
+	}
+
+	temporary, err := os.CreateTemp(filepath.Dir(path), ".credentials-*")
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = os.Remove(temporary.Name()) }()
+	defer func() { _ = temporary.Close() }()
+
+	_, err = temporary.Write(data)
+	if err != nil {
+		return err
+	}
+
+	err = temporary.Close()
+	if err == nil {
+		return os.Rename(temporary.Name(), path)
+	} else {
+		return err
+	}
+}
+
+func (service *Service) Start(args []string) error {
+	if len(args) == 0 {
+		return errors.New("SeaweedFS server arguments are required after --")
+	}
+
+	err := service.WriteCredentials("/tmp/credentials.json")
+	if err != nil {
+		return err
+	}
+
+	err = setCredentialOwner("/tmp/credentials.json")
+	if err == nil {
+		return syscall.Exec("/entrypoint.sh", append([]string{"/entrypoint.sh"}, args...), os.Environ())
+	} else {
+		return err
+	}
+}
+
+func (service *Service) configureBucket(ctx context.Context, configuration bucketConfiguration) error {
+	bucket := configuration.Bucket
+	err := service.client.MakeBucket(ctx, bucket.Name, minio.MakeBucketOptions{
+		Region:        service.settings.Region,
+		ObjectLocking: true,
+	})
+	if err != nil && minio.ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" && minio.ToErrorResponse(err).Code != "BucketAlreadyExists" {
+		return err
+	}
+
+	err = service.client.EnableVersioning(ctx, bucket.Name)
+	if err != nil {
+		return err
+	}
+
+	mode := minio.Compliance
+	days := uint(bucket.Days)
+	unit := minio.Days
+	err = service.client.SetObjectLockConfig(ctx, bucket.Name, &mode, &days, &unit)
+	if err != nil {
+		return err
+	}
+
+	err = service.client.SetBucketPolicy(ctx, bucket.Name, configuration.Policy)
+	if err != nil {
+		return err
+	}
+
+	var rules lifecycle.Configuration
+	err = json.Unmarshal(configuration.Lifecycle, &rules)
+	if err != nil {
+		return err
+	}
+
+	err = service.client.SetBucketLifecycle(ctx, bucket.Name, &rules)
+	if err != nil {
+		return err
+	}
+
+	enabled, actualMode, actualDays, actualUnit, err := service.client.GetObjectLockConfig(ctx, bucket.Name)
+	if err != nil {
+		return err
+	}
+
+	if enabled != "Enabled" || actualMode == nil || actualDays == nil || actualUnit == nil || *actualMode != mode || *actualDays != days || *actualUnit != unit {
+		return errors.New("bucket retention verification failed")
+	} else {
+		return nil
+	}
+}
+
+func (service *Service) waitUntilReady(ctx context.Context) error {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		_, err := service.client.ListBuckets(ctx)
+		if err == nil {
+			return nil
+		}
+
+		response := minio.ToErrorResponse(err)
+		if response.StatusCode == 401 || response.StatusCode == 403 {
+			return fmt.Errorf("seaweedfs.Service.waitUntilReady: %w", RequestError{Cause: err})
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("seaweedfs.Service.waitUntilReady: %w", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func (service *Service) configurations() ([]bucketConfiguration, error) {
+	policy, err := os.ReadFile(filepath.Join(service.settings.ConfigDir, "policy.archiver.json"))
 	if err != nil {
 		return nil, err
 	}
 
-	rules, err := os.ReadFile(filepath.Join(settings.ConfigDir, "lifecycle.json"))
+	rules, err := os.ReadFile(filepath.Join(service.settings.ConfigDir, "lifecycle.json"))
 	if err != nil {
 		return nil, err
 	}
 
 	var result []bucketConfiguration
 
-	for _, bucket := range settings.Buckets {
+	for _, bucket := range service.settings.Buckets {
 		rendered := strings.ReplaceAll(string(policy), "BUCKET_NAME", bucket.Name)
 		expiry := strings.ReplaceAll(string(rules), `"RETENTION_DAYS"`, strconv.Itoa(bucket.Days))
 		if !json.Valid([]byte(rendered)) || !json.Valid([]byte(expiry)) {
@@ -112,124 +271,54 @@ func configurations(settings Settings) ([]bucketConfiguration, error) {
 	return result, nil
 }
 
-func configureBucket(ctx context.Context, client *minio.Client, region string, configuration bucketConfiguration) error {
-	bucket := configuration.Bucket
-	err := client.MakeBucket(ctx, bucket.Name, minio.MakeBucketOptions{
-		Region:        region,
-		ObjectLocking: true,
-	})
-	if err != nil && minio.ToErrorResponse(err).Code != "BucketAlreadyOwnedByYou" && minio.ToErrorResponse(err).Code != "BucketAlreadyExists" {
-		return err
+func Load(environment config.Environment) (Settings, error) {
+	settings := Settings{
+		Endpoint:  "http://seaweedfs:8333",
+		Region:    "us-east-1",
+		ConfigDir: "audit-archive/seaweedfs",
+		Timeout:   2 * time.Minute,
 	}
 
-	err = client.EnableVersioning(ctx, bucket.Name)
+	err := environment.Decode(&settings)
 	if err != nil {
-		return err
+		return settings, err
 	}
 
-	mode := minio.Compliance
-	days := uint(bucket.Days)
-	unit := minio.Days
-	err = client.SetObjectLockConfig(ctx, bucket.Name, &mode, &days, &unit)
-	if err != nil {
-		return err
+	bucketKinds := []string{"AUDIT_LOG", "CHANGE_LOG"}
+
+	for _, kind := range bucketKinds {
+		days, err := environment.PositiveInt("SEAWEEDFS_" + kind + "_RETENTION_DAYS")
+		if err != nil {
+			return settings, err
+		}
+
+		settings.Buckets = append(settings.Buckets, Bucket{
+			Name: environment.String("SEAWEEDFS_" + kind + "_BUCKET"),
+			Days: days,
+		})
 	}
 
-	err = client.SetBucketPolicy(ctx, bucket.Name, configuration.Policy)
-	if err != nil {
-		return err
-	}
-
-	var rules lifecycle.Configuration
-	err = json.Unmarshal(configuration.Lifecycle, &rules)
-	if err != nil {
-		return err
-	}
-
-	err = client.SetBucketLifecycle(ctx, bucket.Name, &rules)
-	if err != nil {
-		return err
-	}
-
-	enabled, actualMode, actualDays, actualUnit, err := client.GetObjectLockConfig(ctx, bucket.Name)
-	if err != nil {
-		return err
-	}
-
-	if enabled != "Enabled" || actualMode == nil || actualDays == nil || actualUnit == nil || *actualMode != mode || *actualDays != days || *actualUnit != unit {
-		return errors.New("bucket retention verification failed")
-	} else {
-		return nil
-	}
+	return settings, settings.Validate()
 }
 
-func safeError(err error) error {
-	if err == nil {
+func setCredentialOwner(path string) error {
+	if os.Geteuid() != 0 {
 		return nil
 	}
 
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return err
-	}
-
-	response := minio.ToErrorResponse(err)
-	if response.StatusCode != 0 {
-		return infrahttp.StatusError{Code: response.StatusCode}
-	} else {
-		return errors.New("S3 request failed")
-	}
-}
-
-func WriteCredentials(settings Settings, path string) error {
-	err := settings.Validate()
+	account, err := user.Lookup("seaweed")
 	if err != nil {
 		return err
 	}
 
-	document := credentialFile{Identities: []identity{
-		{
-			Name: "admin",
-			Credentials: []credential{{
-				AccessKey: settings.AdminKey,
-				SecretKey: settings.AdminSecret,
-			}},
-			Actions: []string{"Admin", "Read", "Write", "List", "Tagging"},
-		},
-		{
-			Name: "archiver",
-			Credentials: []credential{{
-				AccessKey: settings.ArchiverKey,
-				SecretKey: settings.ArchiverSecret,
-			}},
-			Actions: []string{
-				"Read:" + settings.Buckets[0].Name + "/*",
-				"Write:" + settings.Buckets[0].Name + "/*",
-				"Read:" + settings.Buckets[1].Name + "/*",
-				"Write:" + settings.Buckets[1].Name + "/*",
-			},
-		},
-	}}
-	data, err := json.Marshal(document)
+	uid, err := strconv.Atoi(account.Uid)
 	if err != nil {
 		return err
 	}
 
-	temporary, err := os.CreateTemp(filepath.Dir(path), ".credentials-*")
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = os.Remove(temporary.Name()) }()
-
-	_, err = temporary.Write(data)
-	if err != nil {
-		_ = temporary.Close()
-		return err
-	}
-
-	err = temporary.Close()
+	gid, err := strconv.Atoi(account.Gid)
 	if err == nil {
-		return os.Rename(temporary.Name(), path)
+		return os.Chown(path, uid, gid)
 	} else {
 		return err
 	}

@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 	"strings"
@@ -11,6 +12,8 @@ import (
 	"github.com/minio/minio-go/v7"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/MonadIAM/infrastructure/cli/platform/clickhouse"
 )
 
 var _ = Describe("[Infrastructure] - Local bootstrap", Ordered, ContinueOnFailure, Label("integration"), func() {
@@ -62,6 +65,34 @@ var _ = Describe("[Infrastructure] - Local bootstrap", Ordered, ContinueOnFailur
 			Expect(token).To(Equal(originalToken))
 			Expect(policies).To(ContainSubstring("notification-service-transit"))
 		}, SpecTimeout(3*time.Minute))
+	})
+
+	Describe("[Behavior] - parameterized queries", func() {
+		It("[case] - preserves string bytes and binds table identifiers on the server", func(ctx SpecContext) {
+			// Arrange
+			address, err := fixture.compose(ctx, "port", "clickhouse", "8123")
+			Expect(err).NotTo(HaveOccurred())
+			client := clickhouse.New(clickhouse.Settings{
+				Address:  "http://" + strings.TrimSpace(address),
+				User:     "default",
+				Password: "test-only",
+				Timeout:  time.Second * 10,
+			}, false)
+			value := "quote'\"; SELECT 1; --\t\n\r\x00\\N\\t"
+			parameters := map[string]string{
+				"value":    value,
+				"database": "system",
+				"table":    "one",
+			}
+			query := "SELECT hex({value:String}) FROM {database:Identifier}.{table:Identifier}"
+
+			// Act
+			result, err := client.Query(ctx, query, parameters)
+
+			// Assert
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(Equal(strings.ToUpper(hex.EncodeToString([]byte(value)))))
+		}, SpecTimeout(time.Minute))
 	})
 
 	Describe("[Behavior] - ordered topic protection", func() {

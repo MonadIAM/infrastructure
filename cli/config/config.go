@@ -2,100 +2,44 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/knadh/koanf/parsers/dotenv"
+	"github.com/knadh/koanf/providers/env"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 )
 
-func Load(path string, overrides map[string]string) (Environment, error) {
-	values := make(Environment)
-
-	if path != "" {
-		var err error
-		values, err = godotenv.Read(path)
-		if err != nil {
-			return nil, fmt.Errorf("cannot read or parse environment file %s", path)
-		}
-	}
-
-	for _, entry := range os.Environ() {
-		key, value, _ := strings.Cut(entry, "=")
-		values[key] = value
-	}
-
-	for key, value := range overrides {
-		values[key] = value
-	}
-
-	return values, nil
+type Environment struct {
+	*koanf.Koanf
 }
 
-func ParseDebezium(values Environment) (Debezium, error) {
+func (environment Environment) ParseDebezium() (Debezium, error) {
 	settings := Debezium{
-		ConnectURL:   values.Get("CONNECT_URL", "http://kafka-connect:8083"),
-		TemplatePath: values.Get("CONNECTOR_TEMPLATE", "messaging/debezium/outbox.connector.json"),
+		ConnectURL:     "http://kafka-connect:8083",
+		TemplatePath:   "messaging/debezium/outbox.connector.json",
+		Timeout:        2 * time.Minute,
+		RequestTimeout: 10 * time.Second,
+		RetryInterval:  2 * time.Second,
 	}
 
-	var err error
-
-	settings.RealmPartitions, err = values.PositiveInt("REALM_PARTITIONS")
+	err := environment.Decode(&settings)
 	if err != nil {
-		return Debezium{}, err
-	}
-
-	settings.PositionPartitions, err = values.PositiveInt("POSITION_PARTITIONS")
-	if err != nil {
-		return Debezium{}, err
-	}
-
-	settings.ProjectionJournalPartitions, err = values.PositiveInt("PROJECTION_JOURNAL_PARTITIONS")
-	if err != nil {
-		return Debezium{}, err
-	}
-
-	settings.Timeout, err = values.Duration("DEBEZIUM_TIMEOUT", "2m")
-	if err != nil {
-		return Debezium{}, err
-	}
-
-	settings.RequestTimeout, err = values.Duration("DEBEZIUM_REQUEST_TIMEOUT", "10s")
-	if err != nil {
-		return Debezium{}, err
-	}
-
-	settings.RetryInterval, err = values.Duration("DEBEZIUM_RETRY_INTERVAL", "2s")
-	if err != nil {
-		return Debezium{}, err
+		return settings, err
 	}
 
 	for _, service := range Services() {
-		settings.Databases = append(settings.Databases, readDatabase(values, service))
+		settings.Databases = append(settings.Databases, environment.readDatabase(service))
 	}
 
 	return settings, settings.Validate()
 }
 
-func readDatabase(values map[string]string, service string) Database {
-	prefix := Prefix(service) + "_POSTGRES_"
-
-	return Database{
-		Service:     service + "-service",
-		Host:        service + "-postgresql",
-		Name:        values[prefix+"DB"],
-		User:        values[prefix+"USER"],
-		Password:    values[prefix+"PASSWORD"],
-		Slot:        values[prefix+"OUTBOX_SLOT"],
-		Publication: values[prefix+"OUTBOX_PUBLICATION"],
-	}
-}
-
 func (environment Environment) Get(key, fallback string) string {
-	value, exists := environment[key]
-	if exists {
-		return value
+	if environment.Exists(key) {
+		return environment.String(key)
 	} else {
 		return fallback
 	}
@@ -103,8 +47,8 @@ func (environment Environment) Get(key, fallback string) string {
 
 func (environment Environment) Require(keys ...string) error {
 	for _, key := range keys {
-		if environment[key] == "" {
-			return fmt.Errorf("%s is required", key)
+		if environment.String(key) == "" {
+			return fmt.Errorf("config.Environment.Require: %s is required", key)
 		}
 	}
 
@@ -112,23 +56,77 @@ func (environment Environment) Require(keys ...string) error {
 }
 
 func (environment Environment) PositiveInt(key string) (int, error) {
-	value, err := strconv.Atoi(environment[key])
+	value, err := strconv.Atoi(environment.String(key))
 	if err == nil && value > 0 {
 		return value, nil
 	} else {
-		return 0, fmt.Errorf("%s must be a positive integer", key)
+		return 0, fmt.Errorf("config.Environment.PositiveInt: %s must be a positive integer", key)
 	}
 }
 
-func (environment Environment) Duration(key, fallback string) (time.Duration, error) {
-	value, err := time.ParseDuration(environment.Get(key, fallback))
-	if err == nil && value > 0 {
-		return value, nil
+func (environment Environment) Decode(target any) error {
+	err := environment.Unmarshal("", target)
+	if err == nil {
+		return nil
 	} else {
-		return 0, fmt.Errorf("%s must be a positive duration", key)
+		return fmt.Errorf("config.Environment.Decode: %w", sourceError{cause: err})
 	}
 }
 
-func Prefix(service string) string {
-	return strings.ToUpper(strings.ReplaceAll(service, "-", "_"))
+func (environment Environment) readDatabase(service string) Database {
+	prefix := strings.ToUpper(strings.ReplaceAll(service, "-", "_")) + "_POSTGRES_"
+
+	return Database{
+		Service:     service + "-service",
+		Host:        service + "-postgresql",
+		Name:        environment.String(prefix + "DB"),
+		User:        environment.String(prefix + "USER"),
+		Password:    environment.String(prefix + "PASSWORD"),
+		Slot:        environment.String(prefix + "OUTBOX_SLOT"),
+		Publication: environment.String(prefix + "OUTBOX_PUBLICATION"),
+	}
+}
+
+func Load(path string, overrides map[string]string) (Environment, error) {
+	settings, err := readFile(path)
+	if err != nil {
+		return Environment{}, fmt.Errorf("config.Load: %w", err)
+	}
+
+	err = settings.Load(env.Provider("", "", nil), nil)
+	if err != nil {
+		return Environment{}, fmt.Errorf("config.Load: environment: %w", sourceError{cause: err})
+	}
+
+	for key, value := range overrides {
+		err := settings.Set(key, value)
+		if err != nil {
+			return Environment{}, fmt.Errorf("config.Load: override %s: %w", key, sourceError{cause: err})
+		}
+	}
+
+	return Environment{Koanf: settings}, nil
+}
+
+func ReadFile(path string) (Environment, error) {
+	settings, err := readFile(path)
+	if err == nil {
+		return Environment{Koanf: settings}, nil
+	} else {
+		return Environment{}, fmt.Errorf("config.ReadFile: %w", err)
+	}
+}
+
+func readFile(path string) (*koanf.Koanf, error) {
+	settings := koanf.New(".")
+	if path == "" {
+		return settings, nil
+	}
+
+	err := settings.Load(file.Provider(path), dotenv.Parser())
+	if err == nil {
+		return settings, nil
+	} else {
+		return nil, fmt.Errorf("config.readFile: environment file %s: %w", path, sourceError{cause: err})
+	}
 }

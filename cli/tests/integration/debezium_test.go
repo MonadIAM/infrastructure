@@ -18,6 +18,7 @@ import (
 var _ = Describe("[Infrastructure] - Debezium outbox", Ordered, ContinueOnFailure, Label("integration"), func() {
 	var fixture composeFixture
 	var settings config.Debezium
+	var client *connectClient
 
 	BeforeAll(func(ctx SpecContext) {
 		fixture.project = fmt.Sprintf("infra-cli-test-%d", time.Now().UnixNano())
@@ -37,19 +38,20 @@ var _ = Describe("[Infrastructure] - Debezium outbox", Ordered, ContinueOnFailur
 		address, err := fixture.compose(ctx, "port", "connect", "8083")
 		Expect(err).NotTo(HaveOccurred())
 		settings = integrationSettings("http://" + strings.TrimSpace(address))
+		client = newConnectClient(settings.ConnectURL)
 	}, NodeTimeout(8*time.Minute))
 
 	Describe("[Behavior] - repeated connector registration", func() {
 		It("[case] - keeps one running connector under the same name", func(ctx SpecContext) {
 			// Arrange
-			endpoint := settings.ConnectURL + "/connectors/test-service-outbox-connector/status"
+			service := debezium.New(settings)
 
 			// Act
-			firstErr := debezium.Reconcile(ctx, settings, GinkgoWriter)
-			secondErr := debezium.Reconcile(ctx, settings, GinkgoWriter)
-			readyErr := waitRunningConnector(ctx, endpoint)
+			firstErr := service.Reconcile(ctx, GinkgoWriter)
+			secondErr := service.Reconcile(ctx, GinkgoWriter)
+			readyErr := client.waitRunning(ctx, "test-service-outbox-connector")
 			var names []string
-			namesErr := readConnectJSON(ctx, settings.ConnectURL+"/connectors", &names)
+			namesErr := client.readJSON(ctx, "/connectors", &names)
 
 			// Assert
 			Expect(firstErr).To(Succeed())
@@ -63,8 +65,8 @@ var _ = Describe("[Infrastructure] - Debezium outbox", Ordered, ContinueOnFailur
 	Describe("[Behavior] - outbox delivery", func() {
 		It("[case] - delivers a PostgreSQL outbox event to its Kafka topic", func(ctx SpecContext) {
 			// Arrange
-			Expect(debezium.Reconcile(ctx, settings, GinkgoWriter)).To(Succeed())
-			Expect(waitRunningConnector(ctx, settings.ConnectURL+"/connectors/test-service-outbox-connector/status")).To(Succeed())
+			Expect(debezium.New(settings).Reconcile(ctx, GinkgoWriter)).To(Succeed())
+			Expect(client.waitRunning(ctx, "test-service-outbox-connector")).To(Succeed())
 
 			output, err := fixture.compose(ctx, "exec", "-T", "kafka", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka:29092", "--create", "--if-not-exists", "--topic", "realm", "--partitions", "4", "--replication-factor", "1")
 			Expect(err).NotTo(HaveOccurred(), output)

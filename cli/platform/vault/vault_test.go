@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,8 +16,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
-
-	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
 )
 
 func readCredentialPermissions(directory string) (map[string]os.FileMode, error) {
@@ -41,7 +40,7 @@ func TestVault(t *testing.T) {
 }
 
 var _ = Describe("[Infrastructure] - Vault", func() {
-	Describe("[Function] - Initialize", func() {
+	Describe("[Method] - Service.Initialize", func() {
 		It("[case] - persists credentials privately and does not recreate an existing local token", func() {
 			// Arrange
 			var initialized atomic.Bool
@@ -72,11 +71,13 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 
 						return
 					}
+
 					_, _ = io.WriteString(writer, `{"data":{"policies":["root"],"ttl":0}}`)
 				case "/v1/auth/token/create":
 					if request.Header.Get("X-Vault-Token") != "private-root" {
 						unauthorized.Store(true)
 					}
+
 					creations.Add(1)
 					tokenCreated.Store(true)
 					_, _ = io.WriteString(writer, `{}`)
@@ -94,9 +95,11 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 				Timeout:     time.Second,
 			}
 
+			service := New(settings)
+
 			// Act
-			firstErr := Initialize(context.Background(), settings, io.Discard)
-			secondErr := Initialize(context.Background(), settings, io.Discard)
+			firstErr := service.Initialize(context.Background(), io.Discard)
+			secondErr := service.Initialize(context.Background(), io.Discard)
 			permissions, readErr := readCredentialPermissions(settings.InitDir)
 
 			// Assert
@@ -116,7 +119,126 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 		})
 	})
 
-	Describe("[Function] - prepareInit", func() {
+	Describe("[Behavior] - readiness failures", func() {
+		DescribeTable("[Behavior] - stops on permanent errors without initializing Vault",
+			func(code int) {
+				// Arrange
+				var requests atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+					requests.Add(1)
+					writer.WriteHeader(code)
+					_, _ = io.WriteString(writer, "private-response")
+				}))
+				DeferCleanup(server.Close)
+				settings := Settings{
+					Address:     server.URL,
+					InitDir:     GinkgoT().TempDir(),
+					PoliciesDir: "unused",
+					LocalToken:  "private-local",
+					Timeout:     time.Second,
+				}
+
+				// Act
+				err := New(settings).Initialize(context.Background(), io.Discard)
+
+				// Assert
+				Expect(err).To(MatchError(ContainSubstring("vault.Service.waitUntilReady: HTTP status")))
+				Expect(err.Error()).NotTo(ContainSubstring("private"))
+				Expect(requests.Load()).To(Equal(int32(1)))
+			},
+			Entry("[case] - unauthorized", http.StatusUnauthorized),
+			Entry("[case] - forbidden", http.StatusForbidden),
+			Entry("[case] - redirect", http.StatusTemporaryRedirect),
+		)
+	})
+
+	Describe("[Behavior] - readiness response", func() {
+		It("[case] - preserves a malformed JSON cause without exposing response values", func() {
+			// Arrange
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(writer, `{"sealed":"private-secret"}`)
+			}))
+			DeferCleanup(server.Close)
+			settings := Settings{
+				Address:     server.URL,
+				InitDir:     GinkgoT().TempDir(),
+				PoliciesDir: "unused",
+				LocalToken:  "private-local",
+				Timeout:     time.Second,
+			}
+
+			// Act
+			err := New(settings).Initialize(context.Background(), io.Discard)
+			var cause *json.UnmarshalTypeError
+			matched := errors.As(err, &cause)
+
+			// Assert
+			Expect(matched).To(BeTrue())
+			Expect(err.Error()).To(ContainSubstring("vault.Service.waitUntilReady:"))
+			Expect(err.Error()).NotTo(ContainSubstring("private-secret"))
+		})
+
+		It("[case] - cancels readiness retries without initializing Vault", func() {
+			// Arrange
+			ctx, cancel := context.WithCancel(context.Background())
+			DeferCleanup(cancel)
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				writer.WriteHeader(http.StatusServiceUnavailable)
+				cancel()
+			}))
+			DeferCleanup(server.Close)
+			settings := Settings{
+				Address:     server.URL,
+				InitDir:     GinkgoT().TempDir(),
+				PoliciesDir: "unused",
+				LocalToken:  "private-local",
+				Timeout:     time.Minute,
+			}
+
+			// Act
+			err := New(settings).Initialize(ctx, io.Discard)
+
+			// Assert
+			Expect(err).To(MatchError(context.Canceled))
+			Expect(requests.Load()).To(Equal(int32(1)))
+		})
+	})
+
+	Describe("[Method] - Service.ensureKey", func() {
+		DescribeTable("[Behavior] - creates only missing Transit keys",
+			func(code int, expectedWrites int32, succeeds bool) {
+				// Arrange
+				var writes atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+					if request.Method == http.MethodGet {
+						writer.WriteHeader(code)
+						_, _ = io.WriteString(writer, `{"data":{"type":"aes256-gcm96"}}`)
+					} else {
+						writes.Add(1)
+						writer.WriteHeader(http.StatusNoContent)
+					}
+				}))
+				DeferCleanup(server.Close)
+				service := New(Settings{Address: server.URL})
+				key := keyDefinition{Name: "test", Type: "aes256-gcm96"}
+
+				// Act
+				err := service.ensureKey(context.Background(), key)
+
+				// Assert
+				Expect(err == nil).To(Equal(succeeds))
+				Expect(writes.Load()).To(Equal(expectedWrites))
+			},
+			Entry("[case] - existing key", http.StatusOK, int32(0), true),
+			Entry("[case] - missing key", http.StatusNotFound, int32(1), true),
+			Entry("[case] - forbidden lookup", http.StatusForbidden, int32(0), false),
+			Entry("[case] - failed lookup", http.StatusServiceUnavailable, int32(0), false),
+		)
+	})
+
+	Describe("[Method] - Service.prepareInit", func() {
 		It("[case] - recovers a partially saved initialization without making a new init request", func() {
 			// Arrange
 			directory := GinkgoT().TempDir()
@@ -124,7 +246,7 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			Expect(os.WriteFile(filepath.Join(directory, "root-token"), []byte("root\n"), 0400)).To(Succeed())
 
 			// Act
-			actionErr := prepareInit(context.Background(), infrahttp.New("http://127.0.0.1:1"), Settings{InitDir: directory}, true)
+			actionErr := New(Settings{Address: "http://127.0.0.1:1", InitDir: directory}).prepareInit(context.Background(), true)
 			key, readErr := readSecret(directory, "unseal-key")
 
 			// Assert
@@ -139,7 +261,7 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			Expect(os.WriteFile(filepath.Join(directory, "root-token"), []byte("saved"), 0400)).To(Succeed())
 
 			// Act
-			err := prepareInit(context.Background(), infrahttp.New("http://127.0.0.1:1"), Settings{InitDir: directory}, false)
+			err := New(Settings{Address: "http://127.0.0.1:1", InitDir: directory}).prepareInit(context.Background(), false)
 
 			// Assert
 			Expect(err).To(MatchError(ContainSubstring("already exist")))
@@ -147,16 +269,10 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 	})
 
 	Describe("[Behavior] - resource definitions", func() {
-		It("[case] - keeps mount options, role policies and secret mappings independent between calls", func() {
+		It("[case] - keeps generated role policies and secret mappings independent between calls", func() {
 			// Arrange
-			mounts := mountDefinitions()
 			roles := roleDefinitions()
 			secrets := secretDefinitions()
-			for _, mount := range mounts {
-				if mount.Options != nil {
-					mount.Options["version"] = "1"
-				}
-			}
 
 			for _, role := range roles {
 				for index := range role.Policies {
@@ -171,15 +287,10 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			}
 
 			// Act
-			freshMounts := mountDefinitions()
 			freshRoles := roleDefinitions()
 			freshSecrets := secretDefinitions()
 
 			// Assert
-			Expect(freshMounts).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Name":    Equal("kv"),
-				"Options": HaveKeyWithValue("version", "2"),
-			})))
 			Expect(freshRoles).To(ContainElement(MatchFields(IgnoreExtras, Fields{
 				"Name":     Equal("identity-service"),
 				"Policies": ContainElement("identity-service"),

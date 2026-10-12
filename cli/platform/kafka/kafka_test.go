@@ -4,10 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/joho/godotenv"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
+
+	"github.com/MonadIAM/infrastructure/cli/config"
 )
 
 func TestKafka(t *testing.T) {
@@ -19,11 +20,11 @@ var _ = Describe("[Infrastructure] - Kafka", func() {
 	Describe("[Function] - Load", func() {
 		It("[case] - loads partition overrides, dead letters and retention rules", func() {
 			// Arrange
-			environment, err := godotenv.Read("../../../.env.example")
+			environment, err := config.ReadFile("../../../.env.example")
 			Expect(err).NotTo(HaveOccurred())
-			environment["REALM_PARTITIONS"] = "7"
-			environment["POSITION_PARTITIONS"] = "9"
-			environment["PROJECTION_JOURNAL_PARTITIONS"] = "11"
+			Expect(environment.Set("REALM_PARTITIONS", "7")).To(Succeed())
+			Expect(environment.Set("POSITION_PARTITIONS", "9")).To(Succeed())
+			Expect(environment.Set("PROJECTION_JOURNAL_PARTITIONS", "11")).To(Succeed())
 
 			// Act
 			settings, err := Load(environment)
@@ -49,12 +50,13 @@ var _ = Describe("[Infrastructure] - Kafka", func() {
 
 		It("[case] - loads fresh topic definitions after a previous configuration was changed", func() {
 			// Arrange
-			environment, err := godotenv.Read("../../../.env.example")
+			environment, err := config.ReadFile("../../../.env.example")
 			Expect(err).NotTo(HaveOccurred())
 			previous, err := Load(environment)
 			Expect(err).NotTo(HaveOccurred())
 			for index := range previous.Topics {
 				previous.Topics[index].Config["retention.ms"] = "1"
+				previous.Topics[index].Config["cleanup.policy"] = "changed"
 				previous.Topics[index].Name = "changed"
 			}
 
@@ -67,11 +69,15 @@ var _ = Describe("[Infrastructure] - Kafka", func() {
 				"Name":   Equal("realm"),
 				"Config": HaveKeyWithValue("retention.ms", "259200000"),
 			})))
+			Expect(current.Topics).To(ContainElement(MatchFields(IgnoreExtras, Fields{
+				"Name":   Equal("blacklist"),
+				"Config": HaveKeyWithValue("cleanup.policy", "compact,delete"),
+			})))
 		})
 
 	})
 
-	Describe("[Function] - checkPartitions", func() {
+	Describe("[Method] - Service.checkPartitions", func() {
 		DescribeTable("[Behavior] - accepts only safe partition counts", func(name string, existing, requested int, grow bool, accepted bool) {
 			// Arrange
 			topics := []Topic{{
@@ -80,9 +86,10 @@ var _ = Describe("[Infrastructure] - Kafka", func() {
 				Grow:       grow,
 			}}
 			current := map[string]int{name: existing}
+			service := New(Settings{Topics: topics})
 
 			// Act
-			err := checkPartitions(topics, current)
+			err := service.checkPartitions(current)
 
 			// Assert
 			if accepted {

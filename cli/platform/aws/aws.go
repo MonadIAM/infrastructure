@@ -11,15 +11,24 @@ import (
 	"strings"
 )
 
-func Import(csvPath, envPath string, output io.Writer) error {
-	credentials, err := readCSV(csvPath)
+type Importer struct {
+	csvPath string
+	envPath string
+}
+
+func New(csvPath, envPath string) *Importer {
+	return &Importer{csvPath: csvPath, envPath: envPath}
+}
+
+func (importer *Importer) Run(output io.Writer) error {
+	credentials, err := importer.readCSV()
 	if err != nil {
 		return err
 	}
 
-	original, err := os.ReadFile(envPath)
+	original, err := os.ReadFile(importer.envPath)
 	if err != nil {
-		return errors.New("cannot read target environment file")
+		return fmt.Errorf("aws.Importer.Run: read target environment file: %w", err)
 	}
 
 	lines := strings.Split(string(original), "\n")
@@ -42,7 +51,7 @@ func Import(csvPath, envPath string, output io.Writer) error {
 		}
 	}
 
-	err = replaceEnvironment(envPath, []byte(strings.Join(lines, "\n")))
+	err = importer.replaceEnvironment([]byte(strings.Join(lines, "\n")))
 	if err != nil {
 		return err
 	}
@@ -51,10 +60,10 @@ func Import(csvPath, envPath string, output io.Writer) error {
 	return err
 }
 
-func readCSV(path string) (map[string]string, error) {
-	file, err := os.Open(path)
+func (importer *Importer) readCSV() (map[string]string, error) {
+	file, err := os.Open(importer.csvPath)
 	if err != nil {
-		return nil, errors.New("cannot read AWS credentials CSV")
+		return nil, fmt.Errorf("aws.Importer.readCSV: open credentials file: %w", err)
 	}
 
 	defer func() { _ = file.Close() }()
@@ -88,29 +97,28 @@ func readCSV(path string) (map[string]string, error) {
 	return values, nil
 }
 
-func replaceEnvironment(path string, data []byte) error {
-	file, err := os.CreateTemp(filepath.Dir(path), ".env-*")
+func (importer *Importer) replaceEnvironment(data []byte) error {
+	file, err := os.CreateTemp(filepath.Dir(importer.envPath), ".env-*")
 	if err != nil {
 		return err
 	}
 
 	defer func() { _ = os.Remove(file.Name()) }()
+	defer func() { _ = file.Close() }()
 
 	_, err = file.Write(data)
 	if err != nil {
-		_ = file.Close()
 		return err
 	}
 
 	err = file.Sync()
 	if err != nil {
-		_ = file.Close()
 		return err
 	}
 
 	err = file.Close()
 	if err == nil {
-		return os.Rename(file.Name(), path)
+		return os.Rename(file.Name(), importer.envPath)
 	} else {
 		return err
 	}

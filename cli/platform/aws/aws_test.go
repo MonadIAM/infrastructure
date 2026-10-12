@@ -16,7 +16,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = Describe("[Utility] - AWS credentials", func() {
-	Describe("[Function] - Import", func() {
+	Describe("[Method] - Importer.Run", func() {
 		It("[case] - reads quoted CRLF CSV and preserves unrelated environment lines", func() {
 			// Arrange
 			directory := GinkgoT().TempDir()
@@ -27,7 +27,7 @@ var _ = Describe("[Utility] - AWS credentials", func() {
 			var output bytes.Buffer
 
 			// Act
-			actionErr := Import(csv, env, &output)
+			actionErr := New(csv, env).Run(&output)
 			data, readErr := os.ReadFile(env)
 			info, statErr := os.Stat(env)
 
@@ -52,7 +52,7 @@ var _ = Describe("[Utility] - AWS credentials", func() {
 			Expect(os.WriteFile(env, []byte("UNCHANGED=yes"), 0600)).To(Succeed())
 
 			// Act
-			actionErr := Import(csv, env, &bytes.Buffer{})
+			actionErr := New(csv, env).Run(&bytes.Buffer{})
 			data, readErr := os.ReadFile(env)
 
 			// Assert

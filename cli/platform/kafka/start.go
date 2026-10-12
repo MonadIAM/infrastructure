@@ -27,7 +27,7 @@ func Start(ctx context.Context, environment config.Environment, output io.Writer
 
 	_, err = os.Stat(filepath.Join(directory, "meta.properties"))
 	if errors.Is(err, os.ErrNotExist) {
-		command := exec.CommandContext(ctx, "/opt/kafka/bin/kafka-storage.sh", "format", "--ignore-formatted", "--cluster-id", environment["KAFKA_CLUSTER_ID"], "--config", configuration)
+		command := exec.CommandContext(ctx, "/opt/kafka/bin/kafka-storage.sh", "format", "--ignore-formatted", "--cluster-id", environment.String("KAFKA_CLUSTER_ID"), "--config", configuration)
 		command.Stdout, command.Stderr = output, output
 		err := command.Run()
 		if err != nil {

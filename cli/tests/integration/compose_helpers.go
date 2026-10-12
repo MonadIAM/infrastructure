@@ -7,8 +7,13 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/joho/godotenv"
+	"github.com/MonadIAM/infrastructure/cli/config"
 )
+
+type composeFixture struct {
+	project string
+	file    string
+}
 
 func (fixture composeFixture) compose(ctx context.Context, args ...string) (string, error) {
 	file := fixture.file
@@ -23,7 +28,7 @@ func (fixture composeFixture) compose(ctx context.Context, args ...string) (stri
 		"-f", file,
 	}
 
-	environment, err := godotenv.Read("../../../.env.example")
+	environment, err := config.ReadFile("../../../.env.example")
 	if err != nil {
 		return "", err
 	}
@@ -31,7 +36,7 @@ func (fixture composeFixture) compose(ctx context.Context, args ...string) (stri
 	command := exec.CommandContext(ctx, "docker", append(options, args...)...)
 	command.Env = os.Environ()
 
-	for key, value := range environment {
+	for key, value := range environment.StringMap("") {
 		command.Env = append(command.Env, key+"="+value)
 	}
 

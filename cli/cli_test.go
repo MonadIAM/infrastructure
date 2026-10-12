@@ -3,15 +3,17 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
 
-	"github.com/joho/godotenv"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/MonadIAM/infrastructure/cli/config"
 )
 
 func TestCLI(t *testing.T) {
@@ -47,6 +49,24 @@ var _ = Describe("[CLI] - Commands", func() {
 			Entry("[case] - Debezium help", []string{"debezium", "reconcile", "--help"}),
 		)
 
+		DescribeTable("[Behavior] - reports help output failures",
+			func(args []string, point string) {
+				// Arrange
+				reader, writer := io.Pipe()
+				Expect(reader.Close()).To(Succeed())
+				DeferCleanup(writer.Close)
+
+				// Act
+				err := Run(context.Background(), args, writer)
+
+				// Assert
+				Expect(err).To(MatchError(io.ErrClosedPipe))
+				Expect(err.Error()).To(ContainSubstring(point))
+			},
+			Entry("[case] - root help", []string{"--help"}, "cli.Run"),
+			Entry("[case] - command help", []string{"debezium", "reconcile", "--help"}, "cli.writeHelp"),
+		)
+
 		DescribeTable("[Behavior] - rejects invalid arguments without exposing their values",
 			func(args []string) {
 				// Act
@@ -78,7 +98,7 @@ var _ = Describe("[CLI] - Commands", func() {
 			It("[case] - validates the example configuration without contacting HTTP services", func() {
 				// Arrange
 				GinkgoT().Chdir("..")
-				environment, err := godotenv.Read(".env.example")
+				environment, err := config.ReadFile(".env.example")
 				Expect(err).NotTo(HaveOccurred())
 				var requests atomic.Int32
 				server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -104,10 +124,10 @@ var _ = Describe("[CLI] - Commands", func() {
 				}
 
 				for key, value := range overrides {
-					environment[key] = value
+					Expect(environment.Set(key, value)).To(Succeed())
 				}
 
-				for key, value := range environment {
+				for key, value := range environment.StringMap("") {
 					GinkgoT().Setenv(key, value)
 				}
 

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
 )
 
 type Database struct {
@@ -20,15 +18,15 @@ type Database struct {
 }
 
 type Debezium struct {
-	ConnectURL                  string
-	TemplatePath                string
-	Timeout                     time.Duration
-	RequestTimeout              time.Duration
-	RetryInterval               time.Duration
-	RealmPartitions             int
-	PositionPartitions          int
-	ProjectionJournalPartitions int
-	Databases                   []Database
+	ConnectURL                  string        `koanf:"CONNECT_URL"`
+	TemplatePath                string        `koanf:"CONNECTOR_TEMPLATE"`
+	Timeout                     time.Duration `koanf:"DEBEZIUM_TIMEOUT"`
+	RequestTimeout              time.Duration `koanf:"DEBEZIUM_REQUEST_TIMEOUT"`
+	RetryInterval               time.Duration `koanf:"DEBEZIUM_RETRY_INTERVAL"`
+	RealmPartitions             int           `koanf:"REALM_PARTITIONS"`
+	PositionPartitions          int           `koanf:"POSITION_PARTITIONS"`
+	ProjectionJournalPartitions int           `koanf:"PROJECTION_JOURNAL_PARTITIONS"`
+	Databases                   []Database    `koanf:"-"`
 }
 
 func (database Database) Validate() error {
@@ -49,7 +47,7 @@ func (database Database) Validate() error {
 
 	for _, field := range requiredFields {
 		if fields[field] == "" {
-			return fmt.Errorf("%s: outbox %s is required", database.Service, field)
+			return fmt.Errorf("config.Database.Validate: %s: outbox %s is required", database.Service, field)
 		}
 	}
 
@@ -57,9 +55,8 @@ func (database Database) Validate() error {
 }
 
 func (settings Debezium) Validate() error {
-	err := infrahttp.ValidateURL(settings.ConnectURL)
-	if err != nil {
-		return fmt.Errorf("CONNECT_URL: %w", err)
+	if settings.ConnectURL == "" {
+		return errors.New("CONNECT_URL is required")
 	}
 
 	if settings.TemplatePath == "" {
@@ -87,7 +84,7 @@ func (settings Debezium) Validate() error {
 		}
 
 		if services[database.Service] {
-			return fmt.Errorf("duplicate outbox service: %s", database.Service)
+			return fmt.Errorf("config.Debezium.Validate: duplicate outbox service: %s", database.Service)
 		}
 
 		services[database.Service] = true
@@ -95,5 +92,3 @@ func (settings Debezium) Validate() error {
 
 	return nil
 }
-
-type Environment map[string]string

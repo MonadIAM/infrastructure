@@ -38,6 +38,8 @@ services:
       CLICKHOUSE_USER: default
       CLICKHOUSE_PASSWORD: test-only
       CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "127.0.0.1::8123"
     volumes:
       - clickhouse-data:/var/lib/clickhouse
     healthcheck:

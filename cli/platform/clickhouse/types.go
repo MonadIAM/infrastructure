@@ -4,47 +4,23 @@ import (
 	"errors"
 	"regexp"
 	"time"
-
-	"github.com/MonadIAM/infrastructure/cli/config"
-	infrahttp "github.com/MonadIAM/infrastructure/cli/platform/http"
 )
 
 type Settings struct {
-	Address        string
-	User           string
-	Password       string
-	WriterUser     string
-	WriterPassword string
-	ReaderUser     string
-	ReaderPassword string
-	SchemaDir      string
-	Timeout        time.Duration
-}
-
-func Load(environment config.Environment) (Settings, error) {
-	settings := Settings{
-		Address:        environment.Get("CLICKHOUSE_URL", "http://clickhouse:8123"),
-		User:           environment["CLICKHOUSE_USER"],
-		Password:       environment["CLICKHOUSE_PASSWORD"],
-		WriterUser:     environment["CLICKHOUSE_WRITER_USER"],
-		WriterPassword: environment["CLICKHOUSE_WRITER_PASSWORD"],
-		ReaderUser:     environment["CLICKHOUSE_READER_USER"],
-		ReaderPassword: environment["CLICKHOUSE_READER_PASSWORD"],
-		SchemaDir:      environment.Get("CLICKHOUSE_SCHEMA_DIR", "audit-archive/clickhouse/schema"),
-	}
-	var err error
-	settings.Timeout, err = environment.Duration("INFRA_TIMEOUT", "2m")
-	if err == nil {
-		return settings, settings.Validate()
-	} else {
-		return settings, err
-	}
+	Address        string        `koanf:"CLICKHOUSE_URL"`
+	User           string        `koanf:"CLICKHOUSE_USER"`
+	Password       string        `koanf:"CLICKHOUSE_PASSWORD"`
+	WriterUser     string        `koanf:"CLICKHOUSE_WRITER_USER"`
+	WriterPassword string        `koanf:"CLICKHOUSE_WRITER_PASSWORD"`
+	ReaderUser     string        `koanf:"CLICKHOUSE_READER_USER"`
+	ReaderPassword string        `koanf:"CLICKHOUSE_READER_PASSWORD"`
+	SchemaDir      string        `koanf:"CLICKHOUSE_SCHEMA_DIR"`
+	Timeout        time.Duration `koanf:"INFRA_TIMEOUT"`
 }
 
 func (settings Settings) Validate() error {
-	err := infrahttp.ValidateURL(settings.Address)
-	if err != nil {
-		return err
+	if settings.Address == "" {
+		return errors.New("ClickHouse address is required")
 	}
 
 	valid := regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)

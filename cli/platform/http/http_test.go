@@ -3,13 +3,13 @@ package http
 import (
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"sync/atomic"
 	"testing"
-	"time"
 
+	"github.com/go-resty/resty/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -20,55 +20,62 @@ func TestHTTP(t *testing.T) {
 }
 
 var _ = Describe("[Utility] - HTTP", func() {
-	Describe("[Method] - Client.Do", func() {
-		It("[case] - does not disclose server responses or follow redirects with credentials", func() {
+	Describe("[Function] - New", func() {
+		It("[case] - returns the redirect response without forwarding credentials", func() {
 			// Arrange
 			var requests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				requests.Add(1)
 				writer.Header().Set("Location", "/private-token")
 				writer.WriteHeader(http.StatusTemporaryRedirect)
-				_, _ = io.WriteString(writer, "private-secret")
 			}))
 			DeferCleanup(server.Close)
 			client := New(server.URL)
-			client.Token = "private-token"
+			client.SetHeader("X-Vault-Token", "private-token")
 
 			// Act
-			_, err := client.Do(context.Background(), http.MethodGet, "/", nil)
+			response, err := client.R().Get("/")
 
 			// Assert
-			Expect(IsStatus(err, 307)).To(BeTrue())
-			Expect(err.Error()).NotTo(ContainSubstring("private"))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(response.StatusCode()).To(Equal(http.StatusTemporaryRedirect))
 			Expect(requests.Load()).To(Equal(int32(1)))
+		})
+
+		It("[case] - limits responses to 16 MiB", func() {
+			// Arrange
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				chunk := make([]byte, 1<<20)
+				for range 17 {
+					_, err := writer.Write(chunk)
+					if err != nil {
+						return
+					}
+				}
+			}))
+			DeferCleanup(server.Close)
+			client := New(server.URL)
+
+			// Act
+			_, err := client.R().Get("/")
+
+			// Assert
+			Expect(err).To(MatchError(resty.ErrResponseBodyTooLarge))
 		})
 	})
 
-	Describe("[Function] - Wait", func() {
-		It("[case] - stops a retry wait when the context is canceled", func() {
+	Describe("[Method] - RequestError.Error", func() {
+		It("[case] - preserves cancellation and its cause without exposing the URL", func() {
 			// Arrange
-			ctx, cancel := context.WithCancel(context.Background())
-			DeferCleanup(cancel)
-			result := make(chan error, 1)
+			cause := &url.Error{Op: "Get", URL: "http://host/private-secret", Err: context.Canceled}
 
 			// Act
-			go func() {
-				result <- Wait(ctx, time.Hour, func() error {
-					cancel()
-
-					return StatusError{Code: 503}
-				})
-			}()
-
-			var actionErr error
-			select {
-			case actionErr = <-result:
-			case <-time.After(time.Second):
-				actionErr = errors.New("cancellation did not finish within one second")
-			}
+			err := RequestError{Cause: cause}
 
 			// Assert
-			Expect(actionErr).To(MatchError(context.Canceled))
+			Expect(err).To(MatchError(context.Canceled))
+			Expect(errors.Is(err, cause)).To(BeTrue())
+			Expect(err.Error()).NotTo(ContainSubstring("private-secret"))
 		})
 	})
 })

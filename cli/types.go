@@ -2,22 +2,9 @@ package cli
 
 import (
 	"context"
-	"io"
-
-	"github.com/MonadIAM/infrastructure/cli/config"
 )
 
-type commandHandler func(context.Context, config.Environment, commandOptions, io.Writer) error
-
-type commandOptions struct {
-	envFile      string
-	csvFile      string
-	arguments    []string
-	connectURL   string
-	templatePath string
-	timeout      string
-	overrides    map[string]string
-}
+type commandHandler func(*application, context.Context) error
 
 const usage = `Usage:
   infra config validate [options]
