@@ -6,54 +6,88 @@ Prometheus, Grafana, Loki and Tempo.
 
 ### Requirements
 
-- ***Make*** — runs the prepared project commands, such as `make up`, using the
-  instructions in `Makefile`.
-- ***Docker with Compose v2*** — runs the infrastructure services in containers. Docker
-  must be running, and Compose must support `include`.
-- ***Go 1.27+*** — builds and runs the infrastructure tooling on your computer. Needed for
-  development commands, tests and `make aws`; Docker builds the container version
-  automatically.
+- **Make** — runs the prepared project commands from `Makefile`, such as `make up`.
+- **Docker with Compose v2** — runs the infrastructure in containers. Docker must be
+  running, and Compose must support the `include` directive.
+- **Go 1.27+** — required on the host for linting, tests, configuration validation
+  and AWS credential import. The container CLI is built as part of the Docker images.
+
+### Quick Start
+
+For the first run, execute from the repository root:
+
+```bash
+make env
+```
+
+Review the settings in `.env`, then build the images and start the infrastructure:
+
+```bash
+make build
+make up
+docker compose ps -a
+```
+
+> - `make env` replaces an existing `.env`. You do not need to run it on every startup.
+> - Wait for services to become ready and initialization containers to complete
+>   successfully before starting applications from the service repositories.
 
 ----
 
 <details>
-<summary><strong>Service Port Map</strong></summary>
+<summary><strong>Commands</strong></summary>
 
-| Index | Service          | HTTP APP_PORT | PostgreSQL host port | Redis host port |
-| :---- | :--------------- | :------------ | :------------------- | :-------------- |
-| `0`   | `template`       | `4000`        | `6000`               | `7000`          |
-| `1`   | `access-control` | `4001`        | `6001`               | `7001`          |
-| `2`   | `identity`       | `4002`        | `6002`               | `7002`          |
-| `3`   | `notification`   | `4003`        | `6003`               | `7003`          |
-| `4`   | `organization`   | `4004`        | `6004`               | `7004`          |
-| `5`   | `hr`             | `4005`        | `6005`               | `7005`          |
+| Makefile               | CLI                          | Purpose                                                  |
+| :--------------------- | :--------------------------- | :------------------------------------------------------- |
+| **Infrastructure**     |                              |                                                          |
+| `make env`             | —                            | Copy the example to `.env`, replacing any existing file. |
+| `make aws`             | `infra aws import`           | Import AWS credentials from CSV into `.env`.             |
+| `make build`           | —                            | Build Compose images, including the CLI.                 |
+| `make up`              | —                            | Create and start containers.                             |
+| `make down`            | —                            | Remove containers and networks; preserve volumes.        |
+| `make restart`         | —                            | Run `down`, then `up`.                                   |
+| `make stop`            | —                            | Stop containers without removing them.                   |
+| `make start`           | —                            | Start existing stopped containers.                       |
+| **Development**        |                              |                                                          |
+| `make lint`            | —                            | Run golangci-lint and gofmt checks.                      |
+| `make lint-fix`        | —                            | Apply gofmt formatting.                                  |
+| `make env-check`       | `infra config validate`      | Validate settings and templates without network calls.   |
+| **Initialization**     |                              |                                                          |
+| `make kafka-init`      | `infra kafka reconcile`      | Create topics and verify partition counts.               |
+| `make debezium-init`   | `infra debezium reconcile`   | Create or update connectors.                             |
+| `make vault-init`      | `infra vault initialize`     | Initialize or unseal Vault.                              |
+| `make vault-bootstrap` | `infra vault bootstrap`      | Configure secrets, keys, policies and AppRoles.          |
+| `make clickhouse-init` | `infra clickhouse reconcile` | Apply SQL schema and access grants.                      |
+| `make seaweedfs-init`  | `infra seaweedfs reconcile`  | Configure buckets and retention rules.                   |
+| **Archive**            |                              |                                                          |
+| `make archive-run`     | `infra archive run`          | Run one archive cycle.                                   |
+| **Tests**              |                              |                                                          |
+| `make utest`           | —                            | Run Ginkgo tests with the race detector, without Docker. |
+| `make itest`           | —                            | Run integration tests in isolated containers.            |
+| **Container Startup**  |                              |                                                          |
+| —                      | `infra kafka start`          | Prepare storage and start Kafka.                         |
+| —                      | `infra seaweedfs start`      | Prepare credentials and start SeaweedFS.                 |
+| —                      | `infra archive loop`         | Run archive cycles periodically.                         |
 
-Service containers use internal PostgreSQL port `5432` and Redis port `6379`. Only the
-host-published ports above are service-indexed.
+**CLI Options**
 
-</details>
+| Option          | Purpose                                            |
+| :-------------- | :------------------------------------------------- |
+| `--env-file`    | Dotenv path; an empty value disables file loading. |
+| `--timeout`     | Operation timeout, e.g. `2m`.                      |
+| `--connect-url` | Kafka Connect address for Debezium commands.       |
+| `--template`    | Debezium connector template path.                  |
+| `--csv`         | CSV path for `aws import`.                         |
+| `--help`        | General or command-specific help.                  |
 
-----
-
-<details>
-<summary><strong>Shared Ports</strong></summary>
-
-| Component          | Host port | Container port | Variable                   |
-| :----------------- | :-------- | :------------- | :------------------------- |
-| Kafka UI           | `8080`    | `8080`         | `KAFKA_UI_PORT`            |
-| Kafka Connect      | `8083`    | `8083`         | `KAFKA_CONNECT_PORT`       |
-| Schema Registry    | `8081`    | `8080`         | `SCHEMA_REGISTRY_PORT`     |
-| Vault              | `8200`    | `8200`         | `VAULT_PUBLISHED_PORT`     |
-| ClickHouse         | `9000`    | `9000`         | `CLICKHOUSE_NATIVE_PORT`   |
-| ClickHouse         | `8123`    | `8123`         | `CLICKHOUSE_HTTP_PORT`     |
-| SeaweedFS API      | `9010`    | `8333`         | `SEAWEEDFS_API_PORT`       |
-| SeaweedFS Admin UI | `9011`    | `23646`        | `SEAWEEDFS_ADMIN_PORT`     |
-| Prometheus         | `9090`    | `9090`         | `PROMETHEUS_PORT`          |
-| Grafana            | `3000`    | `3000`         | `GRAFANA_PORT`             |
-| Loki               | `3100`    | `3100`         | `LOKI_PORT`                |
-| Tempo              | `3200`    | `3200`         | `TEMPO_PORT`               |
-| OTel Collector     | `4317`    | `4317`         | `OTEL_COLLECTOR_GRPC_PORT` |
-| OTel Collector     | `4318`    | `4318`         | `OTEL_COLLECTOR_HTTP_PORT` |
+> - Makefile is the main entry point. To run the CLI directly, use
+>   `go run . <component> <action> [options]`; for help, use `go run . --help`.
+> - `ENV_FILE` selects the file for `make aws` and `make env-check`; `AWS_FILE`
+>   selects the CSV to import. Example: `make env-check ENV_FILE=.env.example`.
+> - Rebuild container images with `make build` after changing Go code.
+> - Single-quote dotenv values containing `$`.
+> - Integration tests remove their containers and volumes on completion.
+> - Pass server arguments for `infra seaweedfs start` after `--`.
 
 </details>
 
@@ -64,72 +98,105 @@ host-published ports above are service-indexed.
 
 ```text
 local/
-├── Makefile                            # Infrastructure and development commands
-├── docker-compose.yml                  # Root Compose include manifest
-├── Dockerfile                          # CLI image and Kafka/SeaweedFS runtime targets
-├── main.go                             # Go CLI entry point
-├── go.mod                              # Go module and dependencies
-├── go.sum                              # Dependency checksums
+├── Makefile                             # Infrastructure, development and test commands
+├── .env.example                         # Example environment settings
+├── docker-compose.yml                   # Component Compose includes
+├── Dockerfile                           # CLI, Kafka and SeaweedFS images
+├── main.go                              # CLI entry point and shutdown handling
+├── go.mod                               # Go module and dependencies
+├── go.sum                               # Dependency checksums
 │
-├── cli/                                # Go application and tests
-│   ├── cli.go                          # Argument parsing and command dispatch
-│   ├── commands.go                     # Command handlers and invocation state
-│   ├── types.go                        # CLI handler type and usage text
-│   ├── cli_test.go                     # Command-line scenarios
-│   ├── config/                         # koanf loading and typed settings
+├── cli/                                 # Go application and component tests
+│   ├── cli.go                           # Command-line arguments
+│   ├── commands.go                      # Command handlers and application state
+│   ├── types.go                         # Handler type and help text
+│   ├── config/                          # Configuration loading and typed settings
 │   ├── platform/
-│   │   ├── aws/                        # AWS CSV import into dotenv
-│   │   ├── clickhouse/                 # SQL schema, users and grants
-│   │   ├── debezium/                   # Connector configuration and registration
-│   │   ├── http/                       # Resty defaults and safe HTTP errors
-│   │   ├── kafka/                      # Startup, topics and partition checks
-│   │   │   └── definitions.go          # Topic catalog and retention defaults
-│   │   ├── schema/                     # Schema Registry rule validation
-│   │   ├── seaweedfs/                  # Credentials, buckets, retention and lifecycle
-│   │   └── vault/                      # Initialization, unseal and bootstrap
-│   │       └── definitions.go          # Mounts, keys, roles and secret field mappings
-│   ├── jobs/
-│   │   └── archive/                    # Parquet archive cycle and periodic job
-│   │       └── definitions.go          # Archive tables and export projections
-│   └── tests/
-│       └── integration/                # Disposable bootstrap, outbox and archive tests
-│           ├── types.go                # Shared status and result types
-│           ├── compose_helpers.go      # Compose fixture and CLI execution
-│           ├── bootstrap_helpers.go    # Storage and Vault fixtures
-│           ├── debezium_helpers.go     # Connect client and outbox fixtures
-│           ├── integration_test.go     # Ginkgo suite entry point
-│           ├── bootstrap_test.go       # Bootstrap, permissions and archive scenarios
-│           ├── debezium_test.go        # Connector, outbox and Kafka scenarios
-│           └── testdata/               # Compose stacks and SQL fixtures
+│   │   ├── aws/                         # AWS credential import from CSV
+│   │   ├── clickhouse/                  # SQL queries, schema and access grants
+│   │   ├── debezium/                    # Connector configuration and registration
+│   │   ├── http/                        # Resty defaults and HTTP error handling
+│   │   ├── kafka/                       # Broker startup and topic configuration
+│   │   ├── schema/                      # Schema Registry rule validation
+│   │   ├── seaweedfs/                   # Credentials, buckets and retention rules
+│   │   └── vault/                       # Initialization, unseal and secret configuration
+│   ├── jobs/archive/                    # Partition export to Parquet
+│   └── tests/integration/               # Tests against real components
+│       ├── compose_helpers.go           # Test environment management
+│       ├── bootstrap_helpers.go         # Vault and storage checks
+│       ├── debezium_helpers.go          # Connect client and outbox setup
+│       ├── bootstrap_test.go            # Bootstrap, permissions and archive scenarios
+│       ├── debezium_test.go             # Connectors and event delivery
+│       └── testdata/                    # Test Compose files and SQL fixtures
 │
-├── services/                           # Per-service PostgreSQL and Redis
+├── services/                            # Per-service PostgreSQL and Redis
 │   ├── template/compose.yml
-│   ├── organization/compose.yml
-│   ├── hr/compose.yml
 │   ├── access-control/compose.yml
 │   ├── identity/compose.yml
-│   └── notification/compose.yml
-│
+│   ├── notification/compose.yml
+│   ├── organization/compose.yml
+│   └── hr/compose.yml
 ├── messaging/
-│   ├── compose.yml                     # Kafka, UI, Schema Registry, Connect and init
-│   ├── kafka/server.properties         # Kafka broker configuration
+│   ├── compose.yml                      # Kafka, UI, Registry, Connect and initialization
+│   ├── kafka/server.properties          # Broker configuration
 │   └── debezium/outbox.connector.json   # Outbox connector template
-│
 ├── vault/
-│   ├── compose.yml                     # Server, init/unseal and bootstrap
-│   ├── config/vault.hcl                # Vault server configuration
-│   └── policies/                       # Service ACL policies
-│
+│   ├── compose.yml                      # Vault server and initialization
+│   ├── config/vault.hcl                 # Server configuration
+│   └── policies/                        # Service access policies
 ├── audit-archive/
-│   ├── compose.yml                     # ClickHouse, SeaweedFS and archive job
-│   ├── clickhouse/schema/              # SQL schema and access grants
-│   └── seaweedfs/                      # Bucket policy and lifecycle templates
-│
+│   ├── compose.yml                      # ClickHouse, SeaweedFS and archiver
+│   ├── clickhouse/schema/               # Audit SQL schema and access grants
+│   └── seaweedfs/                       # Bucket policies and lifecycle
 └── observability/
-    ├── compose.yml                     # Prometheus, Grafana, Loki, Tempo, OTel/exporters
-    ├── prometheus/prometheus.yml       # Metrics scrape configuration
-    └── grafana/provisioning/           # Datasources and dashboards
+    ├── compose.yml                      # Monitoring, logs, traces and exporters
+    ├── prometheus/prometheus.yml        # Metrics sources
+    └── grafana/provisioning/            # Datasources and dashboards
 ```
+
+</details>
+
+----
+
+<details>
+<summary><strong>Ports and Access</strong></summary>
+
+Default ports are defined in `.env.example`. Applications run from separate service
+repositories; `APP_PORT` is listed here to match each application to its databases.
+
+**Service Host Ports**
+
+| Service          | APP_PORT | PostgreSQL | Redis  |
+| :--------------- | :------- | :--------- | :----- |
+| `template`       | `4000`   | `6000`     | `7000` |
+| `access-control` | `4001`   | `6001`     | `7001` |
+| `identity`       | `4002`   | `6002`     | `7002` |
+| `notification`   | `4003`   | `6003`     | `7003` |
+| `organization`   | `4004`   | `6004`     | `7004` |
+| `hr`             | `4005`   | `6005`     | `7005` |
+
+Within Docker networks, PostgreSQL uses port `5432` and Redis uses `6379`.
+Kafka is available to containers at `kafka:29092`; the broker port is not published
+on the host.
+
+**Shared Components**
+
+| Component          | Host port | Container port | Variable                   |
+| :----------------- | :-------- | :------------- | :------------------------- |
+| Kafka UI           | `8080`    | `8080`         | `KAFKA_UI_PORT`            |
+| Kafka Connect      | `8083`    | `8083`         | `KAFKA_CONNECT_PORT`       |
+| Schema Registry    | `8081`    | `8080`         | `SCHEMA_REGISTRY_PORT`     |
+| Vault              | `8200`    | `8200`         | `VAULT_PUBLISHED_PORT`     |
+| ClickHouse Native  | `9000`    | `9000`         | `CLICKHOUSE_NATIVE_PORT`   |
+| ClickHouse HTTP    | `8123`    | `8123`         | `CLICKHOUSE_HTTP_PORT`     |
+| SeaweedFS S3       | `9010`    | `8333`         | `SEAWEEDFS_API_PORT`       |
+| SeaweedFS Admin UI | `9011`    | `23646`        | `SEAWEEDFS_ADMIN_PORT`     |
+| Prometheus         | `9090`    | `9090`         | `PROMETHEUS_PORT`          |
+| Grafana            | `3000`    | `3000`         | `GRAFANA_PORT`             |
+| Loki               | `3100`    | `3100`         | `LOKI_PORT`                |
+| Tempo              | `3200`    | `3200`         | `TEMPO_PORT`               |
+| OTel gRPC          | `4317`    | `4317`         | `OTEL_COLLECTOR_GRPC_PORT` |
+| OTel HTTP          | `4318`    | `4318`         | `OTEL_COLLECTOR_HTTP_PORT` |
 
 </details>
 
@@ -138,17 +205,107 @@ local/
 <details>
 <summary><strong>Service Infrastructure</strong></summary>
 
-| Service          | PostgreSQL container        | Redis container        | PostgreSQL variables prefix | Redis variables prefix   |
-| :--------------- | :-------------------------- | :--------------------- | :-------------------------- | :----------------------- |
-| `template`       | `template-postgresql`       | `template-redis`       | `TEMPLATE_POSTGRES_*`       | `TEMPLATE_REDIS_*`       |
-| `access-control` | `access-control-postgresql` | `access-control-redis` | `ACCESS_CONTROL_POSTGRES_*` | `ACCESS_CONTROL_REDIS_*` |
-| `identity`       | `identity-postgresql`       | `identity-redis`       | `IDENTITY_POSTGRES_*`       | `IDENTITY_REDIS_*`       |
-| `notification`   | `notification-postgresql`   | `notification-redis`   | `NOTIFICATION_POSTGRES_*`   | `NOTIFICATION_REDIS_*`   |
-| `organization`   | `organization-postgresql`   | `organization-redis`   | `ORGANIZATION_POSTGRES_*`   | `ORGANIZATION_REDIS_*`   |
-| `hr`             | `hr-postgresql`             | `hr-redis`             | `HR_POSTGRES_*`             | `HR_REDIS_*`             |
+Each service has separate `<service>-postgresql` and `<service>-redis` containers.
+Their Compose files are located at `services/<service>/compose.yml`.
 
-PostgreSQL containers run with logical replication enabled for Debezium:
-`wal_level=logical`, `max_replication_slots=10`, `max_wal_senders=10`.
+| Service          | PostgreSQL variable prefix  | Redis variable prefix    |
+| :--------------- | :-------------------------- | :----------------------- |
+| `template`       | `TEMPLATE_POSTGRES_*`       | `TEMPLATE_REDIS_*`       |
+| `access-control` | `ACCESS_CONTROL_POSTGRES_*` | `ACCESS_CONTROL_REDIS_*` |
+| `identity`       | `IDENTITY_POSTGRES_*`       | `IDENTITY_REDIS_*`       |
+| `notification`   | `NOTIFICATION_POSTGRES_*`   | `NOTIFICATION_REDIS_*`   |
+| `organization`   | `ORGANIZATION_POSTGRES_*`   | `ORGANIZATION_REDIS_*`   |
+| `hr`             | `HR_POSTGRES_*`             | `HR_REDIS_*`             |
+
+PostgreSQL logical replication is enabled for Debezium: `wal_level=logical`,
+`max_replication_slots=10`, `max_wal_senders=10`.
+
+</details>
+
+----
+
+<details>
+<summary><strong>Vault</strong></summary>
+
+Compose starts Vault and the containers that initialize and configure it.
+The unseal key and root token are saved in the `vault_init` volume; server data is
+stored in `vault_data`. The CLI also creates the local token specified by `VAULT_TOKEN`.
+
+Each service gets an AppRole named `<service>-service` and a KV path at
+`kv/<service>-service/runtime`. Access policies are stored in `vault/policies/`.
+
+| Runtime secret field  | Purpose                                                 |
+| :-------------------- | :------------------------------------------------------ |
+| `postgresql_username` | PostgreSQL user for the application and migrations.     |
+| `postgresql_password` | PostgreSQL password for the application and migrations. |
+| `redis_password`      | Redis password for the application and seeders.         |
+
+AWS credentials can be added to `kv/notification-service/runtime`, while
+`kv/identity-service/oauth` stores OAuth provider secrets. Transit keys are used
+for audit and identity token operations.
+
+Service containers receive secrets through their own Vault Agent, using a Unix socket
+and files rendered from templates.
+
+</details>
+
+----
+
+<details>
+<summary><strong>Kafka and Debezium</strong></summary>
+
+`messaging/compose.yml` starts Kafka, Kafka UI, Apicurio Schema Registry,
+Kafka Connect and the Debezium connector registration container.
+
+- `make kafka-init` creates missing topics and verifies partition counts.
+  The topic catalog and retention periods are defined in `cli/platform/kafka/definitions.go`.
+- `make debezium-init` creates or updates outbox connectors without resetting offsets.
+  Each service uses the connector name `<service>-service-outbox-connector`
+  and the PostgreSQL address `<service>-postgresql:5432`.
+- Delayed delivery retries use `message-dispatch-retry-notification-service`.
+  Other consumers use a limited number of retries within the handler.
+  Dead-letter topics are provided for final failures.
+
+Schema Registry uses KafkaSQL. Its internal topics are created explicitly;
+automatic topic creation is disabled. Readiness checks use the internal management
+port `9000`.
+
+| Variable                               | Default    | Purpose                      |
+| :------------------------------------- | :--------- | :--------------------------- |
+| `SCHEMA_REGISTRY_GLOBAL_VALIDITY`      | `FULL`     | Schema structure validation. |
+| `SCHEMA_REGISTRY_GLOBAL_COMPATIBILITY` | `BACKWARD` | Backward compatibility.      |
+| `SCHEMA_REGISTRY_GLOBAL_INTEGRITY`     | `FULL`     | Schema reference integrity.  |
+
+> Topic initialization does not delete old messages. Process any remaining events
+> before retiring previous retry topics and queues.
+
+</details>
+
+----
+
+<details>
+<summary><strong>Audit Storage</strong></summary>
+
+ClickHouse stores `audit.audit_log` and `audit.change_log`; the SQL schema sets a
+180-day TTL. The archiver exports monthly partitions to SeaweedFS as Parquet,
+verifies row counts and records completed exports. Subsequent cycles skip
+partitions already recorded as complete.
+
+By default, the partition selection cutoff is calculated from `ARCHIVE_AFTER_DAYS=150`,
+and the interval between cycles is set by `ARCHIVE_INTERVAL_SECONDS=86400` (one day).
+
+| Default bucket       | Retention | Retention variable                    |
+| :------------------- | :-------- | :------------------------------------ |
+| `audit-archive`      | 1095 days | `SEAWEEDFS_AUDIT_LOG_RETENTION_DAYS`  |
+| `change-log-archive` | 365 days  | `SEAWEEDFS_CHANGE_LOG_RETENTION_DAYS` |
+
+Bucket names are set through `SEAWEEDFS_AUDIT_LOG_BUCKET` and
+`SEAWEEDFS_CHANGE_LOG_BUCKET`. Versioning, Object Lock in COMPLIANCE mode and lifecycle
+rules are enabled. The archiver account can read and write objects, but cannot delete
+them. Policy templates are stored in `audit-archive/seaweedfs/`.
+
+> - `make archive-run` runs one cycle; the archiver container runs cycles periodically.
+> - Do not run a manual cycle concurrently with the running archiver.
 
 </details>
 
@@ -157,30 +314,23 @@ PostgreSQL containers run with logical replication enabled for Debezium:
 <details>
 <summary><strong>Observability</strong></summary>
 
-`local` restores the application observability path without the heavier parts of the
-`k3s` stand: no container, node, pod, or Kubernetes control-plane metrics, and no
-auth/TLS/service-mesh layer around Grafana, Prometheus, Loki, Tempo, or the OTel
-Collector. Published ports are bound to `127.0.0.1`.
+Prometheus collects application and infrastructure metrics, Loki receives logs,
+and OTel Collector forwards traces to Tempo. Grafana combines these sources.
+Observability ports are bound to `127.0.0.1`.
 
 ```mermaid
-flowchart TD
-    user[User] --> service[MonadIAM service]
-
-    service -->|/api/v1/metrics scrape| prometheus[Prometheus]
-    service -->|Pino warn/error when enabled| loki[Loki]
-    service -->|OTLP gRPC/HTTP traces| otel[OTel Collector]
+flowchart LR
+    app[Services] -->|Metrics| prometheus[Prometheus]
+    app -->|warn/error logs| loki[Loki]
+    app -->|OTLP traces| otel[OTel Collector]
     otel --> tempo[Tempo]
-
     grafana[Grafana] --> prometheus
     grafana --> loki
     grafana --> tempo
-
-    service -->|audit/change commands only| clickhouse[ClickHouse WORM]
-    clickhouse --> seaweedfs[SeaweedFS cold WORM]
 ```
 
-Service compose projects must join `DOCKER_NETWORK_MONITORING=monitoring-net`. Service
-`.env.local.example` files include the observability defaults:
+Service Compose projects must join the `DOCKER_NETWORK_MONITORING=monitoring-net`
+network. Application settings:
 
 ```dotenv
 OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4317"
@@ -190,145 +340,14 @@ LOKI_URL="http://loki:3100"
 LOKI_BATCH_INTERVAL="5"
 ```
 
-Existing service `.env` files are not rewritten automatically. Add these variables
-manually or recreate them from `.env.local.example`.
+Grafana is available at `http://localhost:3000`. Provisioned dashboards include
+`Services`, `PostgreSQL`, `Redis`, `Kafka`, `Queues`, `ClickHouse` and `SeaweedFS`,
+with `Services` as the home dashboard. Credentials are set through
+`GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD`.
 
-Grafana is available at `http://localhost:3000`; the provisioned dashboards are
-`Services`, `PostgreSQL`, `Redis`, `Kafka`, `Queues`, `ClickHouse`, and `SeaweedFS`, with
-`Services` as the home dashboard. ClickHouse query/audit data is still not used as a
-Grafana datasource: audit/change logs remain an investigation WORM path, not operational
-log storage.
-
-</details>
-
-----
-
-<details>
-<summary><strong>Vault</strong></summary>
-
-| Service          | AppRole name             | Runtime KV path                     | Extra KV path               |
-| :--------------- | :----------------------- | :---------------------------------- | :-------------------------- |
-| `template`       | `template-service`       | `kv/template-service/runtime`       |                             |
-| `identity`       | `identity-service`       | `kv/identity-service/runtime`       | `kv/identity-service/oauth` |
-| `notification`   | `notification-service`   | `kv/notification-service/runtime`   |                             |
-| `access-control` | `access-control-service` | `kv/access-control-service/runtime` |                             |
-| `organization`   | `organization-service`   | `kv/organization-service/runtime`   |                             |
-| `hr`             | `hr-service`             | `kv/hr-service/runtime`             |                             |
-
-Runtime KV payloads contain static local credentials rendered by each service's Vault
-Agent:
-
-| Field                 | Used by                         |
-| :-------------------- | :------------------------------ |
-| `postgresql_username` | Application runtime, migrations |
-| `postgresql_password` | Application runtime, migrations |
-| `redis_password`      | Application runtime, seeders    |
-
-`notification-service/runtime` also accepts optional AWS credentials.
-`identity-service/oauth` contains OAuth provider client secrets.
-
-Vault Transit keys are created for audit masking/signing and identity token operations.
-Service containers access Vault through their local Vault Agent Unix listener and
-rendered secret files.
+> - Existing service `.env` files are not updated automatically. Add observability
+>   settings manually or copy them from `.env.local.example`.
+> - `local` does not collect Kubernetes metrics or add a service mesh around monitoring.
+>   Audit data in ClickHouse/SeaweedFS is separate from operational logs in Loki.
 
 </details>
-
-----
-
-<details>
-<summary><strong>Kafka and Debezium</strong></summary>
-
-- `messaging/compose.yml` starts Kafka, Kafka UI, Schema Registry, Kafka Connect, and
-  the Debezium connector bootstrap container.
-- `infra kafka reconcile` creates platform and terminal dead-letter topics. The only
-  delayed retry topic is `message-dispatch-retry-notification-service`; ordinary
-  consumers retry inline with a finite budget. Drain old retry topics/queues before
-  rollout; this command does not delete their messages.
-- `infra debezium reconcile` registers or updates outbox connectors without resetting
-  offsets.
-
-Schema Registry runs on Apicurio Registry with KafkaSQL storage. Its internal journal,
-snapshots, and events topics are created explicitly by `infra kafka reconcile`; topic
-auto-creation is disabled in the registry container. Registry readiness is checked
-through the Apicurio management endpoint on the internal container port `9000`.
-
-Global Schema Registry rules are configured through `.env`:
-
-| Variable                               | Default    | Purpose                                      |
-| :------------------------------------- | :--------- | :------------------------------------------- |
-| `SCHEMA_REGISTRY_GLOBAL_VALIDITY`      | `FULL`     | Reject structurally invalid schema artifacts |
-| `SCHEMA_REGISTRY_GLOBAL_COMPATIBILITY` | `BACKWARD` | Keep consumers compatible by default         |
-| `SCHEMA_REGISTRY_GLOBAL_INTEGRITY`     | `FULL`     | Validate artifact references and integrity   |
-
-| Service          | Connector name                            | PostgreSQL host                  |
-| :--------------- | :---------------------------------------- | :------------------------------- |
-| `template`       | `template-service-outbox-connector`       | `template-postgresql:5432`       |
-| `access-control` | `access-control-service-outbox-connector` | `access-control-postgresql:5432` |
-| `identity`       | `identity-service-outbox-connector`       | `identity-postgresql:5432`       |
-| `notification`   | `notification-service-outbox-connector`   | `notification-postgresql:5432`   |
-| `organization`   | `organization-service-outbox-connector`   | `organization-postgresql:5432`   |
-| `hr`             | `hr-service-outbox-connector`             | `hr-postgresql:5432`             |
-
-</details>
-
-----
-
-<details>
-<summary><strong>Commands</strong></summary>
-
-| Makefile               | CLI                          | Description                                                       |
-| :--------------------- | :--------------------------- | :---------------------------------------------------------------- |
-| **Infrastructure**     |                              |                                                                   |
-| `make env`             | —                            | Copy `.env.example` to `.env`, replacing any existing file.       |
-| `make aws`             | `infra aws import`           | Import AWS credentials from CSV into `.env`.                      |
-| `make build`           | —                            | Build Compose images, including the CLI.                          |
-| `make up`              | —                            | Start infrastructure with Compose.                                |
-| `make down`            | —                            | Remove containers and networks.                                   |
-| `make restart`         | —                            | Run `down`, then `up`.                                            |
-| `make stop`            | —                            | Stop containers.                                                  |
-| `make start`           | —                            | Start existing containers.                                        |
-| **Development**        |                              |                                                                   |
-| `make lint`            | —                            | Run golangci-lint and gofmt checks.                               |
-| `make lint-fix`        | —                            | Apply gofmt formatting.                                           |
-| `make env-check`       | `infra config validate`      | Validate settings and templates without network calls.            |
-| **Initialization**     |                              |                                                                   |
-| `make kafka-init`      | `infra kafka reconcile`      | Create missing topics and verify partitions.                      |
-| `make debezium-init`   | `infra debezium reconcile`   | Register or update outbox connectors.                             |
-| `make vault-init`      | `infra vault initialize`     | Initialize or unseal Vault and ensure the local token exists.     |
-| `make vault-bootstrap` | `infra vault bootstrap`      | Apply secrets, keys, policies and AppRoles.                       |
-| `make clickhouse-init` | `infra clickhouse reconcile` | Apply SQL schema and access grants.                               |
-| `make seaweedfs-init`  | `infra seaweedfs reconcile`  | Configure buckets, retention, versioning, policies and lifecycle. |
-| **Archive**            |                              |                                                                   |
-| `make archive-run`     | `infra archive run`          | Run one archive cycle.                                            |
-| **Test**               |                              |                                                                   |
-| `make utest`           | —                            | Run Ginkgo unit and HTTP tests with the race detector.            |
-| `make itest`           | —                            | Run Ginkgo integration tests in disposable containers.            |
-| **Container startup**  |                              |                                                                   |
-| —                      | `infra kafka start`          | Prepare Kafka storage and start the broker.                       |
-| —                      | `infra seaweedfs start`      | Prepare credentials and start SeaweedFS.                          |
-| —                      | `infra archive loop`         | Run archive cycles periodically.                                  |
-
-| CLI option      | Purpose                                           |
-| :-------------- | :------------------------------------------------ |
-| `--env-file`    | Dotenv path; `--env-file=` disables file loading. |
-| `--timeout`     | Operation timeout, e.g. `2m`.                     |
-| `--connect-url` | Kafka Connect address for Debezium operations.    |
-| `--template`    | Debezium connector template path.                 |
-| `--csv`         | AWS CSV path, only for `aws import`.              |
-| `--help`        | General or command-specific help.                 |
-
-> - Start service repositories after the infrastructure is healthy; rebuild CLI images
->   with `make build` after code changes.
-> - Use `ENV_FILE` with `make aws` or `make env-check`, and `AWS_FILE` with
->   `make aws`; for example, `make env-check ENV_FILE=.env.example`.
-> - Single-quote dotenv secrets containing `$`.
-> - Integration tests remove their own containers and volumes on completion.
-> - Do not run `make archive-run` concurrently with the scheduled archiver.
-> - Container startup commands run through Compose. Pass SeaweedFS server arguments
->   after `--`.
-> - For direct CLI use, run `go run . <component> <action> [options]`; use
->   `go run . --help` for the command list.
-
-</details>
-
-----
