@@ -12,6 +12,80 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type Environment map[string]string
+
+func (environment Environment) Get(key, fallback string) string {
+	value, exists := environment[key]
+	if exists {
+		return value
+	} else {
+		return fallback
+	}
+}
+
+func (environment Environment) Require(keys ...string) error {
+	for _, key := range keys {
+		if environment[key] == "" {
+			return fmt.Errorf("config.Environment.Require: %s is required", key)
+		}
+	}
+
+	return nil
+}
+
+func (environment Environment) PositiveInt(key string) (int, error) {
+	value, err := strconv.Atoi(environment[key])
+	if err == nil && value > 0 {
+		return value, nil
+	} else {
+		return 0, fmt.Errorf("config.Environment.PositiveInt: %s must be a positive integer", key)
+	}
+}
+
+func (environment Environment) Duration(key, fallback string) (time.Duration, error) {
+	value, err := time.ParseDuration(environment.Get(key, fallback))
+	if err == nil && value > 0 {
+		return value, nil
+	} else {
+		return 0, fmt.Errorf("config.Environment.Duration: %s must be a positive duration", key)
+	}
+}
+
+func (environment Environment) Validate() error {
+	err := environment.Require(required...)
+	if err != nil {
+		return err
+	}
+
+	keys := []string{
+		"HELM_RETRY_ATTEMPTS",
+		"HELM_RETRY_DELAY_SECONDS",
+		"HELM_RETRY_MAX_DELAY_SECONDS",
+		"VAULT_KEY_SHARES",
+		"VAULT_KEY_THRESHOLD",
+		"PROJECTION_JOURNAL_PARTITIONS",
+		"SEAWEEDFS_AUDIT_LOG_RETENTION_DAYS",
+		"SEAWEEDFS_CHANGE_LOG_RETENTION_DAYS",
+	}
+
+	for _, key := range keys {
+		_, err := environment.PositiveInt(key)
+		if err != nil {
+			return err
+		}
+	}
+
+	shares, _ := environment.PositiveInt("VAULT_KEY_SHARES")
+	threshold, _ := environment.PositiveInt("VAULT_KEY_THRESHOLD")
+	if threshold > shares {
+		return errors.New("VAULT_KEY_THRESHOLD must not exceed VAULT_KEY_SHARES")
+	}
+
+	_, err = environment.Duration("INFRA_TIMEOUT", "60m")
+
+	return err
+}
+
 func Load(path string, overrides map[string]string) (Environment, error) {
 	values := make(Environment)
 
@@ -19,7 +93,7 @@ func Load(path string, overrides map[string]string) (Environment, error) {
 		var err error
 		values, err = godotenv.Read(path)
 		if err != nil {
-			return nil, fmt.Errorf("cannot read or parse environment file %s", path)
+			return nil, fmt.Errorf("config.Load: cannot read or parse environment file %s", path)
 		}
 	}
 
@@ -51,6 +125,7 @@ func Initialize(path string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		_ = source.Close()
 	}()
@@ -59,6 +134,7 @@ func Initialize(path string) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() {
 		_ = destination.Close()
 	}()
@@ -69,76 +145,4 @@ func Initialize(path string) error {
 	}
 
 	return destination.Sync()
-}
-
-func (environment Environment) Get(key, fallback string) string {
-	value, exists := environment[key]
-	if exists {
-		return value
-	} else {
-		return fallback
-	}
-}
-
-func (environment Environment) Require(keys ...string) error {
-	for _, key := range keys {
-		if environment[key] == "" {
-			return fmt.Errorf("%s is required", key)
-		}
-	}
-
-	return nil
-}
-
-func (environment Environment) PositiveInt(key string) (int, error) {
-	value, err := strconv.Atoi(environment[key])
-	if err == nil && value > 0 {
-		return value, nil
-	} else {
-		return 0, fmt.Errorf("%s must be a positive integer", key)
-	}
-}
-
-func (environment Environment) Duration(key, fallback string) (time.Duration, error) {
-	value, err := time.ParseDuration(environment.Get(key, fallback))
-	if err == nil && value > 0 {
-		return value, nil
-	} else {
-		return 0, fmt.Errorf("%s must be a positive duration", key)
-	}
-}
-
-func Validate(environment Environment) error {
-	err := environment.Require(required...)
-	if err != nil {
-		return err
-	}
-
-	keys := []string{
-		"HELM_RETRY_ATTEMPTS",
-		"HELM_RETRY_DELAY_SECONDS",
-		"HELM_RETRY_MAX_DELAY_SECONDS",
-		"VAULT_KEY_SHARES",
-		"VAULT_KEY_THRESHOLD",
-		"PROJECTION_JOURNAL_PARTITIONS",
-		"SEAWEEDFS_AUDIT_LOG_RETENTION_DAYS",
-		"SEAWEEDFS_CHANGE_LOG_RETENTION_DAYS",
-	}
-
-	for _, key := range keys {
-		_, err := environment.PositiveInt(key)
-		if err != nil {
-			return err
-		}
-	}
-
-	shares, _ := environment.PositiveInt("VAULT_KEY_SHARES")
-	threshold, _ := environment.PositiveInt("VAULT_KEY_THRESHOLD")
-	if threshold > shares {
-		return fmt.Errorf("VAULT_KEY_THRESHOLD must not exceed VAULT_KEY_SHARES")
-	}
-
-	_, err = environment.Duration("INFRA_TIMEOUT", "60m")
-
-	return err
 }

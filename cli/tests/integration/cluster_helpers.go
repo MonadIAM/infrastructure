@@ -17,6 +17,12 @@ import (
 	"github.com/onsi/gomega"
 )
 
+type clusterFixture struct {
+	name        string
+	directory   string
+	environment []string
+}
+
 func (fixture *clusterFixture) prepare(ctx context.Context) {
 	ginkgo.GinkgoHelper()
 
@@ -81,7 +87,7 @@ func (fixture *clusterFixture) prepareEnvironment(source string) {
 	}
 }
 
-func (fixture clusterFixture) prepareManifests() {
+func (fixture *clusterFixture) prepareManifests() {
 	ginkgo.GinkgoHelper()
 
 	configuration, err := os.ReadFile("testdata/cluster.yaml")
@@ -99,11 +105,11 @@ func (fixture clusterFixture) prepareManifests() {
 	gomega.Expect(os.WriteFile(filepath.Join(resources, "kustomization.yaml"), []byte(patched), 0600)).To(gomega.Succeed())
 }
 
-func (fixture clusterFixture) registry() string {
+func (fixture *clusterFixture) registry() string {
 	return "k3d-" + fixture.name + "-registry"
 }
 
-func (fixture clusterFixture) run(ctx context.Context, name string, args ...string) (string, error) {
+func (fixture *clusterFixture) run(ctx context.Context, name string, args ...string) (string, error) {
 	command := exec.CommandContext(ctx, name, args...)
 	command.Dir = fixture.directory
 	command.Env = fixture.environment
@@ -114,17 +120,17 @@ func (fixture clusterFixture) run(ctx context.Context, name string, args ...stri
 	return string(output), err
 }
 
-func (fixture clusterFixture) cli(ctx context.Context, args ...string) (string, error) {
+func (fixture *clusterFixture) cli(ctx context.Context, args ...string) (string, error) {
 	return fixture.run(ctx, filepath.Join(fixture.directory, "infra"), append(args, "--env-file=")...)
 }
 
-func (fixture clusterFixture) kubectl(ctx context.Context, args ...string) (string, error) {
+func (fixture *clusterFixture) kubectl(ctx context.Context, args ...string) (string, error) {
 	options := []string{"--context", "k3d-" + fixture.name, "--request-timeout=30s"}
 
 	return fixture.run(ctx, "kubectl", append(options, args...)...)
 }
 
-func (fixture clusterFixture) diagnostics(ctx context.Context) {
+func (fixture *clusterFixture) diagnostics(ctx context.Context) {
 	commands := [][]string{
 		{"get", "pods", "-A", "-o", "wide"},
 		{"get", "pvc", "-A"},
@@ -142,7 +148,7 @@ func (fixture clusterFixture) diagnostics(ctx context.Context) {
 	_, _ = io.WriteString(ginkgo.GinkgoWriter, output)
 }
 
-func (fixture clusterFixture) cleanup(ctx context.Context) {
+func (fixture *clusterFixture) cleanup(ctx context.Context) {
 	ginkgo.GinkgoHelper()
 
 	clusterOutput, clusterErr := fixture.run(ctx, "k3d", "cluster", "delete", fixture.name)
@@ -161,7 +167,7 @@ func (fixture clusterFixture) cleanup(ctx context.Context) {
 	gomega.Expect(strings.TrimSpace(networks)).To(gomega.BeEmpty())
 }
 
-func (fixture clusterFixture) removeRegistry(ctx context.Context) (string, error) {
+func (fixture *clusterFixture) removeRegistry(ctx context.Context) (string, error) {
 	output, err := fixture.run(ctx, "docker", "ps", "-a", "--filter", "name=^/"+fixture.registry()+"$", "--format", "{{.Names}}")
 	if err != nil {
 		return output, err

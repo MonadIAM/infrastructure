@@ -33,7 +33,7 @@ func TestCommand(t *testing.T) {
 }
 
 var _ = Describe("[Infrastructure] - Command", func() {
-	Describe("[Function] - Run", func() {
+	Describe("[Method] - Executor.Run", func() {
 		It("[case] - captures secrets without printing them in output or errors", func() {
 			// Arrange
 			path, err := os.Executable()

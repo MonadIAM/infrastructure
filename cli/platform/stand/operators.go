@@ -1,6 +1,8 @@
 package stand
 
-import "context"
+import (
+	"context"
+)
 
 func (platform Platform) Operators(ctx context.Context) error {
 	err := platform.Kubernetes.ApplyKustomize(ctx, "clusters/local")

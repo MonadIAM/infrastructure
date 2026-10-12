@@ -24,7 +24,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS deployment", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	Describe("[Function] - SeaweedFS", func() {
+	Describe("[Method] - Platform.SeaweedFS", func() {
 		Context("[Behavior] - deployment ordering", func() {
 			It("[case] - waits for credentials and installs storage before importing and running the bootstrap image", func() {
 				// Arrange
@@ -82,7 +82,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS deployment", func() {
 		)
 	})
 
-	Describe("[Function] - seaweedFSManifest", func() {
+	Describe("[Method] - Platform.seaweedFSManifest", func() {
 		It("[case] - keeps numeric configuration values as YAML strings", func() {
 			// Arrange
 			platform := Platform{Environment: environment}
@@ -105,7 +105,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS deployment", func() {
 			_, err := platform.seaweedFSManifest("region: ${SEAWEEDFS_REGION}", "monadiam/stand-cli:test")
 
 			// Assert
-			Expect(err).To(MatchError("invalid SEAWEEDFS_REGION for SeaweedFS bootstrap"))
+			Expect(err).To(MatchError("stand.Platform.seaweedFSManifest: invalid SEAWEEDFS_REGION for SeaweedFS bootstrap"))
 		})
 	})
 })

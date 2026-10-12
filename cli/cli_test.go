@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
 	"testing"
 
 	"github.com/joho/godotenv"
@@ -17,6 +18,24 @@ func TestCLI(t *testing.T) {
 
 var _ = Describe("[CLI] - Commands", func() {
 	Describe("[Function] - Run", func() {
+		DescribeTable("[Behavior] - reports help output failures",
+			func(args []string, point string) {
+				// Arrange
+				reader, writer := io.Pipe()
+				Expect(reader.Close()).To(Succeed())
+				DeferCleanup(writer.Close)
+
+				// Act
+				err := Run(context.Background(), args, writer)
+
+				// Assert
+				Expect(err).To(MatchError(io.ErrClosedPipe))
+				Expect(err.Error()).To(ContainSubstring(point))
+			},
+			Entry("[case] - root help", []string{"--help"}, "cli.Run"),
+			Entry("[case] - command help", []string{"platform", "reconcile", "--help"}, "cli.writeHelp"),
+		)
+
 		DescribeTable("[Behavior] - shows help without configuration or tools",
 			func(args []string) {
 				// Arrange
@@ -95,7 +114,7 @@ var _ = Describe("[CLI] - Commands", func() {
 				err := Run(context.Background(), []string{"cluster", "stop", "--env-file=", "--timeout="}, &output)
 
 				// Assert
-				Expect(err).To(MatchError("INFRA_TIMEOUT must be a positive duration"))
+				Expect(err).To(MatchError("config.Environment.Duration: INFRA_TIMEOUT must be a positive duration"))
 			})
 		})
 	})

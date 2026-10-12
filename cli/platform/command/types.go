@@ -2,9 +2,6 @@ package command
 
 import (
 	"context"
-	"io"
-
-	"github.com/MonadIAM/infrastructure/cli/config"
 )
 
 type Request struct {
@@ -23,10 +20,4 @@ type Result struct {
 
 type Runner interface {
 	Run(context.Context, Request) (Result, error)
-}
-
-type Executor struct {
-	Environment config.Environment
-	Output      io.Writer
-	Errors      io.Writer
 }

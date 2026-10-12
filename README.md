@@ -46,8 +46,8 @@ stand/
 ├── go.sum                              # Dependency checksums
 ├── cli/                                # Go application and component tests
 │   ├── cli.go                          # Command-line parsing
-│   ├── commands.go                     # Command handlers
-│   ├── types.go                        # CLI options and handler types
+│   ├── commands.go                     # Command handlers and invocation state
+│   ├── types.go                        # Command handler signature and usage
 │   ├── config/                         # Dotenv loading, initialization and validation
 │   ├── platform/
 │   │   ├── command/                    # Subprocess execution and cancellable polling
@@ -59,6 +59,7 @@ stand/
 │   │   └── vault/                      # Initialization, unseal and bootstrap
 │   │       └── definitions.go          # Credential and role definitions
 │   └── tests/integration/              # Real CLI and isolated k3d lifecycle tests
+│       ├── storage_helpers.go          # S3 client and archive checks
 │       └── testdata/                   # Ephemeral ports and a dedicated image registry
 ├── bootstrap/k3d/cluster.yaml           # k3s nodes, registry and host bindings
 ├── clusters/local/                     # Namespaces and storage configuration
@@ -116,51 +117,6 @@ stand/
 | `--component`      | Platform component to reconcile; defaults to `all`.             |
 | `--confirm-delete` | Allow cluster deletion, only for `cluster recreate`.            |
 | `--help`           | General or command-specific help.                               |
-
-</details>
-
-----
-
-<details>
-<summary><strong>Archive Storage</strong></summary>
-
-SeaweedFS runs in `monadiam-data` using the official chart `4.48.0` and image
-`chrislusf/seaweedfs:4.48`. One master, one volume server and one filer with an
-embedded S3 gateway use separate `local-path-retain` PVCs: 1 GiB, 20 GiB and
-2 GiB respectively. Filer metadata is stored in LevelDB2 on its PVC. This
-single-host deployment does not provide host-level redundancy; deleting the
-k3d cluster may also delete its stored data.
-
-| Setting | Value |
-| :------ | :---- |
-| S3 endpoint | `http://seaweedfs-main-s3.monadiam-data.svc:8333` |
-| Region | `us-east-1` |
-| Audit bucket | `audit-archive`, 1095 days |
-| Change log bucket | `change-log-archive`, 365 days |
-| Object protection | Versioning and Object Lock `COMPLIANCE` |
-
-Vault stores generated admin and archiver credentials at
-`kv/monadiam-data/seaweedfs/main/auth`. VSO delivers separate S3 configuration,
-admin and archiver Secrets. Reconciliation preserves the keys and updates the
-bucket configuration. The archiver can read and write archive objects; bucket
-policies deny object and version deletion. Lifecycle rules expire objects after
-the configured retention, remove eligible noncurrent versions and delete
-incomplete multipart uploads after seven days.
-
-Full platform reconciliation deploys SeaweedFS after Vault and the data clusters.
-The CLI builds a Go bootstrap image from `platform/seaweedfs/Dockerfile`, tags it
-with its image ID and imports it into the selected k3d cluster. A Kubernetes Job
-runs `infra seaweedfs reconcile --env-file=` with admin credentials from a Secret.
-Repeated reconciliation replaces the completed Job; successful Jobs expire after
-one hour. Failed Jobs retain their logs for the same period.
-
-The S3 service is internal HTTP. NetworkPolicy permits S3 requests from the
-bootstrap Job and pods in `monadiam-apps` labelled
-`monadiam.io/seaweedfs-client: "true"`. Master, filer and volume APIs accept
-traffic from SeaweedFS pods; metrics are available to `monadiam-observability`.
-ServiceMonitors and a Grafana SeaweedFS dashboard cover storage and S3 activity.
-
-Archiver workloads, CNPG backups and Loki/Tempo S3 storage are configured separately.
 
 </details>
 

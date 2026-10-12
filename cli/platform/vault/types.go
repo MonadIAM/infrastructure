@@ -1,20 +1,5 @@
 package vault
 
-import (
-	"context"
-	"io"
-
-	"github.com/MonadIAM/infrastructure/cli/config"
-	"github.com/MonadIAM/infrastructure/cli/platform/command"
-	"github.com/MonadIAM/infrastructure/cli/platform/kubernetes"
-)
-
-type Client struct {
-	Environment config.Environment
-	Kubernetes  kubernetes.Client
-	Output      io.Writer
-}
-
 type Status struct {
 	Initialized bool `json:"initialized"`
 	Sealed      bool `json:"sealed"`
@@ -48,5 +33,3 @@ type secretResponse struct {
 		} `json:"metadata"`
 	} `json:"data"`
 }
-
-type runnerFunc func(context.Context, command.Request) (command.Result, error)

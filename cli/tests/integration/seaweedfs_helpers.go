@@ -9,18 +9,16 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/minio/minio-go/v7"
 	"github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 
 	"github.com/MonadIAM/infrastructure/cli/platform/seaweedfs"
 )
 
-func (fixture clusterFixture) storage(ctx context.Context) seaweedfs.Settings {
+func (fixture *clusterFixture) storage(ctx context.Context) seaweedfs.Settings {
 	ginkgo.GinkgoHelper()
 
 	environment, err := godotenv.Read("../../../.env.example")
@@ -46,7 +44,7 @@ func (fixture clusterFixture) storage(ctx context.Context) seaweedfs.Settings {
 	return settings
 }
 
-func (fixture clusterFixture) forwardStorage(ctx context.Context) string {
+func (fixture *clusterFixture) forwardStorage(ctx context.Context) string {
 	ginkgo.GinkgoHelper()
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -60,6 +58,7 @@ func (fixture clusterFixture) forwardStorage(ctx context.Context) string {
 	if err != nil {
 		cancel()
 	}
+
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	ginkgo.DeferCleanup(func() {
 		cancel()
@@ -86,76 +85,4 @@ func (fixture clusterFixture) forwardStorage(ctx context.Context) string {
 	gomega.Expect(port).To(gomega.BeNumerically(">", 0))
 
 	return fmt.Sprintf("http://127.0.0.1:%d", port)
-}
-
-func (fixture *clusterFixture) seedArchives(ctx context.Context, settings seaweedfs.Settings) {
-	ginkgo.GinkgoHelper()
-
-	client, err := seaweedfs.Client(settings, false)
-	gomega.Expect(err).NotTo(gomega.HaveOccurred())
-	fixture.archives = make(map[string]string)
-
-	for _, bucket := range settings.Buckets {
-		object, err := client.PutObject(ctx, bucket.Name, "integration/probe.json", strings.NewReader(fixture.name), int64(len(fixture.name)), minio.PutObjectOptions{ContentType: "application/json"})
-		gomega.Expect(err).NotTo(gomega.HaveOccurred())
-		gomega.Expect(object.VersionID).NotTo(gomega.BeEmpty())
-		fixture.archives[bucket.Name] = object.VersionID
-	}
-}
-
-func (fixture clusterFixture) archivesAvailable(ctx context.Context, settings seaweedfs.Settings) error {
-	client, err := seaweedfs.Client(settings, false)
-	if err != nil {
-		return err
-	}
-
-	for bucket, version := range fixture.archives {
-		object, err := client.GetObject(ctx, bucket, "integration/probe.json", minio.GetObjectOptions{VersionID: version})
-		if err != nil {
-			return err
-		}
-
-		data, err := io.ReadAll(object)
-		_ = object.Close()
-		if err != nil {
-			return err
-		}
-
-		if string(data) != fixture.name {
-			return fmt.Errorf("archive content changed in %s", bucket)
-		}
-	}
-
-	return nil
-}
-
-func archiveRetention(ctx context.Context, client *minio.Client, bucket seaweedfs.Bucket) error {
-	enabled, mode, days, unit, err := client.GetObjectLockConfig(ctx, bucket.Name)
-	if err != nil {
-		return err
-	}
-
-	if enabled != "Enabled" || mode == nil || *mode != minio.Compliance || days == nil || *days != uint(bucket.Days) || unit == nil || *unit != minio.Days {
-		return fmt.Errorf("unexpected retention for %s", bucket.Name)
-	}
-
-	versioning, err := client.GetBucketVersioning(ctx, bucket.Name)
-	if err != nil {
-		return err
-	}
-
-	if versioning.Status != "Enabled" {
-		return fmt.Errorf("versioning is disabled for %s", bucket.Name)
-	}
-
-	lifecycle, err := client.GetBucketLifecycle(ctx, bucket.Name)
-	if err != nil {
-		return err
-	}
-
-	if len(lifecycle.Rules) != 2 || int(lifecycle.Rules[0].Expiration.Days) != bucket.Days {
-		return fmt.Errorf("unexpected lifecycle for %s", bucket.Name)
-	}
-
-	return nil
 }

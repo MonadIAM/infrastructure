@@ -1,6 +1,8 @@
 package stand
 
-import "context"
+import (
+	"context"
+)
 
 func (platform Platform) MonitoringCRDs(ctx context.Context) error {
 	err := platform.Helm.Repo(ctx, "prometheus-community", platform.Environment["PROMETHEUS_COMMUNITY_HELM_REPO"])

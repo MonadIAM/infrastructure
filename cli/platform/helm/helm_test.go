@@ -13,6 +13,10 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
 
+type writerFunc func([]byte) (int, error)
+
+type runnerFunc func(context.Context, command.Request) (command.Result, error)
+
 func (run runnerFunc) Run(ctx context.Context, request command.Request) (command.Result, error) {
 	return run(ctx, request)
 }
@@ -27,7 +31,7 @@ func TestHelm(t *testing.T) {
 }
 
 var _ = Describe("[Infrastructure] - Helm", func() {
-	Describe("[Function] - Execute", func() {
+	Describe("[Method] - Client.Execute", func() {
 		It("[case] - discards partial manifests from failed attempts", func() {
 			// Arrange
 			attempts := 0

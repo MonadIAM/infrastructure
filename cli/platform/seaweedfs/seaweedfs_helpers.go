@@ -4,24 +4,24 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 )
 
-func testSettings() Settings {
-	return Settings{
-		Endpoint:       "http://seaweedfs:8333",
-		Region:         "us-east-1",
-		AdminKey:       "admin",
-		AdminSecret:    "admin-secret",
-		ArchiverKey:    "archiver",
-		ArchiverSecret: "archiver-secret",
-		ConfigDir:      "../../../platform/seaweedfs/config",
-		Timeout:        time.Second,
-		Buckets: []Bucket{
-			{Name: "audit-archive", Days: 1095},
-			{Name: "change-log-archive", Days: 365},
-		},
-	}
+type s3Request struct {
+	Method string
+	Path   string
+	Query  string
+	Body   string
+	Lock   string
+}
+
+type s3Fixture struct {
+	mutex    sync.Mutex
+	requests []s3Request
+	status   int
+	lockDays int
+	existing bool
 }
 
 func (fixture *s3Fixture) serve(response http.ResponseWriter, request *http.Request) {
@@ -81,4 +81,21 @@ func (fixture *s3Fixture) snapshot() []s3Request {
 	defer fixture.mutex.Unlock()
 
 	return append([]s3Request(nil), fixture.requests...)
+}
+
+func testSettings() Settings {
+	return Settings{
+		Endpoint:       "http://seaweedfs:8333",
+		Region:         "us-east-1",
+		AdminKey:       "admin",
+		AdminSecret:    "admin-secret",
+		ArchiverKey:    "archiver",
+		ArchiverSecret: "archiver-secret",
+		ConfigDir:      "../../../platform/seaweedfs/config",
+		Timeout:        time.Second,
+		Buckets: []Bucket{
+			{Name: "audit-archive", Days: 1095},
+			{Name: "change-log-archive", Days: 365},
+		},
+	}
 }

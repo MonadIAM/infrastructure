@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-func (fixture clusterFixture) state(ctx context.Context) (platformState, error) {
+func (fixture *clusterFixture) state(ctx context.Context) (platformState, error) {
 	state := platformState{
 		Volumes:     make(map[string]string),
 		Credentials: make(map[string]string),
@@ -20,13 +20,14 @@ func (fixture clusterFixture) state(ctx context.Context) (platformState, error) 
 
 	output, err := fixture.kubectl(ctx, "get", "namespace", "kube-system", "-o", "jsonpath={.metadata.uid}")
 	if err != nil {
-		return state, fmt.Errorf("read cluster identity: %w", err)
+		return state, fmt.Errorf("integration.clusterFixture.state: read cluster identity: %w", err)
 	}
+
 	state.Namespace = output
 
 	output, err = fixture.kubectl(ctx, "get", "pvc", "-A", "-o", "json")
 	if err != nil {
-		return state, fmt.Errorf("read persistent volumes: %w", err)
+		return state, fmt.Errorf("integration.clusterFixture.state: read persistent volumes: %w", err)
 	}
 
 	var volumes resourceList
@@ -49,12 +50,13 @@ func (fixture clusterFixture) state(ctx context.Context) (platformState, error) 
 	if err != nil {
 		return state, err
 	}
+
 	state.Material = fmt.Sprintf("%x", sha256.Sum256(material))
 
 	return state, nil
 }
 
-func (fixture clusterFixture) credentials(ctx context.Context) (map[string]string, error) {
+func (fixture *clusterFixture) credentials(ctx context.Context) (map[string]string, error) {
 	credentials := make(map[string]string)
 	secrets := map[string][]string{
 		"monadiam-apps": {"monadiam-bootstrap"},
@@ -92,25 +94,25 @@ func (fixture clusterFixture) credentials(ctx context.Context) (map[string]strin
 	return credentials, nil
 }
 
-func (fixture clusterFixture) credentialDigest(ctx context.Context, namespace, name string) (string, error) {
+func (fixture *clusterFixture) credentialDigest(ctx context.Context, namespace, name string) (string, error) {
 	output, err := fixture.kubectl(ctx, "get", "secret", name, "-n", namespace, "-o", "json")
 	if err != nil {
-		return "", fmt.Errorf("read secret %s/%s: %w", namespace, name, err)
+		return "", fmt.Errorf("integration.clusterFixture.credentialDigest: read secret %s/%s: %w", namespace, name, err)
 	}
 
 	var secret resource
 	err = json.Unmarshal([]byte(output), &secret)
 	if err != nil {
-		return "", fmt.Errorf("decode secret %s/%s", namespace, name)
+		return "", fmt.Errorf("integration.clusterFixture.credentialDigest: decode secret %s/%s", namespace, name)
 	}
 
 	if len(secret.Data) == 0 {
-		return "", fmt.Errorf("secret %s/%s is empty", namespace, name)
+		return "", fmt.Errorf("integration.clusterFixture.credentialDigest: secret %s/%s is empty", namespace, name)
 	}
 
 	for key, value := range secret.Data {
 		if len(value) == 0 {
-			return "", fmt.Errorf("secret %s/%s has an empty %s", namespace, name, key)
+			return "", fmt.Errorf("integration.clusterFixture.credentialDigest: secret %s/%s has an empty %s", namespace, name, key)
 		}
 	}
 
@@ -122,11 +124,11 @@ func (fixture clusterFixture) credentialDigest(ctx context.Context, namespace, n
 	return fmt.Sprintf("%x", sha256.Sum256(data)), nil
 }
 
-func (fixture clusterFixture) vault(ctx context.Context) (vaultState, error) {
+func (fixture *clusterFixture) vault(ctx context.Context) (vaultState, error) {
 	var state vaultState
 	output, err := fixture.cli(ctx, "vault", "status")
 	if err != nil {
-		return state, fmt.Errorf("read Vault status: %w", err)
+		return state, fmt.Errorf("integration.clusterFixture.vault: read Vault status: %w", err)
 	}
 
 	err = json.Unmarshal([]byte(output), &state)
@@ -138,21 +140,23 @@ func (fixture clusterFixture) vault(ctx context.Context) (vaultState, error) {
 	if err != nil {
 		return state, err
 	}
+
 	state.FileMode = file.Mode().Perm()
 
 	directory, err := os.Stat(filepath.Join(fixture.directory, "vault"))
 	if err != nil {
 		return state, err
 	}
+
 	state.DirectoryMode = directory.Mode().Perm()
 
 	return state, nil
 }
 
-func (fixture clusterFixture) postgresql(ctx context.Context, query string) (string, error) {
+func (fixture *clusterFixture) postgresql(ctx context.Context, query string) (string, error) {
 	primary, err := fixture.kubectl(ctx, "get", "cluster.postgresql.cnpg.io", "postgresql-main", "-n", "monadiam-data", "-o", "jsonpath={.status.currentPrimary}")
 	if err != nil {
-		return "", fmt.Errorf("read PostgreSQL primary: %w", err)
+		return "", fmt.Errorf("integration.clusterFixture.postgresql: read PostgreSQL primary: %w", err)
 	}
 
 	output, err := fixture.kubectl(ctx, "exec", "-n", "monadiam-data", primary, "-c", "postgres", "--", "psql", "-U", "postgres", "-d", "app", "-At", "-v", "ON_ERROR_STOP=1", "-c", query)
@@ -160,7 +164,7 @@ func (fixture clusterFixture) postgresql(ctx context.Context, query string) (str
 	return strings.TrimSpace(output), err
 }
 
-func (fixture clusterFixture) seed(ctx context.Context) error {
+func (fixture *clusterFixture) seed(ctx context.Context) error {
 	query := "CREATE TABLE IF NOT EXISTS integration_probe (id integer PRIMARY KEY, value text NOT NULL); " +
 		"INSERT INTO integration_probe VALUES (1, '" + fixture.name + "') ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value;"
 	_, err := fixture.postgresql(ctx, query)

@@ -11,11 +11,30 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/config"
 )
 
+type commandOptions struct {
+	envFile       string
+	timeout       string
+	component     string
+	confirmDelete bool
+	overrides     map[string]string
+}
+
+func (options *commandOptions) applyExplicitFlags(flags *flag.FlagSet) {
+	flags.Visit(func(option *flag.Flag) {
+		if option.Name == "timeout" {
+			options.overrides["INFRA_TIMEOUT"] = options.timeout
+		}
+	})
+}
+
 func Run(ctx context.Context, args []string, output io.Writer) error {
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
-		_, err := fmt.Fprint(output, usage)
-
-		return err
+		_, err := io.WriteString(output, usage)
+		if err != nil {
+			return fmt.Errorf("cli.Run: write help: %w", err)
+		} else {
+			return nil
+		}
 	}
 
 	if len(args) < 2 {
@@ -38,7 +57,9 @@ func Run(ctx context.Context, args []string, output io.Writer) error {
 	}
 
 	if name == "config init" {
-		return handler(ctx, nil, options, output)
+		app := application{options: options, output: output}
+
+		return handler(&app, ctx)
 	}
 
 	environment, err := config.Load(options.envFile, options.overrides)
@@ -54,19 +75,16 @@ func Run(ctx context.Context, args []string, output io.Writer) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	return handler(ctx, environment, options, output)
+	app := application{environment: environment, options: options, output: output}
+
+	return handler(&app, ctx)
 }
 
 func parseOptions(name string, args []string, output io.Writer) (commandOptions, error) {
 	options := commandOptions{overrides: make(map[string]string)}
 	flags := flag.NewFlagSet(name, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	flags.Usage = func() {
-		_, _ = fmt.Fprintf(output, "Usage: infra %s [options]\n", name)
-		flags.SetOutput(output)
-		flags.PrintDefaults()
-		flags.SetOutput(io.Discard)
-	}
+	flags.Usage = func() {}
 
 	flags.StringVar(&options.envFile, "env-file", ".env", "dotenv path; empty disables file loading")
 	if name != "config init" {
@@ -84,6 +102,11 @@ func parseOptions(name string, args []string, output io.Writer) (commandOptions,
 	err := flags.Parse(args)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
+			writeErr := writeHelp(name, flags, output)
+			if writeErr != nil {
+				return options, writeErr
+			}
+
 			return options, err
 		}
 
@@ -94,11 +117,21 @@ func parseOptions(name string, args []string, output io.Writer) (commandOptions,
 		return options, errors.New("unexpected positional arguments")
 	}
 
-	flags.Visit(func(option *flag.Flag) {
-		if option.Name == "timeout" {
-			options.overrides["INFRA_TIMEOUT"] = options.timeout
-		}
-	})
+	options.applyExplicitFlags(flags)
 
 	return options, nil
+}
+
+func writeHelp(command string, flags *flag.FlagSet, output io.Writer) error {
+	var defaults strings.Builder
+	flags.SetOutput(&defaults)
+	flags.PrintDefaults()
+
+	help := fmt.Sprintf("Usage: infra %s [options]\n%s", command, defaults.String())
+	_, err := io.WriteString(output, help)
+	if err != nil {
+		return fmt.Errorf("cli.writeHelp: %w", err)
+	} else {
+		return nil
+	}
 }

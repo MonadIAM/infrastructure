@@ -9,7 +9,15 @@ import (
 	"os/exec"
 	"sort"
 	"time"
+
+	"github.com/MonadIAM/infrastructure/cli/config"
 )
+
+type Executor struct {
+	Environment config.Environment
+	Output      io.Writer
+	Errors      io.Writer
+}
 
 func (executor Executor) Run(ctx context.Context, request Request) (Result, error) {
 	cmd := exec.CommandContext(ctx, request.Name, request.Args...)
@@ -27,6 +35,7 @@ func (executor Executor) Run(ctx context.Context, request Request) (Result, erro
 	for key := range executor.Environment {
 		keys = append(keys, key)
 	}
+
 	sort.Strings(keys)
 
 	for _, key := range keys {
@@ -53,7 +62,7 @@ func (executor Executor) Run(ctx context.Context, request Request) (Result, erro
 		return result, contextErr
 	}
 
-	return result, fmt.Errorf("%s failed (exit %d)", request.Name, result.ExitCode)
+	return result, fmt.Errorf("command.Executor.Run: %s failed (exit %d)", request.Name, result.ExitCode)
 }
 
 func Pause(ctx context.Context, delay time.Duration) error {

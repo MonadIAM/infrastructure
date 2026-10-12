@@ -3,6 +3,7 @@ package stand
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -75,7 +76,7 @@ func (platform Platform) seaweedFSImage(ctx context.Context) (string, error) {
 	digest := strings.TrimPrefix(strings.TrimSpace(string(result.Output)), "sha256:")
 	decoded, err := hex.DecodeString(digest)
 	if err != nil || len(decoded) != 32 {
-		return "", fmt.Errorf("invalid CLI image digest")
+		return "", errors.New("invalid CLI image digest")
 	}
 
 	image := "monadiam/stand-cli:" + digest
@@ -139,7 +140,7 @@ func (platform Platform) seaweedFSManifest(manifest, image string) (string, erro
 	for _, key := range keys {
 		value := platform.Environment[key]
 		if value == "" || strings.ContainsAny(value, "\r\n\"'\\") {
-			return "", fmt.Errorf("invalid %s for SeaweedFS bootstrap", key)
+			return "", fmt.Errorf("stand.Platform.seaweedFSManifest: invalid %s for SeaweedFS bootstrap", key)
 		}
 
 		placeholder := "${" + key + "}"

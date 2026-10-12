@@ -9,8 +9,6 @@ import (
 	"github.com/minio/minio-go/v7"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/MonadIAM/infrastructure/cli/platform/seaweedfs"
 )
 
 var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integration"), func() {
@@ -70,29 +68,30 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 		It("[case] - preserves archiver writes and enforces versioning, retention and deletion restrictions", func(ctx SpecContext) {
 			// Arrange
 			settings := fixture.storage(ctx)
-			admin, err := seaweedfs.Client(settings, true)
+			admin, err := newStorageClient(settings, true)
 			Expect(err).NotTo(HaveOccurred())
-			archiver, err := seaweedfs.Client(settings, false)
+			archiver, err := newStorageClient(settings, false)
 			Expect(err).NotTo(HaveOccurred())
-			fixture.seedArchives(ctx, settings)
+			versions, err := archiver.seed(ctx, fixture.name)
+			Expect(err).NotTo(HaveOccurred())
 
 			// Act
-			readErr := fixture.archivesAvailable(ctx, settings)
+			readErr := archiver.read(ctx, versions, fixture.name)
 			var retentionErrors []error
 			var deleteErrors []error
 
 			for _, bucket := range settings.Buckets {
-				retentionErrors = append(retentionErrors, archiveRetention(ctx, admin, bucket))
-				version := fixture.archives[bucket.Name]
+				retentionErrors = append(retentionErrors, admin.retention(ctx, bucket))
+				version := versions[bucket.Name]
 				deleteErrors = append(deleteErrors,
-					archiver.RemoveObject(ctx, bucket.Name, "integration/probe.json", minio.RemoveObjectOptions{}),
-					archiver.RemoveObject(ctx, bucket.Name, "integration/probe.json", minio.RemoveObjectOptions{VersionID: version}),
-					admin.RemoveObject(ctx, bucket.Name, "integration/probe.json", minio.RemoveObjectOptions{VersionID: version}),
+					archiver.client.RemoveObject(ctx, bucket.Name, "integration/probe.json", minio.RemoveObjectOptions{}),
+					archiver.client.RemoveObject(ctx, bucket.Name, "integration/probe.json", minio.RemoveObjectOptions{VersionID: version}),
+					admin.client.RemoveObject(ctx, bucket.Name, "integration/probe.json", minio.RemoveObjectOptions{VersionID: version}),
 				)
 			}
 
-			createErr := archiver.MakeBucket(ctx, "unauthorized-archive", minio.MakeBucketOptions{Region: settings.Region})
-			preservedErr := fixture.archivesAvailable(ctx, settings)
+			createErr := archiver.client.MakeBucket(ctx, "unauthorized-archive", minio.MakeBucketOptions{Region: settings.Region})
+			preservedErr := archiver.read(ctx, versions, fixture.name)
 
 			// Assert
 			Expect(readErr).NotTo(HaveOccurred())
@@ -109,13 +108,20 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			original, err := fixture.state(ctx)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fixture.seed(ctx)).To(Succeed())
-			fixture.seedArchives(ctx, fixture.storage(ctx))
+			storage, err := newStorageClient(fixture.storage(ctx), false)
+			Expect(err).NotTo(HaveOccurred())
+			versions, err := storage.seed(ctx, fixture.name)
+			Expect(err).NotTo(HaveOccurred())
 
 			// Act
 			output, reconcileErr := fixture.cli(ctx, "platform", "reconcile")
 			state, stateErr := fixture.state(ctx)
 			value, readErr := fixture.postgresql(ctx, "SELECT value FROM integration_probe WHERE id = 1")
-			archiveErr := fixture.archivesAvailable(ctx, fixture.storage(ctx))
+			storage, storageErr := newStorageClient(fixture.storage(ctx), false)
+			var archiveErr error
+			if storageErr == nil {
+				archiveErr = storage.read(ctx, versions, fixture.name)
+			}
 
 			// Assert
 			Expect(reconcileErr).NotTo(HaveOccurred(), output)
@@ -123,6 +129,7 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			Expect(state).To(Equal(original))
 			Expect(readErr).NotTo(HaveOccurred(), value)
 			Expect(value).To(Equal(fixture.name))
+			Expect(storageErr).NotTo(HaveOccurred())
 			Expect(archiveErr).NotTo(HaveOccurred())
 		}, SpecTimeout(35*time.Minute))
 	})
@@ -155,14 +162,21 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			original, err := fixture.state(ctx)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(fixture.seed(ctx)).To(Succeed())
-			fixture.seedArchives(ctx, fixture.storage(ctx))
+			storage, err := newStorageClient(fixture.storage(ctx), false)
+			Expect(err).NotTo(HaveOccurred())
+			versions, err := storage.seed(ctx, fixture.name)
+			Expect(err).NotTo(HaveOccurred())
 
 			// Act
 			output, restartErr := fixture.cli(ctx, "cluster", "restart")
 			state, stateErr := fixture.state(ctx)
 			vault, vaultErr := fixture.vault(ctx)
 			value, readErr := fixture.postgresql(ctx, "SELECT value FROM integration_probe WHERE id = 1")
-			archiveErr := fixture.archivesAvailable(ctx, fixture.storage(ctx))
+			storage, storageErr := newStorageClient(fixture.storage(ctx), false)
+			var archiveErr error
+			if storageErr == nil {
+				archiveErr = storage.read(ctx, versions, fixture.name)
+			}
 
 			// Assert
 			Expect(restartErr).NotTo(HaveOccurred(), output)
@@ -171,6 +185,7 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			Expect(vaultErr).NotTo(HaveOccurred())
 			Expect(vault.Initialized).To(BeTrue())
 			Expect(vault.Sealed).To(BeFalse())
+			Expect(storageErr).NotTo(HaveOccurred())
 			Expect(archiveErr).NotTo(HaveOccurred())
 			Expect(readErr).NotTo(HaveOccurred(), value)
 			Expect(value).To(Equal(fixture.name))

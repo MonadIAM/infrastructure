@@ -2,6 +2,7 @@ package stand
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -11,6 +12,14 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/platform/kubernetes"
 	"github.com/MonadIAM/infrastructure/cli/platform/vault"
 )
+
+type Platform struct {
+	Environment config.Environment
+	Runner      command.Runner
+	Output      io.Writer
+	Kubernetes  kubernetes.Client
+	Helm        helm.Client
+}
 
 func New(environment config.Environment, runner command.Runner, output io.Writer) Platform {
 	return Platform{
@@ -25,7 +34,7 @@ func New(environment config.Environment, runner command.Runner, output io.Writer
 }
 
 func (platform Platform) Reconcile(ctx context.Context, component string) error {
-	err := config.Validate(platform.Environment)
+	err := platform.Environment.Validate()
 	if err != nil {
 		return err
 	}
@@ -39,7 +48,7 @@ func (platform Platform) Reconcile(ctx context.Context, component string) error 
 	if component != "all" {
 		phase, exists := findPhase(phases, component)
 		if !exists {
-			return fmt.Errorf("unknown platform component")
+			return errors.New("unknown platform component")
 		}
 
 		phases = []phaseDefinition{phase}
@@ -54,11 +63,24 @@ func (platform Platform) Reconcile(ctx context.Context, component string) error 
 		_, _ = fmt.Fprintf(platform.Output, "Reconciling %s...\n", phase.Name)
 		err = phase.Run(ctx)
 		if err != nil {
-			return fmt.Errorf("%s: %w", phase.Name, err)
+			return fmt.Errorf("stand.Platform.Reconcile: %s: %w", phase.Name, err)
 		}
 	}
 
 	return nil
+}
+
+func (platform Platform) VaultClient() vault.Client {
+	return vault.New(platform.Environment, platform.Kubernetes, platform.Output)
+}
+
+func (platform Platform) install(ctx context.Context, name string) error {
+	release, exists := releaseDefinitions(platform.Environment)[name]
+	if !exists {
+		return fmt.Errorf("stand.Platform.install: unknown Helm release %s", name)
+	}
+
+	return platform.Helm.Install(ctx, release)
 }
 
 func findPhase(phases []phaseDefinition, name string) (phaseDefinition, bool) {
@@ -69,21 +91,4 @@ func findPhase(phases []phaseDefinition, name string) (phaseDefinition, bool) {
 	}
 
 	return phaseDefinition{}, false
-}
-
-func (platform Platform) install(ctx context.Context, name string) error {
-	release, exists := releaseDefinitions(platform.Environment)[name]
-	if !exists {
-		return fmt.Errorf("unknown Helm release %s", name)
-	}
-
-	return platform.Helm.Install(ctx, release)
-}
-
-func (platform Platform) VaultClient() vault.Client {
-	return vault.Client{
-		Environment: platform.Environment,
-		Kubernetes:  platform.Kubernetes,
-		Output:      platform.Output,
-	}
 }

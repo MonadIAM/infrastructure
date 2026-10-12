@@ -16,6 +16,8 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/platform/helm"
 )
 
+type runnerFunc func(context.Context, command.Request) (command.Result, error)
+
 func (run runnerFunc) Run(ctx context.Context, request command.Request) (command.Result, error) {
 	return run(ctx, request)
 }
@@ -34,7 +36,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		Expect(err).To(Succeed())
 	})
 
-	Describe("[Function] - Start", func() {
+	Describe("[Method] - Platform.Start", func() {
 		It("[case] - does not create a cluster when inventory fails", func() {
 			// Arrange
 			var requests []command.Request
@@ -96,7 +98,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
-	Describe("[Function] - Restart", func() {
+	Describe("[Method] - Platform.Restart", func() {
 		It("[case] - restarts without deleting the existing cluster", func() {
 			// Arrange
 			var commands []string
@@ -121,7 +123,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
-	Describe("[Function] - KafkaResources", func() {
+	Describe("[Method] - Platform.KafkaResources", func() {
 		It("[case] - does not apply a failed Kafka render", func() {
 			// Arrange
 			calls := 0
@@ -166,7 +168,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
-	Describe("[Function] - applyClusterResources", func() {
+	Describe("[Method] - Platform.applyClusterResources", func() {
 		It("[case] - establishes monitoring CRDs before applying data resources", func() {
 			// Arrange
 			var commands []string
@@ -195,7 +197,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
-	Describe("[Function] - Operators", func() {
+	Describe("[Method] - Platform.Operators", func() {
 		It("[case] - establishes ServiceMonitor before installing the ClickHouse operator", func() {
 			// Arrange
 			monitorReady := false
@@ -232,7 +234,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
-	Describe("[Function] - MonitoringCRDs", func() {
+	Describe("[Method] - Platform.MonitoringCRDs", func() {
 		It("[case] - does not apply CRDs after a failed Helm download", func() {
 			// Arrange
 			applied := false
@@ -263,7 +265,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
-	Describe("[Function] - waitKafka", func() {
+	Describe("[Method] - Platform.waitKafka", func() {
 		DescribeTable("[Behavior] - rejects stale Kafka readiness when workloads are unavailable", func(workload string) {
 			// Arrange
 			runner := runnerFunc(func(_ context.Context, request command.Request) (command.Result, error) {
@@ -287,7 +289,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		)
 	})
 
-	Describe("[Function] - Recreate", func() {
+	Describe("[Method] - Platform.Recreate", func() {
 		It("[case] - refuses deletion without explicit confirmation", func() {
 			// Arrange
 			var requests []command.Request
@@ -329,7 +331,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
-	Describe("[Function] - ready", func() {
+	Describe("[Method] - staticSecret.ready", func() {
 		DescribeTable("[Behavior] - requires current and healthy synchronized secrets",
 			func(generation, observed int64, mac, ready, healthy string, expected bool) {
 				// Arrange

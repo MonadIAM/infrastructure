@@ -1,6 +1,8 @@
 package stand
 
-import "context"
+import (
+	"context"
+)
 
 func (platform Platform) Vault(ctx context.Context) error {
 	err := platform.installVault(ctx)

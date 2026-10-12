@@ -64,17 +64,6 @@ func (platform Platform) MetricsServer(ctx context.Context) error {
 	return platform.Kubernetes.Run(ctx, "top", "pods", "-A")
 }
 
-func (platform Platform) metricsAvailable(ctx context.Context) (bool, error) {
-	_, err := platform.Kubernetes.Capture(ctx, "top", "nodes")
-	if err != nil {
-		return false, nil
-	}
-
-	_, err = platform.Kubernetes.Capture(ctx, "top", "pods", "-A")
-
-	return err == nil, nil
-}
-
 func (platform Platform) Istio(ctx context.Context) error {
 	err := platform.Kubernetes.ApplyKustomize(ctx, "clusters/local")
 	if err != nil {
@@ -129,6 +118,17 @@ func (platform Platform) Gateway(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (platform Platform) metricsAvailable(ctx context.Context) (bool, error) {
+	_, err := platform.Kubernetes.Capture(ctx, "top", "nodes")
+	if err != nil {
+		return false, nil
+	}
+
+	_, err = platform.Kubernetes.Capture(ctx, "top", "pods", "-A")
+
+	return err == nil, nil
 }
 
 func (platform Platform) installGatewayAPI(ctx context.Context) error {

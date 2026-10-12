@@ -6,13 +6,6 @@ import (
 	"io/fs"
 )
 
-type clusterFixture struct {
-	name        string
-	directory   string
-	environment []string
-	archives    map[string]string
-}
-
 type resource struct {
 	Metadata struct {
 		Name      string `json:"name"`

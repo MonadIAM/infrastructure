@@ -2,6 +2,7 @@ package helm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -9,6 +10,15 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/config"
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
+
+type Client struct {
+	Context  string
+	Runner   command.Runner
+	Output   io.Writer
+	Attempts int
+	Delay    time.Duration
+	MaxDelay time.Duration
+}
 
 func New(environment config.Environment, runner command.Runner, output io.Writer) (Client, error) {
 	attempts, err := environment.PositiveInt("HELM_RETRY_ATTEMPTS")
@@ -72,7 +82,7 @@ func (client Client) Execute(ctx context.Context, capture bool, args ...string) 
 		delay = min(delay*2, client.MaxDelay)
 	}
 
-	return nil, fmt.Errorf("helm retry attempts must be positive")
+	return nil, errors.New("helm retry attempts must be positive")
 }
 
 func (client Client) Repo(ctx context.Context, name, address string) error {

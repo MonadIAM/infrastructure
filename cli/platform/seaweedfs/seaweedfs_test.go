@@ -3,11 +3,14 @@ package seaweedfs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
+	"github.com/minio/minio-go/v7"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/gstruct"
@@ -19,7 +22,27 @@ func TestSeaweedFS(t *testing.T) {
 }
 
 var _ = Describe("[Infrastructure] - SeaweedFS", func() {
-	Describe("[Function] - Credentials", func() {
+	Describe("[Method] - RequestError.Error", func() {
+		DescribeTable("[Behavior] - hides remote details and preserves the cause", func(cause error, message string) {
+			// Arrange
+			failure := RequestError{Cause: cause}
+
+			// Act
+			actual := failure.Error()
+			unwrapped := errors.Is(failure, cause)
+
+			// Assert
+			Expect(actual).To(Equal(message))
+			Expect(actual).NotTo(ContainSubstring("private-secret"))
+			Expect(unwrapped).To(BeTrue())
+		},
+			Entry("[case] - S3 authorization failure", minio.ErrorResponse{StatusCode: 403, Message: "private-secret"}, "S3 request failed with status 403"),
+			Entry("[case] - request cancellation", &url.Error{URL: "http://host/private-secret", Err: context.Canceled}, "context canceled"),
+			Entry("[case] - transport failure", &url.Error{URL: "http://host/private-secret", Err: errors.New("private-secret")}, "S3 request failed"),
+		)
+	})
+
+	Describe("[Method] - Service.Credentials", func() {
 		It("[case] - escapes credentials and restricts archiver actions to archive objects", func() {
 			// Arrange
 			settings := testSettings()
@@ -27,7 +50,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 			var actual credentialFile
 
 			// Act
-			data, err := Credentials(settings)
+			data, err := New(settings).Credentials()
 			decodeErr := json.Unmarshal(data, &actual)
 
 			// Assert
@@ -47,14 +70,14 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 			settings.ArchiverKey = settings.AdminKey
 
 			// Act
-			_, err := Credentials(settings)
+			_, err := New(settings).Credentials()
 
 			// Assert
 			Expect(err).To(MatchError("distinct admin and archiver credentials are required"))
 		})
 	})
 
-	Describe("[Function] - Validate", func() {
+	Describe("[Method] - Bucket.Validate", func() {
 		DescribeTable("[Behavior] - rejects invalid bucket settings", func(name string, days int) {
 			// Arrange
 			bucket := Bucket{Name: name, Days: days}
@@ -70,7 +93,9 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 			Entry("[case] - IP address", "127.0.0.1", 1),
 			Entry("[case] - zero retention", "audit-archive", 0),
 		)
+	})
 
+	Describe("[Method] - Settings.Validate", func() {
 		DescribeTable("[Behavior] - rejects invalid settings", func(change func(*Settings)) {
 			// Arrange
 			settings := testSettings()
@@ -91,7 +116,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 		)
 	})
 
-	Describe("[Function] - Reconcile", func() {
+	Describe("[Method] - Service.Reconcile", func() {
 		Context("[Behavior] - configures archive retention", func() {
 			It("[case] - creates locked buckets and applies lifecycle and archiver policy", func() {
 				// Arrange
@@ -102,7 +127,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 				settings.Endpoint = server.URL
 
 				// Act
-				err := Reconcile(context.Background(), settings, io.Discard)
+				err := New(settings).Reconcile(context.Background(), io.Discard)
 				requests := fixture.snapshot()
 
 				// Assert
@@ -123,7 +148,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 				settings.Endpoint = server.URL
 
 				// Act
-				err := Reconcile(context.Background(), settings, io.Discard)
+				err := New(settings).Reconcile(context.Background(), io.Discard)
 
 				// Assert
 				Expect(err).To(Succeed())
@@ -140,7 +165,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 				settings.Endpoint = server.URL
 
 				// Act
-				err := Reconcile(context.Background(), settings, io.Discard)
+				err := New(settings).Reconcile(context.Background(), io.Discard)
 
 				// Assert
 				Expect(err).To(HaveOccurred())
@@ -155,10 +180,10 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 				settings.Endpoint = server.URL
 
 				// Act
-				err := Reconcile(context.Background(), settings, io.Discard)
+				err := New(settings).Reconcile(context.Background(), io.Discard)
 
 				// Assert
-				Expect(err).To(MatchError("S3 request failed with status 403"))
+				Expect(err).To(MatchError("seaweedfs.Service.waitUntilReady: S3 request failed with status 403"))
 				Expect(fixture.snapshot()).To(HaveLen(1))
 			})
 
@@ -172,7 +197,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS", func() {
 				settings.ConfigDir = GinkgoT().TempDir()
 
 				// Act
-				err := Reconcile(context.Background(), settings, io.Discard)
+				err := New(settings).Reconcile(context.Background(), io.Discard)
 
 				// Assert
 				Expect(err).To(HaveOccurred())

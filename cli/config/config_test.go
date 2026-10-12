@@ -134,7 +134,7 @@ var _ = Describe("[Config] - Environment", func() {
 		)
 	})
 
-	Describe("[Function] - Validate", func() {
+	Describe("[Method] - Environment.Validate", func() {
 		DescribeTable("[Behavior] - rejects invalid environment settings", func(key, value, message string) {
 			// Arrange
 			values, readErr := godotenv.Read("../../.env.example")
@@ -143,7 +143,7 @@ var _ = Describe("[Config] - Environment", func() {
 			environment[key] = value
 
 			// Act
-			err := Validate(environment)
+			err := environment.Validate()
 
 			// Assert
 			Expect(err).To(MatchError(ContainSubstring(message)))

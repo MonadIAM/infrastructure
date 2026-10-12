@@ -9,6 +9,11 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
 
+type Client struct {
+	Context string
+	Runner  command.Runner
+}
+
 func (client Client) Execute(ctx context.Context, request command.Request) (command.Result, error) {
 	request.Name = "kubectl"
 	request.Args = append([]string{"--context", client.Context}, request.Args...)
@@ -85,7 +90,7 @@ func (client Client) Get(ctx context.Context, namespace, resource string, result
 
 	err = json.Unmarshal(data, result)
 	if err != nil {
-		return fmt.Errorf("invalid JSON for %s/%s", namespace, resource)
+		return fmt.Errorf("kubernetes.Client.Get: invalid JSON for %s/%s", namespace, resource)
 	}
 
 	return nil
@@ -103,7 +108,7 @@ func (client Client) WaitState(ctx context.Context, namespace, resource, field, 
 		}
 	})
 	if err != nil {
-		return fmt.Errorf("waiting for %s/%s: %w", namespace, resource, err)
+		return fmt.Errorf("kubernetes.Client.WaitState: waiting for %s/%s: %w", namespace, resource, err)
 	}
 
 	return nil

@@ -20,6 +20,8 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/platform/kubernetes"
 )
 
+type runnerFunc func(context.Context, command.Request) (command.Result, error)
+
 func (run runnerFunc) Run(ctx context.Context, request command.Request) (command.Result, error) {
 	return run(ctx, request)
 }
@@ -67,32 +69,31 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			User:        "postgres",
 			PasswordKey: "password",
 		}
-		client = Client{
-			Environment: config.Environment{
-				"KUBE_CONTEXT":        "stand",
-				"VAULT_NAMESPACE":     "vault",
-				"VAULT_POD":           "vault-0",
-				"VAULT_ADDR":          "https://vault.vault.svc:8200",
-				"VAULT_CACERT":        "/vault/ca.crt",
-				"VAULT_STATE_DIR":     filepath.Dir(path),
-				"VAULT_INIT_FILE":     path,
-				"VAULT_KV_MOUNT":      "kv",
-				"VAULT_KEY_SHARES":    "2",
-				"VAULT_KEY_THRESHOLD": "2",
-			},
-			Output: io.Discard,
-			Kubernetes: kubernetes.Client{
-				Context: "stand",
-				Runner: runnerFunc(func(ctx context.Context, request command.Request) (command.Result, error) {
-					requests = append(requests, request)
-
-					return run(ctx, request)
-				}),
-			},
+		environment := config.Environment{
+			"KUBE_CONTEXT":        "stand",
+			"VAULT_NAMESPACE":     "vault",
+			"VAULT_POD":           "vault-0",
+			"VAULT_ADDR":          "https://vault.vault.svc:8200",
+			"VAULT_CACERT":        "/vault/ca.crt",
+			"VAULT_STATE_DIR":     filepath.Dir(path),
+			"VAULT_INIT_FILE":     path,
+			"VAULT_KV_MOUNT":      "kv",
+			"VAULT_KEY_SHARES":    "2",
+			"VAULT_KEY_THRESHOLD": "2",
 		}
+		kubernetesClient := kubernetes.Client{
+			Context: "stand",
+			Runner: runnerFunc(func(ctx context.Context, request command.Request) (command.Result, error) {
+				requests = append(requests, request)
+
+				return run(ctx, request)
+			}),
+		}
+
+		client = New(environment, kubernetesClient, io.Discard)
 	})
 
-	Describe("[Function] - ensureSeaweedFS", func() {
+	Describe("[Method] - Client.ensureSeaweedFS", func() {
 		BeforeEach(func() {
 			client.Environment["SEAWEEDFS_AUDIT_LOG_BUCKET"] = "audit-archive"
 			client.Environment["SEAWEEDFS_AUDIT_LOG_RETENTION_DAYS"] = "1095"
@@ -153,7 +154,7 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 		})
 	})
 
-	Describe("[Function] - ensureCredential", func() {
+	Describe("[Method] - Client.ensureCredential", func() {
 		It("[case] - preserves existing credentials", func() {
 			// Arrange
 			run = func(_ context.Context, _ command.Request) (command.Result, error) {
@@ -219,7 +220,7 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 		})
 	})
 
-	Describe("[Function] - Unseal", func() {
+	Describe("[Method] - Client.Unseal", func() {
 		Context("[Behavior] - submits keys and verifies server state", func() {
 			It("[case] - uses the server threshold and keeps keys out of arguments", func() {
 				// Arrange
@@ -298,7 +299,7 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 		)
 	})
 
-	Describe("[Function] - Initialize", func() {
+	Describe("[Method] - Client.Initialize", func() {
 		It("[case] - backs up old material and saves the new response privately", func() {
 			// Arrange
 			run = func(_ context.Context, request command.Request) (command.Result, error) {

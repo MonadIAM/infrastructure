@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/MonadIAM/infrastructure/cli/config"
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
 
@@ -36,7 +35,7 @@ func (platform Platform) ClusterExists(ctx context.Context) (bool, error) {
 }
 
 func (platform Platform) Start(ctx context.Context, resume bool) error {
-	err := config.Validate(platform.Environment)
+	err := platform.Environment.Validate()
 	if err != nil {
 		return err
 	}
@@ -107,7 +106,7 @@ func (platform Platform) Stop(ctx context.Context) error {
 }
 
 func (platform Platform) Restart(ctx context.Context) error {
-	err := config.Validate(platform.Environment)
+	err := platform.Environment.Validate()
 	if err != nil {
 		return err
 	}
@@ -125,7 +124,7 @@ func (platform Platform) Recreate(ctx context.Context, confirmed bool) error {
 		return errors.New("cluster recreation deletes the cluster; pass --confirm-delete")
 	}
 
-	err := config.Validate(platform.Environment)
+	err := platform.Environment.Validate()
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,8 @@
 package vault
 
-import "github.com/MonadIAM/infrastructure/cli/config"
+import (
+	"github.com/MonadIAM/infrastructure/cli/config"
+)
 
 const tokenCommand = `IFS= read -r VAULT_TOKEN; export VAULT_TOKEN; exec "$@"`
 

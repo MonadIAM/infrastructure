@@ -13,6 +13,8 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
 
+type runnerFunc func(context.Context, command.Request) (command.Result, error)
+
 func (run runnerFunc) Run(ctx context.Context, request command.Request) (command.Result, error) {
 	return run(ctx, request)
 }
@@ -23,7 +25,7 @@ func TestKubernetes(t *testing.T) {
 }
 
 var _ = Describe("[Infrastructure] - Kubernetes", func() {
-	Describe("[Function] - Apply", func() {
+	Describe("[Method] - Client.Apply", func() {
 		DescribeTable("[Behavior] - targets the selected cluster and forwards the manifest", func(serverSide bool) {
 			// Arrange
 			var request command.Request
@@ -54,7 +56,7 @@ var _ = Describe("[Infrastructure] - Kubernetes", func() {
 		)
 	})
 
-	Describe("[Function] - WaitPods", func() {
+	Describe("[Method] - Client.WaitPods", func() {
 		It("[case] - stops when pod creation fails", func() {
 			// Arrange
 			var requests []command.Request
@@ -76,7 +78,7 @@ var _ = Describe("[Infrastructure] - Kubernetes", func() {
 		})
 	})
 
-	Describe("[Function] - Get", func() {
+	Describe("[Method] - Client.Get", func() {
 		It("[case] - does not disclose malformed resource contents", func() {
 			// Arrange
 			client := Client{
@@ -90,11 +92,11 @@ var _ = Describe("[Infrastructure] - Kubernetes", func() {
 			err := client.Get(context.Background(), "vault", "secret/example", &result)
 
 			// Assert
-			Expect(err).To(MatchError("invalid JSON for vault/secret/example"))
+			Expect(err).To(MatchError("kubernetes.Client.Get: invalid JSON for vault/secret/example"))
 		})
 	})
 
-	Describe("[Function] - WaitState", func() {
+	Describe("[Method] - Client.WaitState", func() {
 		It("[case] - completes when the resource reports the expected state", func() {
 			// Arrange
 			client := Client{
@@ -126,7 +128,7 @@ var _ = Describe("[Infrastructure] - Kubernetes", func() {
 			err := client.WaitState(context.Background(), "data", "clickhouse/example", "status", "Completed", time.Second)
 
 			// Assert
-			Expect(err).To(MatchError("waiting for data/clickhouse/example: permission denied"))
+			Expect(err).To(MatchError("kubernetes.Client.WaitState: waiting for data/clickhouse/example: permission denied"))
 			Expect(err).To(MatchError(failure))
 			Expect(calls).To(Equal(1))
 		})
