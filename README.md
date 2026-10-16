@@ -138,7 +138,7 @@ stand/
 |   +-- storage/                         # Storage class with the Retain policy
 +-- platform/
     +-- postgresql/                      # CNPG clusters and monitoring
-    +-- redis/                           # Helm values and TLS certificates
+    +-- redis/                           # Redis/Sentinel values and TLS certificates
     +-- kafka/                           # Broker, Connect, topics and outbox connector
     +-- clickhouse/                      # ClickHouse cluster and monitoring
     +-- seaweedfs/                       # Helm values, bootstrap Job and S3 policies
@@ -197,7 +197,7 @@ Default k3d topology: one server + one worker on the same host.
 | Component  | Configuration                                                |
 | :--------- | :----------------------------------------------------------- |
 | PostgreSQL | Six CNPG clusters; one primary + one replica each            |
-| Redis      | Replication, Sentinel, password authentication, mTLS         |
+| Redis      | Six releases; one primary + two replicas; three Sentinel      |
 | Storage    | `local-path-retain`; retained volumes require manual cleanup |
 
 [Platform manifests](platform/) / [Operators](infrastructure/operators/) / [Secrets contract](platform/secrets/contract.yaml)
@@ -297,6 +297,133 @@ kubectl --context k3d-monadiam -n monadiam-data delete pvc -l cnpg.io/cluster=po
 | Vault KV           | Admin session: `vault kv delete kv/monadiam-data/postgresql/main/<role>` |
 | Old Vault entries  | Repeat for `app`, `debezium`, `superuser`; history remains               |
 | Kafka Connect RBAC | Keep; reapply the updated allowlist of six CDC Secrets                   |
+
+**Redis / Sentinel**
+
+Namespace: `monadiam-data`. One release per service, installed directly from the upstream chart.
+Topology follows [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/) and [GitLab replication/failover](https://docs.gitlab.com/administration/redis/replication_and_failover/#example-of-a-minimal-configuration-with-1-primary-2-replicas-and-3-sentinels).
+
+| Service          | Release / Sentinel master set | Values                                                                  |
+| :--------------- | :---------------------------- | :---------------------------------------------------------------------- |
+| `access-control` | `access-control-redis`        | [access-control.yaml](platform/redis/helm/services/access-control.yaml) |
+| `identity`       | `identity-redis`              | [identity.yaml](platform/redis/helm/services/identity.yaml)             |
+| `notification`   | `notification-redis`          | [notification.yaml](platform/redis/helm/services/notification.yaml)     |
+| `organization`   | `organization-redis`          | [organization.yaml](platform/redis/helm/services/organization.yaml)     |
+| `hr`             | `hr-redis`                    | [hr.yaml](platform/redis/helm/services/hr.yaml)                         |
+| `template`       | `template-redis`              | [template.yaml](platform/redis/helm/services/template.yaml)             |
+
+```text
+<service>-redis
+  node-0: Redis + Sentinel + exporter -> Kubernetes node A
+  node-1: Redis + Sentinel + exporter -> Kubernetes node B
+  node-2: Redis + Sentinel + exporter -> Kubernetes node C
+
+1 primary + 2 replicas; roles can change
+Sentinel quorum 2/3 -> elect primary -> client reconnects
+```
+
+| Parameter           | Default                                                                    |
+| :------------------ | :------------------------------------------------------------------------- |
+| Redis / Sentinel    | 3 Redis; 3 Sentinel; quorum 2; majority 2                                  |
+| Redis data          | AOF enabled; `1Gi` PVC per Redis pod                                       |
+| Sentinel state      | `100Mi` PVC per pod; persists topology and epochs                          |
+| Total, six releases | 18 pods; 36 active PVCs; `18Gi + 1800Mi`; RAM request/limit `7680/16896Mi` |
+| Failure detection   | `10s`; election and reconnect add time; failover timeout `180s`            |
+| Placement           | Hard anti-affinity; 3 schedulable Kubernetes nodes required                |
+| Evictions           | PDB `minAvailable: 2`; protects against voluntary disruptions              |
+| Monitoring          | Exporter on each pod; Redis and Sentinel metrics                           |
+| Write safety        | At least 1 replica with lag <= 10s; otherwise Redis rejects writes         |
+| Durability          | Asynchronous replication can lose recent writes; AOF is not a backup       |
+
+k3d uses 1 server + 2 agents on one host. Redis tolerates loss of one pod or k3d node.
+The stand targets recovery inside this host; physical host redundancy is outside its scope.
+
+Values below are per container; CPU limits are unset.
+
+| Container             | CPU request | RAM request | RAM limit | Redis maxmemory |
+| :-------------------- | ----------: | ----------: | --------: | --------------: |
+| Redis, other services | `100m`      | `256Mi`     | `512Mi`   | `256Mi`         |
+| Redis, AccessControl  | `150m`      | `512Mi`     | `1536Mi`  | `768Mi`         |
+| Sentinel / exporter   | `25m`       | `64Mi`      | `128Mi`   | —               |
+
+`maxmemory-policy=noeviction` rejects writes at the data limit. RAM limits leave headroom for replication and AOF rewrite.
+PVCs use `local-path-retain`; sizes are requests, not enforced disk quotas.
+
+| Source                                                        | Purpose                                              |
+| :------------------------------------------------------------ | :--------------------------------------------------- |
+| `.env`: `REDIS_CHART`, `REDIS_CHART_VERSION`                  | Upstream OCI chart; pinned version `28.0.0`          |
+| [values.yaml](platform/redis/helm/values.yaml)                | Shared topology, TLS, resources, image digests       |
+| [services/](platform/redis/helm/services/)                    | Per-service names, secrets, AccessControl resources  |
+| [resources/](platform/redis/resources/)                       | cert-manager certificates                            |
+
+Helm downloads the chart during installation. No local chart, dependency build or custom Sentinel scripts.
+Bitnami catalog availability is governed by [its distribution policy](https://github.com/bitnami/charts/issues/35164); pinned image digests do not guarantee registry retention.
+
+**Connection contract**
+
+`<release>` is the name from the table above. Applications need a Sentinel-aware client.
+
+| Setting                    | Value                                                                                   |
+| :------------------------- | :-------------------------------------------------------------------------------------- |
+| Sentinel discovery service | `<release>.monadiam-data.svc.cluster.local:26379`                                       |
+| Sentinel master set        | `<release>`                                                                             |
+| Redis port                 | `6379`; obtain the current primary from Sentinel                                        |
+| Auth                       | `<release>-auth`, key `redis-password`; used for Redis and Sentinel                     |
+| Vault KV                   | `kv/monadiam-data/redis/<service>/auth`                                                 |
+| TLS / mTLS                 | `<release>-tls`: `ca.crt`, `tls.crt`, `tls.key`; required on both ports                 |
+| Generic Redis service      | `<release>:6379` selects all three Redis pods; unsuitable as a write endpoint           |
+| Application integration    | Sentinel client setup and secret delivery to application namespaces are separate work   |
+
+For clients accepting multiple Sentinel seeds, use all three addresses with port `26379`:
+
+```text
+<release>-node-0.<release>-headless.monadiam-data.svc.cluster.local
+<release>-node-1.<release>-headless.monadiam-data.svc.cluster.local
+<release>-node-2.<release>-headless.monadiam-data.svc.cluster.local
+```
+
+**Replica count**
+
+Edit [shared values](platform/redis/helm/values.yaml), or override in the service values.
+In Sentinel mode, `replica.replicaCount` includes the primary; every Redis pod contains a Sentinel.
+
+| Parameter                             | Default | Example expansion |
+| :------------------------------------ | ------: | ----------------: |
+| `replica.replicaCount`                | 3       | 5                 |
+| Redis primary / replicas              | 1 / 2   | 1 / 4             |
+| Total Sentinel                        | 3       | 5                 |
+| `sentinel.quorum`                     | 2       | 3                 |
+| `replica.pdb.minAvailable`            | 2       | 3                 |
+| Required schedulable Kubernetes nodes | 3       | 5                 |
+
+```bash
+# Existing two-node stands: add an agent once; fresh installs use bootstrap/k3d/cluster.yaml.
+k3d node create monadiam-agent-1 --cluster monadiam --role agent --wait
+
+# Ensure REDIS_CHART and REDIS_CHART_VERSION are present in .env.
+# Also reconciles PostgreSQL, Kafka and ClickHouse.
+make reconcile COMPONENT=clusters
+```
+
+Keep at least three pods. For N voters, set quorum and PDB minimum to `floor(N/2) + 1`.
+Scaling down also requires removing departed Sentinel peers with `SENTINEL RESET <release>`, one surviving Sentinel at a time, allowing peer discovery between resets.
+
+**Legacy `redis-main` cleanup**
+
+For existing stands, migrate required data and switch clients before cleanup. Reconcile does not remove the old release.
+
+```bash
+helm --kube-context k3d-monadiam uninstall redis-main -n monadiam-data
+kubectl --context k3d-monadiam -n monadiam-data delete vaultstaticsecret redis-main-auth --ignore-not-found
+kubectl --context k3d-monadiam -n monadiam-data delete certificate redis-main-tls --ignore-not-found
+kubectl --context k3d-monadiam -n monadiam-data delete secret redis-main-auth redis-main-tls --ignore-not-found
+```
+
+| Retained resource | Cleanup after migration                                                                            |
+| :---------------- | :------------------------------------------------------------------------------------------------- |
+| Redis PVCs / PVs  | Inspect claims with `app.kubernetes.io/instance=redis-main`; delete manually when no longer needed |
+| Vault KV          | Admin session: `vault kv delete kv/monadiam-data/redis/main/auth`; history remains                 |
+
 
 </details>
 

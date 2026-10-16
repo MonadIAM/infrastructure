@@ -34,7 +34,12 @@ resources:
   - messaging-bootstrap-static-secret.yaml
   - grafana-admin-static-secret.yaml
   - kafka-main-admin-password-static-secret.yaml
-  - redis-main-auth-static-secret.yaml
+  - access-control-redis-auth-static-secret.yaml
+  - identity-redis-auth-static-secret.yaml
+  - notification-redis-auth-static-secret.yaml
+  - organization-redis-auth-static-secret.yaml
+  - hr-redis-auth-static-secret.yaml
+  - template-redis-auth-static-secret.yaml
   - clickhouse-main-app-static-secret.yaml
   - clickhouse-main-intercluster-static-secret.yaml
   - clickhouse-operator-static-secret.yaml

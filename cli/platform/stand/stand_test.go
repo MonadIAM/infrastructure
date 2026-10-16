@@ -197,6 +197,34 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
+	Describe("[Method] - Platform.installRedis", func() {
+		It("[case] - stops before installing the next release when Redis installation fails", func() {
+			// Arrange
+			var requests []command.Request
+			failure := errors.New("Redis chart download failed")
+			runner := runnerFunc(func(_ context.Context, request command.Request) (command.Result, error) {
+				requests = append(requests, request)
+
+				if request.Name == "helm" {
+					return command.Result{}, failure
+				}
+
+				return command.Result{}, nil
+			})
+			platform := New(environment, runner, io.Discard)
+			platform.Helm = helm.Client{Runner: runner, Attempts: 1, Output: io.Discard}
+
+			// Act
+			err := platform.installRedis(context.Background())
+
+			// Assert
+			Expect(err).To(MatchError(failure))
+			Expect(requests).To(HaveLen(3))
+			Expect(requests[2].Name).To(Equal("helm"))
+			Expect(requests[2].Args[:4]).To(Equal([]string{"upgrade", "--install", "access-control-redis", environment["REDIS_CHART"]}))
+		})
+	})
+
 	Describe("[Method] - Platform.Clusters", func() {
 		It("[case] - stops when the service PostgreSQL cluster is not ready", func() {
 			// Arrange
@@ -223,8 +251,16 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 			Expect(commands[len(commands)-1]).To(ContainSubstring("cluster.postgresql.cnpg.io/template-postgresql"))
 			for _, service := range []string{"access-control", "identity", "notification", "organization", "hr", "template"} {
 				Expect(joined).To(ContainSubstring("cluster.postgresql.cnpg.io/" + service + "-postgresql"))
+				Expect(joined).To(ContainSubstring("certificate/" + service + "-redis-tls"))
+				Expect(joined).To(ContainSubstring("secret/" + service + "-redis-auth"))
+				Expect(joined).To(ContainSubstring("upgrade --install " + service + "-redis "))
+				Expect(joined).To(ContainSubstring("--values platform/redis/helm/services/" + service + ".yaml"))
 			}
 
+			Expect(joined).NotTo(ContainSubstring("dependency build"))
+			Expect(joined).To(ContainSubstring("upgrade --install access-control-redis " + environment["REDIS_CHART"]))
+			Expect(joined).To(ContainSubstring("--version " + environment["REDIS_CHART_VERSION"]))
+			Expect(joined).NotTo(ContainSubstring("redis-main"))
 			Expect(joined).NotTo(ContainSubstring("strimzi.io/name=kafka-main-kafka"))
 		})
 	})

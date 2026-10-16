@@ -173,7 +173,7 @@ func (platform Platform) Status(ctx context.Context) error {
 
 	commands := [][]string{
 		{"get", "cluster.postgresql.cnpg.io", "-n", "monadiam-data"},
-		{"get", "pods,svc", "-l", "app.kubernetes.io/instance=redis-main", "-n", "monadiam-data"},
+		{"get", "pods,svc", "-l", "app.kubernetes.io/name=redis", "-n", "monadiam-data"},
 		{"get", kafkaResources, "-n", "monadiam-messaging"},
 		{"get", "clickhouseinstallations.clickhouse.altinity.com", "-n", "monadiam-data"},
 		{"get", "pods,svc", "-n", "monadiam-observability"},

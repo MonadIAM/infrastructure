@@ -1,0 +1,30 @@
+fullnameOverride: access-control-redis
+
+auth:
+  existingSecret: access-control-redis-auth
+
+tls:
+  existingSecret: access-control-redis-tls
+
+sentinel:
+  masterSet: access-control-redis
+
+metrics:
+  extraArgs:
+    tls-server-name: access-control-redis.monadiam-data.svc.cluster.local
+
+commonConfiguration: |-
+  appendonly yes
+  save ""
+  maxmemory 768mb
+  maxmemory-policy noeviction
+  min-replicas-to-write 1
+  min-replicas-max-lag 10
+
+replica:
+  resources:
+    requests:
+      cpu: 150m
+      memory: 512Mi
+    limits:
+      memory: 1536Mi

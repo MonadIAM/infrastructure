@@ -1,0 +1,14 @@
+fullnameOverride: hr-redis
+
+auth:
+  existingSecret: hr-redis-auth
+
+tls:
+  existingSecret: hr-redis-tls
+
+sentinel:
+  masterSet: hr-redis
+
+metrics:
+  extraArgs:
+    tls-server-name: hr-redis.monadiam-data.svc.cluster.local

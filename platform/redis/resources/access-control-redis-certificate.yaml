@@ -1,0 +1,32 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: access-control-redis-tls
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: access-control-redis
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  secretName: access-control-redis-tls
+  commonName: access-control-redis.monadiam-data.svc.cluster.local
+  dnsNames:
+    - access-control-redis
+    - access-control-redis.monadiam-data
+    - access-control-redis.monadiam-data.svc
+    - access-control-redis.monadiam-data.svc.cluster.local
+    - access-control-redis-headless
+    - access-control-redis-headless.monadiam-data
+    - access-control-redis-headless.monadiam-data.svc
+    - access-control-redis-headless.monadiam-data.svc.cluster.local
+    - "*.access-control-redis-headless.monadiam-data.svc.cluster.local"
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+    - client auth
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: monadiam-ca

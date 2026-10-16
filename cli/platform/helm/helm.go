@@ -60,6 +60,7 @@ func (client Client) Execute(ctx context.Context, capture bool, args ...string) 
 			Args:    args,
 			Capture: capture,
 		})
+
 		if err == nil {
 			return result.Output, nil
 		}
@@ -94,12 +95,16 @@ func (client Client) Repo(ctx context.Context, name, address string) error {
 func (client Client) Install(ctx context.Context, release Release) error {
 	args := []string{
 		"upgrade", "--install", release.Name, release.Chart,
-		"--version", release.Version,
 		"--namespace", release.Namespace,
 		"--create-namespace",
 		"--kube-context", client.Context,
 		"--values", release.Values,
 	}
+
+	if release.Version != "" {
+		args = append(args, "--version", release.Version)
+	}
+
 	args = append(args, release.Arguments...)
 
 	_, err := client.Execute(ctx, false, args...)

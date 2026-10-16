@@ -104,7 +104,27 @@ func credentialDefinitions(environment config.Environment) []credentialDefinitio
 			PasswordKey: "secret",
 		},
 		{
-			Path:        "monadiam-data/redis/main/auth",
+			Path:        "monadiam-data/redis/access-control/auth",
+			PasswordKey: "redis-password",
+		},
+		{
+			Path:        "monadiam-data/redis/identity/auth",
+			PasswordKey: "redis-password",
+		},
+		{
+			Path:        "monadiam-data/redis/notification/auth",
+			PasswordKey: "redis-password",
+		},
+		{
+			Path:        "monadiam-data/redis/organization/auth",
+			PasswordKey: "redis-password",
+		},
+		{
+			Path:        "monadiam-data/redis/hr/auth",
+			PasswordKey: "redis-password",
+		},
+		{
+			Path:        "monadiam-data/redis/template/auth",
 			PasswordKey: "redis-password",
 		},
 		{

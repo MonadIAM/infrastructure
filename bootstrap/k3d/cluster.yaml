@@ -3,7 +3,7 @@ kind: Simple
 metadata:
   name: monadiam
 servers: 1
-agents: 1
+agents: 2
 image: rancher/k3s:v1.35.5-k3s1
 kubeAPI:
   host: "127.0.0.1"

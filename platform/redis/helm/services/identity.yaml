@@ -1,0 +1,14 @@
+fullnameOverride: identity-redis
+
+auth:
+  existingSecret: identity-redis-auth
+
+tls:
+  existingSecret: identity-redis-tls
+
+sentinel:
+  masterSet: identity-redis
+
+metrics:
+  extraArgs:
+    tls-server-name: identity-redis.monadiam-data.svc.cluster.local

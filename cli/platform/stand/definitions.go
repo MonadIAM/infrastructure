@@ -1,6 +1,8 @@
 package stand
 
 import (
+	"strings"
+
 	"github.com/MonadIAM/infrastructure/cli/config"
 	"github.com/MonadIAM/infrastructure/cli/platform/helm"
 )
@@ -22,6 +24,15 @@ var postgresqlClusters = []string{
 	"organization-postgresql",
 	"hr-postgresql",
 	"template-postgresql",
+}
+
+var redisClusters = []string{
+	"access-control-redis",
+	"identity-redis",
+	"notification-redis",
+	"organization-redis",
+	"hr-redis",
+	"template-redis",
 }
 
 func (platform Platform) phases() []phaseDefinition {
@@ -66,7 +77,7 @@ func (platform Platform) phases() []phaseDefinition {
 }
 
 func releaseDefinitions(environment config.Environment) map[string]helm.Release {
-	return map[string]helm.Release{
+	releases := map[string]helm.Release{
 		"seaweedfs-main": {
 			Name:      "seaweedfs-main",
 			Chart:     "seaweedfs/seaweedfs",
@@ -133,14 +144,6 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Namespace: "clickhouse-operator",
 			Values:    "infrastructure/operators/clickhouse/helm/values.yaml",
 		},
-		"redis-main": {
-			Name:      "redis-main",
-			Chart:     environment["REDIS_CHART"],
-			Version:   environment["REDIS_CHART_VERSION"],
-			Namespace: dataNamespace,
-			Values:    "platform/redis/helm/values.yaml",
-			Arguments: []string{"--wait", "--timeout", "600s", "--hide-notes"},
-		},
 		"kube-prometheus-stack": {
 			Name:      "kube-prometheus-stack",
 			Chart:     "prometheus-community/kube-prometheus-stack",
@@ -174,6 +177,22 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Arguments: []string{"--timeout", "600s"},
 		},
 	}
+
+	for _, cluster := range redisClusters {
+		releases[cluster] = helm.Release{
+			Name:      cluster,
+			Chart:     environment["REDIS_CHART"],
+			Version:   environment["REDIS_CHART_VERSION"],
+			Namespace: dataNamespace,
+			Values:    "platform/redis/helm/values.yaml",
+			Arguments: []string{
+				"--values", "platform/redis/helm/services/" + strings.TrimSuffix(cluster, "-redis") + ".yaml",
+				"--wait", "--timeout", "600s", "--hide-notes",
+			},
+		}
+	}
+
+	return releases
 }
 
 func operatorDefinitions() []operatorDefinition {
@@ -314,8 +333,33 @@ func secretDefinitions() []secretDefinition {
 		},
 		{
 			Namespace:   "monadiam-data",
-			Name:        "redis-main-auth",
-			Destination: "redis-main-auth",
+			Name:        "access-control-redis-auth",
+			Destination: "access-control-redis-auth",
+		},
+		{
+			Namespace:   "monadiam-data",
+			Name:        "identity-redis-auth",
+			Destination: "identity-redis-auth",
+		},
+		{
+			Namespace:   "monadiam-data",
+			Name:        "notification-redis-auth",
+			Destination: "notification-redis-auth",
+		},
+		{
+			Namespace:   "monadiam-data",
+			Name:        "organization-redis-auth",
+			Destination: "organization-redis-auth",
+		},
+		{
+			Namespace:   "monadiam-data",
+			Name:        "hr-redis-auth",
+			Destination: "hr-redis-auth",
+		},
+		{
+			Namespace:   "monadiam-data",
+			Name:        "template-redis-auth",
+			Destination: "template-redis-auth",
 		},
 		{
 			Namespace:   "monadiam-data",

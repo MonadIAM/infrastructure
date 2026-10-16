@@ -1,7 +1,4 @@
-fullnameOverride: redis-main
-
 commonLabels:
-  app.kubernetes.io/component: cache
   app.kubernetes.io/part-of: monadiam
 
 architecture: replication
@@ -15,11 +12,14 @@ image:
 commonConfiguration: |-
   appendonly yes
   save ""
+  maxmemory 256mb
+  maxmemory-policy noeviction
+  min-replicas-to-write 1
+  min-replicas-max-lag 10
 
 auth:
   enabled: true
   sentinel: true
-  existingSecret: redis-main-auth
   existingSecretPasswordKey: redis-password
   usePasswordFiles: true
   usePasswordFileFromSecret: true
@@ -27,34 +27,24 @@ auth:
 tls:
   enabled: true
   authClients: true
-  existingSecret: redis-main-tls
   certFilename: tls.crt
   certKeyFilename: tls.key
   certCAFilename: ca.crt
 
-master:
-  count: 1
-  resourcesPreset: none
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
-      memory: 256Mi
-  persistence:
-    enabled: true
-    storageClass: local-path-retain
-    size: 1Gi
-
 replica:
   replicaCount: 3
+  podAntiAffinityPreset: hard
+  pdb:
+    create: true
+    minAvailable: 2
+    maxUnavailable: ""
   resourcesPreset: none
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
-    limits:
+      cpu: 100m
       memory: 256Mi
+    limits:
+      memory: 512Mi
   persistence:
     enabled: true
     storageClass: local-path-retain
@@ -67,8 +57,14 @@ sentinel:
     repository: bitnami/redis-sentinel
     tag: latest
     digest: sha256:fcfca07d8b56cea8e990e51c09c0d03102bde09a2147bd6a669e024a56893a8c
-  masterSet: redis-main
   quorum: 2
+  downAfterMilliseconds: 10000
+  failoverTimeout: 180000
+  parallelSyncs: 1
+  persistence:
+    enabled: true
+    storageClass: local-path-retain
+    size: 100Mi
   resourcesPreset: none
   resources:
     requests:
@@ -105,7 +101,6 @@ metrics:
     tls-client-key-file: /opt/bitnami/redis/certs/tls.key
     tls-client-cert-file: /opt/bitnami/redis/certs/tls.crt
     tls-ca-cert-file: /opt/bitnami/redis/certs/ca.crt
-    tls-server-name: redis-main.monadiam-data.svc.cluster.local
     ping-on-connect: true
     set-client-name: true
   serviceMonitor:

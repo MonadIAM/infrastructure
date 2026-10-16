@@ -31,6 +31,40 @@ func TestHelm(t *testing.T) {
 }
 
 var _ = Describe("[Infrastructure] - Helm", func() {
+	Describe("[Method] - Client.Install", func() {
+		DescribeTable("[Behavior] - supports remote and local charts", func(chart, version string) {
+			// Arrange
+			var arguments []string
+			client := Client{
+				Attempts: 1,
+				Output:   io.Discard,
+				Runner: runnerFunc(func(_ context.Context, request command.Request) (command.Result, error) {
+					arguments = request.Args
+
+					return command.Result{}, nil
+				}),
+			}
+
+			// Act
+			err := client.Install(context.Background(), Release{
+				Name: "example", Chart: chart, Version: version, Namespace: "data", Values: "values.yaml",
+			})
+
+			// Assert
+			Expect(err).NotTo(HaveOccurred())
+			Expect(arguments[:4]).To(Equal([]string{"upgrade", "--install", "example", chart}))
+			if version == "" {
+				Expect(arguments).NotTo(ContainElement("--version"))
+			} else {
+				Expect(arguments).To(ContainElement("--version"))
+				Expect(arguments).To(ContainElement(version))
+			}
+		},
+			Entry("local chart", "./example-chart", ""),
+			Entry("remote chart", "example/redis", "28.0.0"),
+		)
+	})
+
 	Describe("[Method] - Client.Execute", func() {
 		It("[case] - discards partial manifests from failed attempts", func() {
 			// Arrange

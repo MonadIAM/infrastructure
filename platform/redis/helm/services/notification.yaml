@@ -1,0 +1,14 @@
+fullnameOverride: notification-redis
+
+auth:
+  existingSecret: notification-redis-auth
+
+tls:
+  existingSecret: notification-redis-tls
+
+sentinel:
+  masterSet: notification-redis
+
+metrics:
+  extraArgs:
+    tls-server-name: notification-redis.monadiam-data.svc.cluster.local

@@ -1,0 +1,14 @@
+fullnameOverride: organization-redis
+
+auth:
+  existingSecret: organization-redis-auth
+
+tls:
+  existingSecret: organization-redis-tls
+
+sentinel:
+  masterSet: organization-redis
+
+metrics:
+  extraArgs:
+    tls-server-name: organization-redis.monadiam-data.svc.cluster.local

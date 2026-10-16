@@ -1,0 +1,32 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hr-redis-tls
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: hr-redis
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  secretName: hr-redis-tls
+  commonName: hr-redis.monadiam-data.svc.cluster.local
+  dnsNames:
+    - hr-redis
+    - hr-redis.monadiam-data
+    - hr-redis.monadiam-data.svc
+    - hr-redis.monadiam-data.svc.cluster.local
+    - hr-redis-headless
+    - hr-redis-headless.monadiam-data
+    - hr-redis-headless.monadiam-data.svc
+    - hr-redis-headless.monadiam-data.svc.cluster.local
+    - "*.hr-redis-headless.monadiam-data.svc.cluster.local"
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+    - client auth
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: monadiam-ca

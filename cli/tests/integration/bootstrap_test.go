@@ -65,7 +65,7 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			Expect(state.Volumes).To(HaveKey("monadiam-data/data-monadiam-data-seaweedfs-main-master-0"))
 			Expect(state.Volumes).To(HaveKey("monadiam-data/data-seaweedfs-main-volume-0"))
 			Expect(state.Volumes).To(HaveKey("monadiam-data/data-filer-seaweedfs-main-filer-0"))
-			Expect(state.Credentials).To(HaveLen(24))
+			Expect(state.Credentials).To(HaveLen(29))
 			Expect(seedErr).NotTo(HaveOccurred())
 			Expect(readErr).NotTo(HaveOccurred())
 			Expect(values).To(HaveLen(6))

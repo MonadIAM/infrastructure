@@ -67,17 +67,24 @@ func (platform Platform) applyClusterResources(ctx context.Context) error {
 }
 
 func (platform Platform) installRedis(ctx context.Context) error {
-	err := platform.Kubernetes.Wait(ctx, dataNamespace, "certificate/redis-main-tls", "condition=Ready", "180s")
-	if err != nil {
-		return err
+	for _, cluster := range redisClusters {
+		err := platform.Kubernetes.Wait(ctx, dataNamespace, "certificate/"+cluster+"-tls", "condition=Ready", "180s")
+		if err != nil {
+			return err
+		}
+
+		err = platform.Kubernetes.Wait(ctx, dataNamespace, "secret/"+cluster+"-auth", "create", "180s")
+		if err != nil {
+			return err
+		}
+
+		err = platform.install(ctx, cluster)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = platform.Kubernetes.Wait(ctx, dataNamespace, "secret/redis-main-auth", "create", "180s")
-	if err != nil {
-		return err
-	}
-
-	return platform.install(ctx, "redis-main")
+	return nil
 }
 
 func (platform Platform) waitKafka(ctx context.Context) error {
