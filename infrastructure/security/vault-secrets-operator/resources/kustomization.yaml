@@ -2,6 +2,18 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  - access-control-postgresql-app-static-secret.yaml
+  - access-control-postgresql-debezium-static-secret.yaml
+  - identity-postgresql-app-static-secret.yaml
+  - identity-postgresql-debezium-static-secret.yaml
+  - notification-postgresql-app-static-secret.yaml
+  - notification-postgresql-debezium-static-secret.yaml
+  - organization-postgresql-app-static-secret.yaml
+  - organization-postgresql-debezium-static-secret.yaml
+  - hr-postgresql-app-static-secret.yaml
+  - hr-postgresql-debezium-static-secret.yaml
+  - template-postgresql-app-static-secret.yaml
+  - template-postgresql-debezium-static-secret.yaml
   - seaweedfs-main-s3-static-secret.yaml
   - seaweedfs-main-admin-static-secret.yaml
   - seaweedfs-main-archiver-static-secret.yaml
@@ -21,9 +33,6 @@ resources:
   - data-bootstrap-static-secret.yaml
   - messaging-bootstrap-static-secret.yaml
   - grafana-admin-static-secret.yaml
-  - postgresql-main-superuser-static-secret.yaml
-  - postgresql-main-app-static-secret.yaml
-  - postgresql-main-debezium-static-secret.yaml
   - kafka-main-admin-password-static-secret.yaml
   - redis-main-auth-static-secret.yaml
   - clickhouse-main-app-static-secret.yaml

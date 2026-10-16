@@ -1,0 +1,59 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: identity-postgresql
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: identity-postgresql
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6-standard-trixie
+  instances: 2
+  enableSuperuserAccess: false
+  bootstrap:
+    initdb:
+      database: identity-service
+      owner: identity
+      secret:
+        name: identity-postgresql-app
+      dataChecksums: true
+  postgresql:
+    parameters:
+      wal_level: logical
+    pg_hba:
+      - hostnossl all all all reject
+  managed:
+    roles:
+      - name: identity
+        ensure: present
+        login: true
+        superuser: false
+        passwordSecret:
+          name: identity-postgresql-app
+      - name: debezium
+        ensure: present
+        login: true
+        replication: true
+        inRoles:
+          - identity
+        passwordSecret:
+          name: identity-postgresql-debezium
+  storage:
+    storageClass: local-path-retain
+    size: 8Gi
+  walStorage:
+    storageClass: local-path-retain
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+  inheritedMetadata:
+    labels:
+      app.kubernetes.io/name: identity-postgresql
+      app.kubernetes.io/component: database
+      app.kubernetes.io/part-of: monadiam

@@ -1,17 +1,17 @@
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: postgresql-main
+  name: access-control-postgresql
   namespace: monadiam-data
   labels:
-    app.kubernetes.io/name: postgresql-main
+    app.kubernetes.io/name: access-control-postgresql
     app.kubernetes.io/component: database
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
 spec:
   selector:
     matchLabels:
-      cnpg.io/cluster: postgresql-main
+      cnpg.io/cluster: access-control-postgresql
       cnpg.io/podRole: instance
   podMetricsEndpoints:
     - port: metrics

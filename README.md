@@ -102,48 +102,48 @@ Components available for selective reconciliation: `cert-manager`, `metrics-serv
 
 ```text
 stand/
-├── Makefile                             # Cluster, platform and development commands
-├── .env.example                         # Environment settings and component versions
-├── main.go                              # CLI entry point and shutdown handling
-├── go.mod                               # Go module and dependencies
-├── go.sum                               # Dependency checksums
-│
-├── cli/                                 # Go application and component tests
-│   ├── cli.go                           # Command-line arguments
-│   ├── commands.go                      # Command handlers and application state
-│   ├── types.go                         # Handler type and help text
-│   ├── config/                          # Configuration loading, creation and validation
-│   ├── platform/
-│   │   ├── command/                     # Subprocess execution and readiness polling
-│   │   ├── helm/                        # Chart installation and retries
-│   │   ├── kubernetes/                  # Context, manifests and resource readiness
-│   │   ├── seaweedfs/                   # Buckets, versioning and retention rules
-│   │   ├── stand/                       # Cluster and platform component management
-│   │   └── vault/                       # Initialization, unseal and secret configuration
-│   └── tests/integration/               # Tests against a real k3d cluster
-│       ├── cluster_helpers.go           # Test environment management
-│       ├── platform_helpers.go          # Resource state, Vault and PostgreSQL checks
-│       ├── seaweedfs_helpers.go         # S3 settings and port forwarding
-│       ├── storage_helpers.go           # S3 client and object checks
-│       ├── bootstrap_test.go            # Bootstrap, permissions and data persistence
-│       └── testdata/                    # Isolated ports and test registry
-│
-├── bootstrap/k3d/cluster.yaml           # k3s nodes, registry and host ports
-├── clusters/local/                      # Namespaces and storage configuration
-├── infrastructure/
-│   ├── networking/                      # Istio and Gateway API
-│   ├── security/                        # cert-manager and Vault Secrets Operator
-│   ├── operators/                       # CloudNativePG, Strimzi and ClickHouse Operator
-│   ├── observability/                   # Prometheus, Grafana, Loki, Tempo and OTel
-│   └── storage/                         # Storage class with the Retain policy
-└── platform/
-    ├── postgresql/                      # CNPG cluster and monitoring
-    ├── redis/                           # Helm values and TLS certificates
-    ├── kafka/                           # Broker, Connect, topics and outbox connector
-    ├── clickhouse/                      # ClickHouse cluster and monitoring
-    ├── seaweedfs/                       # Helm values, bootstrap Job and S3 policies
-    ├── vault/                           # Server, certificates and access policies
-    └── secrets/contract.yaml            # Vault paths and corresponding Secrets
++-- Makefile                             # Cluster, platform and development commands
++-- .env.example                         # Environment settings and component versions
++-- main.go                              # CLI entry point and shutdown handling
++-- go.mod                               # Go module and dependencies
++-- go.sum                               # Dependency checksums
+|
++-- cli/                                 # Go application and component tests
+|   +-- cli.go                           # Command-line arguments
+|   +-- commands.go                      # Command handlers and application state
+|   +-- types.go                         # Handler type and help text
+|   +-- config/                          # Configuration loading, creation and validation
+|   +-- platform/
+|   |   +-- command/                     # Subprocess execution and readiness polling
+|   |   +-- helm/                        # Chart installation and retries
+|   |   +-- kubernetes/                  # Context, manifests and resource readiness
+|   |   +-- seaweedfs/                   # Buckets, versioning and retention rules
+|   |   +-- stand/                       # Cluster and platform component management
+|   |   +-- vault/                       # Initialization, unseal and secret configuration
+|   +-- tests/integration/               # Tests against a real k3d cluster
+|       +-- cluster_helpers.go           # Test environment management
+|       +-- platform_helpers.go          # Resource state, Vault and PostgreSQL checks
+|       +-- seaweedfs_helpers.go         # S3 settings and port forwarding
+|       +-- storage_helpers.go           # S3 client and object checks
+|       +-- bootstrap_test.go            # Bootstrap, permissions and data persistence
+|       +-- testdata/                    # Isolated ports and test registry
+|
++-- bootstrap/k3d/cluster.yaml           # k3s nodes, registry and host ports
++-- clusters/local/                      # Namespaces and storage configuration
++-- infrastructure/
+|   +-- networking/                      # Istio and Gateway API
+|   +-- security/                        # cert-manager and Vault Secrets Operator
+|   +-- operators/                       # CloudNativePG, Strimzi and ClickHouse Operator
+|   +-- observability/                   # Prometheus, Grafana, Loki, Tempo and OTel
+|   +-- storage/                         # Storage class with the Retain policy
++-- platform/
+    +-- postgresql/                      # CNPG clusters and monitoring
+    +-- redis/                           # Helm values and TLS certificates
+    +-- kafka/                           # Broker, Connect, topics and outbox connector
+    +-- clickhouse/                      # ClickHouse cluster and monitoring
+    +-- seaweedfs/                       # Helm values, bootstrap Job and S3 policies
+    +-- vault/                           # Server, certificates and access policies
+    +-- secrets/contract.yaml            # Vault paths and corresponding Secrets
 ```
 
 </details>
@@ -184,26 +184,119 @@ Open `http://localhost:3000` while the command is running. If you changed
 <details>
 <summary><strong>Service Infrastructure</strong></summary>
 
-By default, k3d creates one k3s server node and one worker node.
-Platform components are organized into namespaces:
+Default k3d topology: one server + one worker on the same host.
 
-| Namespace                | Components                                      |
-| :----------------------- | :---------------------------------------------- |
-| `monadiam-data`          | PostgreSQL, Redis, ClickHouse and SeaweedFS.    |
-| `monadiam-messaging`     | Kafka and Kafka Connect.                        |
-| `monadiam-observability` | Metrics, logs, traces and Grafana.              |
-| `vault`                  | Vault server.                                   |
-| `monadiam-apps`          | Namespace for applications deployed separately. |
+| Namespace                | Components                               |
+| :----------------------- | :--------------------------------------- |
+| `monadiam-data`          | PostgreSQL, Redis, ClickHouse, SeaweedFS |
+| `monadiam-messaging`     | Kafka, Kafka Connect                     |
+| `monadiam-observability` | Metrics, logs, traces, Grafana           |
+| `vault`                  | Vault                                    |
+| `monadiam-apps`          | Applications; deployed separately        |
 
-- **PostgreSQL:** CloudNativePG manages `postgresql-main`. It creates the `app` database,
-  an application user and the `debezium` replication role.
-- **Redis:** the Helm chart configures replication, Sentinel, password authentication
-  and TLS with client certificate verification.
-- **Storage:** persistent data uses `local-path-retain`. The Retain policy is not a
-  backup and does not guarantee data preservation when the entire k3d cluster is deleted.
+| Component  | Configuration                                                |
+| :--------- | :----------------------------------------------------------- |
+| PostgreSQL | Six CNPG clusters; one primary + one replica each            |
+| Redis      | Replication, Sentinel, password authentication, mTLS         |
+| Storage    | `local-path-retain`; retained volumes require manual cleanup |
 
-Manifests are stored in `platform/<component>/`, and operators in
-`infrastructure/operators/`. `make start` does not deploy applications.
+[Platform manifests](platform/) / [Operators](infrastructure/operators/) / [Secrets contract](platform/secrets/contract.yaml)
+
+**PostgreSQL**
+
+Namespace: `monadiam-data`. Database name: `<service>-service`.
+
+| Service          | Cluster / manifest                             | Database owner   |
+| :--------------- | :--------------------------------------------- | :--------------- |
+| `access-control` | [access-control-postgresql][pg-access-control] | `access_control` |
+| `identity`       | [identity-postgresql][pg-identity]             | `identity`       |
+| `notification`   | [notification-postgresql][pg-notification]     | `notification`   |
+| `organization`   | [organization-postgresql][pg-organization]     | `organization`   |
+| `hr`             | [hr-postgresql][pg-hr]                         | `hr`             |
+| `template`       | [template-postgresql][pg-template]             | `template`       |
+
+[pg-access-control]: platform/postgresql/resources/access-control-postgresql.yaml
+[pg-identity]: platform/postgresql/resources/identity-postgresql.yaml
+[pg-notification]: platform/postgresql/resources/notification-postgresql.yaml
+[pg-organization]: platform/postgresql/resources/organization-postgresql.yaml
+[pg-hr]: platform/postgresql/resources/hr-postgresql.yaml
+[pg-template]: platform/postgresql/resources/template-postgresql.yaml
+
+| Parameter                      | Value                                                     |
+| :----------------------------- | :-------------------------------------------------------- |
+| Write host                     | `<cluster>-rw.monadiam-data.svc.cluster.local`            |
+| Read host                      | `<cluster>-ro.monadiam-data.svc.cluster.local`            |
+| Port                           | `5432`                                                    |
+| Data / WAL per instance        | `8Gi` / `1Gi`                                             |
+| CPU / RAM request per instance | `100m` / `256Mi`                                          |
+| RAM limit per instance         | `1Gi`                                                     |
+| Default total                  | 12 Pods; 24 PVCs; `108Gi` requested storage               |
+| Application Secret             | `<cluster>-app`: `username`, `password`                   |
+| CDC Secret                     | `<cluster>-debezium`: `username`, `password`              |
+| Vault KV path                  | `kv/monadiam-data/postgresql/<service>/{app,debezium}`    |
+| Credentials lifecycle          | Vault -> VSO -> CNPG; preserved on reconcile              |
+| Database owner                 | Non-superuser; remote superuser access disabled           |
+| CDC role                       | `debezium`; `LOGIN`, `REPLICATION`, owner-role membership |
+| Application TLS                | `verify-full`; CA: `<cluster>-ca`, key `ca.crt`           |
+
+> Deliver only the public CA certificate to applications. Plaintext connections are rejected.
+> `local-path` PVC sizes are requests, not enforced disk quotas.
+
+**Replica count**
+
+Edit `spec.instances` in each cluster manifest. `replicas = instances - 1`.
+
+| `spec.instances` | Primary | Replicas | Read endpoint             |
+| :--------------- | ------: | -------: | :------------------------ |
+| `1`              |       1 |        0 | `-rw`; no `-ro` endpoints |
+| `2` (default)    |       1 |        1 | `-ro`                     |
+| `3`              |       1 |        2 | `-ro`                     |
+
+```bash
+# Apply persisted replica counts. Replace context if KUBE_CONTEXT differs.
+kubectl --context k3d-monadiam apply -k platform/postgresql/resources
+
+# Wait until READY == DESIRED and Pods are ready.
+kubectl --context k3d-monadiam -n monadiam-data get clusters.postgresql.cnpg.io \
+  -o custom-columns=NAME:.metadata.name,DESIRED:.spec.instances,READY:.status.readyInstances
+
+# Temporary override; the next reconcile restores the manifest value.
+kubectl --context k3d-monadiam -n monadiam-data patch cluster/template-postgresql \
+  --type=merge -p '{"spec":{"instances":3}}'
+```
+
+| Constraint              | Behaviour                                                             |
+| :---------------------- | :-------------------------------------------------------------------- |
+| Persistent scaling      | Edit cluster manifests; no `.env` override                            |
+| Read-after-write        | Use `-rw`; asynchronous replicas can lag                              |
+| Availability            | Primary failover; no protection against physical host loss            |
+| Backups                 | Replicas and `Retain` do not replace backups                          |
+| Existing PVC expansion  | `local-path-retain` has no configured expansion support               |
+| Application integration | Migrations, credential delivery and CDC activation are separate steps |
+
+**Legacy `postgresql-main` cleanup**
+
+For existing stands only. Export required data before deletion; `apply` does not prune removed resources.
+
+```bash
+kubectl --context k3d-monadiam -n monadiam-messaging delete kafkaconnector \
+  postgresql-main-outbox --ignore-not-found
+kubectl --context k3d-monadiam -n monadiam-data delete vaultstaticsecret \
+  postgresql-main-app postgresql-main-debezium postgresql-main-superuser --ignore-not-found
+kubectl --context k3d-monadiam -n monadiam-data delete cluster.postgresql.cnpg.io \
+  postgresql-main --ignore-not-found
+kubectl --context k3d-monadiam -n monadiam-data delete podmonitor postgresql-main --ignore-not-found
+kubectl --context k3d-monadiam -n monadiam-data delete secret \
+  postgresql-main-app postgresql-main-debezium postgresql-main-superuser --ignore-not-found
+kubectl --context k3d-monadiam -n monadiam-data delete pvc -l cnpg.io/cluster=postgresql-main
+```
+
+| Resource           | Action                                                                   |
+| :----------------- | :----------------------------------------------------------------------- |
+| Released PVs       | Retained; inspect before reclaiming disk space                           |
+| Vault KV           | Admin session: `vault kv delete kv/monadiam-data/postgresql/main/<role>` |
+| Old Vault entries  | Repeat for `app`, `debezium`, `superuser`; history remains               |
+| Kafka Connect RBAC | Keep; reapply the updated allowlist of six CDC Secrets                   |
 
 </details>
 
@@ -241,23 +334,74 @@ Existing credentials are preserved when configuration is reapplied.
 <details>
 <summary><strong>Kafka and Debezium</strong></summary>
 
-Strimzi manages Kafka, Kafka Connect, topics, users and connectors in the
-`monadiam-messaging` namespace. The internal Kafka listener uses TLS and
-SCRAM authentication.
+Namespace: `monadiam-messaging`. One Kafka Connect deployment; six PostgreSQL connectors.
 
-| File in `platform/kafka/resources/`     | Purpose                                              |
-| :-------------------------------------- | :--------------------------------------------------- |
-| `kafka-main.yaml`                       | Broker and listener settings.                        |
-| `kafka-main-topics.yaml`                | Topics and retention settings.                       |
-| `kafka-connect.yaml`                    | Connect and its image build with Debezium.           |
-| `postgresql-main-outbox-connector.yaml` | Connector for `system.outbox` in the `app` database. |
+```mermaid
+flowchart LR
+    DB["Service PostgreSQL<br/>system.outbox"] --> CDC["Service Debezium connector"]
+    CDC --> Router["Outbox Event Router"]
+    Router --> Kafka["Kafka topic<br/>destination_topic"]
+```
 
-The Connect image is built with the PostgreSQL Debezium plugin and published to
-the cluster registry. The connector reads PostgreSQL credentials from a Kubernetes Secret.
+| Resource        | Configuration                                                    |
+| :-------------- | :--------------------------------------------------------------- |
+| Kafka broker    | [Broker][kafka-broker] / [Topics][kafka-topics]; TLS + SCRAM     |
+| Kafka Connect   | [Worker and Debezium image build][kafka-connect]; local registry |
+| Secret access   | [RBAC][kafka-pg-rbac]; `get` on six CDC Secrets only             |
+| Connectors      | [Manifest directory][kafka-resources]                            |
+| Schema Registry | Not deployed                                                     |
 
-> - The `postgresql-main-outbox` connector is declared with `state: stopped`.
->   Prepare the `system.outbox` table and change the state in the manifest before enabling it.
-> - Schema Registry is not deployed in the current `stand` configuration.
+[kafka-broker]: platform/kafka/resources/kafka-main.yaml
+[kafka-topics]: platform/kafka/resources/kafka-main-topics.yaml
+[kafka-connect]: platform/kafka/resources/kafka-connect.yaml
+[kafka-pg-rbac]: platform/kafka/resources/kafka-connect-postgresql-secret-reader.yaml
+[kafka-resources]: platform/kafka/resources/
+
+| Connector                          | Database                 |
+| :--------------------------------- | :----------------------- |
+| `access-control-postgresql-outbox` | `access-control-service` |
+| `identity-postgresql-outbox`       | `identity-service`       |
+| `notification-postgresql-outbox`   | `notification-service`   |
+| `organization-postgresql-outbox`   | `organization-service`   |
+| `hr-postgresql-outbox`             | `hr-service`             |
+| `template-postgresql-outbox`       | `template-service`       |
+
+| Connector parameter  | Value                                                                    |
+| :------------------- | :----------------------------------------------------------------------- |
+| PostgreSQL endpoint  | Service cluster `-rw`, port `5432`                                       |
+| Credentials          | `<service>-postgresql-debezium` Secret                                   |
+| Capture              | `system.outbox`; `pgoutput`                                              |
+| Slot / publication   | `<service>_postgresql_outbox_{slot,publication}`; hyphens -> underscores |
+| Publication creation | Automatic, filtered to the outbox table                                  |
+| First start          | `snapshot.mode: initial`; existing rows, then streaming                  |
+| Default state        | `stopped`; activate after service migrations                             |
+| Topic                | `destination_topic`                                                      |
+| Key / event ID       | `id`                                                                     |
+| Message              | `{ "actionType": ..., "payload": ... }`                                  |
+| Projection partition | `payload.realm`; `PROJECTION_JOURNAL_PARTITIONS`                         |
+| PostgreSQL TLS       | `require`: encrypted; server identity not verified                       |
+
+**Activation per service**
+
+1. Run migrations as the database owner; create `system.outbox`.
+2. Set `spec.state: running` in the connector manifest.
+3. Apply, check connector/task status, verify an outbox event in Kafka.
+
+```bash
+# CLI renders PROJECTION_JOURNAL_PARTITIONS; do not apply raw Kafka YAML.
+make reconcile COMPONENT=clusters
+kubectl --context k3d-monadiam -n monadiam-messaging get kafkaconnectors
+```
+
+| Operational constraint | Requirement                                                     |
+| :--------------------- | :-------------------------------------------------------------- |
+| `Ready` + `stopped`    | Configuration reconciled; no event delivery                     |
+| Restarts               | Preserve Connect offsets and replication slots                  |
+| Replayed events        | Consumers deduplicate by event ID                               |
+| TLS `verify-full`      | Mount each CNPG public CA; set `database.sslrootcert`           |
+| Primary failover       | Verify logical slot synchronization and CDC recovery separately |
+
+[Debezium Outbox Event Router](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html)
 
 </details>
 

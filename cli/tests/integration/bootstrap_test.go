@@ -42,7 +42,7 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			vault, vaultErr := fixture.vault(ctx)
 			state, stateErr := fixture.state(ctx)
 			seedErr := fixture.seed(ctx)
-			value, readErr := fixture.postgresql(ctx, "SELECT value FROM integration_probe WHERE id = 1")
+			values, readErr := fixture.postgresqlValues(ctx)
 
 			// Assert
 			Expect(vaultErr).NotTo(HaveOccurred())
@@ -53,14 +53,23 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			Expect(stateErr).NotTo(HaveOccurred())
 			Expect(state.Namespace).NotTo(BeEmpty())
 			Expect(state.Volumes).To(HaveKey("vault/data-vault-0"))
-			Expect(state.Volumes).To(HaveKey("monadiam-data/postgresql-main-1"))
+			for _, service := range postgresqlServices {
+				for instance := 1; instance <= 2; instance++ {
+					claim := fmt.Sprintf("monadiam-data/%s-postgresql-%d", service, instance)
+					Expect(state.Volumes).To(HaveKey(claim))
+					Expect(state.Volumes).To(HaveKey(claim + "-wal"))
+				}
+			}
+
+			Expect(state.Volumes).NotTo(HaveKey("monadiam-data/postgresql-main-1"))
 			Expect(state.Volumes).To(HaveKey("monadiam-data/data-monadiam-data-seaweedfs-main-master-0"))
 			Expect(state.Volumes).To(HaveKey("monadiam-data/data-seaweedfs-main-volume-0"))
 			Expect(state.Volumes).To(HaveKey("monadiam-data/data-filer-seaweedfs-main-filer-0"))
-			Expect(state.Credentials).To(HaveLen(15))
+			Expect(state.Credentials).To(HaveLen(24))
 			Expect(seedErr).NotTo(HaveOccurred())
-			Expect(readErr).NotTo(HaveOccurred(), value)
-			Expect(value).To(Equal(fixture.name))
+			Expect(readErr).NotTo(HaveOccurred())
+			Expect(values).To(HaveLen(6))
+			Expect(values).To(HaveEach(Equal(fixture.name)))
 		}, SpecTimeout(35*time.Minute))
 	})
 
@@ -116,7 +125,7 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			// Act
 			output, reconcileErr := fixture.cli(ctx, "platform", "reconcile")
 			state, stateErr := fixture.state(ctx)
-			value, readErr := fixture.postgresql(ctx, "SELECT value FROM integration_probe WHERE id = 1")
+			values, readErr := fixture.postgresqlValues(ctx)
 			storage, storageErr := newStorageClient(fixture.storage(ctx), false)
 			var archiveErr error
 			if storageErr == nil {
@@ -127,8 +136,9 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			Expect(reconcileErr).NotTo(HaveOccurred(), output)
 			Expect(stateErr).NotTo(HaveOccurred())
 			Expect(state).To(Equal(original))
-			Expect(readErr).NotTo(HaveOccurred(), value)
-			Expect(value).To(Equal(fixture.name))
+			Expect(readErr).NotTo(HaveOccurred())
+			Expect(values).To(HaveLen(6))
+			Expect(values).To(HaveEach(Equal(fixture.name)))
 			Expect(storageErr).NotTo(HaveOccurred())
 			Expect(archiveErr).NotTo(HaveOccurred())
 		}, SpecTimeout(35*time.Minute))
@@ -144,15 +154,16 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			// Act
 			output, recreateErr := fixture.cli(ctx, "cluster", "recreate")
 			state, stateErr := fixture.state(ctx)
-			value, readErr := fixture.postgresql(ctx, "SELECT value FROM integration_probe WHERE id = 1")
+			values, readErr := fixture.postgresqlValues(ctx)
 
 			// Assert
 			Expect(recreateErr).To(HaveOccurred())
 			Expect(output).To(ContainSubstring("pass --confirm-delete"))
 			Expect(stateErr).NotTo(HaveOccurred())
 			Expect(state).To(Equal(original))
-			Expect(readErr).NotTo(HaveOccurred(), value)
-			Expect(value).To(Equal(fixture.name))
+			Expect(readErr).NotTo(HaveOccurred())
+			Expect(values).To(HaveLen(6))
+			Expect(values).To(HaveEach(Equal(fixture.name)))
 		}, SpecTimeout(3*time.Minute))
 	})
 
@@ -171,7 +182,7 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			output, restartErr := fixture.cli(ctx, "cluster", "restart")
 			state, stateErr := fixture.state(ctx)
 			vault, vaultErr := fixture.vault(ctx)
-			value, readErr := fixture.postgresql(ctx, "SELECT value FROM integration_probe WHERE id = 1")
+			values, readErr := fixture.postgresqlValues(ctx)
 			storage, storageErr := newStorageClient(fixture.storage(ctx), false)
 			var archiveErr error
 			if storageErr == nil {
@@ -187,8 +198,9 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Ordered, Label("integrati
 			Expect(vault.Sealed).To(BeFalse())
 			Expect(storageErr).NotTo(HaveOccurred())
 			Expect(archiveErr).NotTo(HaveOccurred())
-			Expect(readErr).NotTo(HaveOccurred(), value)
-			Expect(value).To(Equal(fixture.name))
+			Expect(readErr).NotTo(HaveOccurred())
+			Expect(values).To(HaveLen(6))
+			Expect(values).To(HaveEach(Equal(fixture.name)))
 		}, SpecTimeout(35*time.Minute))
 	})
 })

@@ -9,19 +9,73 @@ const tokenCommand = `IFS= read -r VAULT_TOKEN; export VAULT_TOKEN; exec "$@"`
 func credentialDefinitions(environment config.Environment) []credentialDefinition {
 	return []credentialDefinition{
 		{
-			Path:        "monadiam-data/postgresql/main/superuser",
+			Path:        "monadiam-data/postgresql/access-control/app",
 			UserKey:     "username",
-			User:        "postgres",
+			User:        "access_control",
 			PasswordKey: "password",
 		},
 		{
-			Path:        "monadiam-data/postgresql/main/app",
+			Path:        "monadiam-data/postgresql/access-control/debezium",
 			UserKey:     "username",
-			User:        "app",
+			User:        "debezium",
 			PasswordKey: "password",
 		},
 		{
-			Path:        "monadiam-data/postgresql/main/debezium",
+			Path:        "monadiam-data/postgresql/identity/app",
+			UserKey:     "username",
+			User:        "identity",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/identity/debezium",
+			UserKey:     "username",
+			User:        "debezium",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/notification/app",
+			UserKey:     "username",
+			User:        "notification",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/notification/debezium",
+			UserKey:     "username",
+			User:        "debezium",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/organization/app",
+			UserKey:     "username",
+			User:        "organization",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/organization/debezium",
+			UserKey:     "username",
+			User:        "debezium",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/hr/app",
+			UserKey:     "username",
+			User:        "hr",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/hr/debezium",
+			UserKey:     "username",
+			User:        "debezium",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/template/app",
+			UserKey:     "username",
+			User:        "template",
+			PasswordKey: "password",
+		},
+		{
+			Path:        "monadiam-data/postgresql/template/debezium",
 			UserKey:     "username",
 			User:        "debezium",
 			PasswordKey: "password",

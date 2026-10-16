@@ -33,9 +33,11 @@ func (platform Platform) Clusters(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Kubernetes.Wait(ctx, dataNamespace, "cluster.postgresql.cnpg.io/postgresql-main", "condition=Ready", "600s")
-	if err != nil {
-		return err
+	for _, cluster := range postgresqlClusters {
+		err = platform.Kubernetes.Wait(ctx, dataNamespace, "cluster.postgresql.cnpg.io/"+cluster, "condition=Ready", "600s")
+		if err != nil {
+			return err
+		}
 	}
 
 	err = platform.waitKafka(ctx)
@@ -119,5 +121,12 @@ func (platform Platform) waitKafka(ctx context.Context) error {
 		return err
 	}
 
-	return platform.Kubernetes.Wait(ctx, messagingNamespace, "kafkaconnector.kafka.strimzi.io/postgresql-main-outbox", "condition=Ready", "300s")
+	for _, cluster := range postgresqlClusters {
+		err = platform.Kubernetes.Wait(ctx, messagingNamespace, "kafkaconnector.kafka.strimzi.io/"+cluster+"-outbox", "condition=Ready", "300s")
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

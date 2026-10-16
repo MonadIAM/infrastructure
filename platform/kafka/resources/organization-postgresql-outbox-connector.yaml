@@ -1,0 +1,54 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaConnector
+metadata:
+  name: organization-postgresql-outbox
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-connect
+    app.kubernetes.io/name: organization-postgresql-outbox
+    app.kubernetes.io/component: messaging
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  class: io.debezium.connector.postgresql.PostgresConnector
+  tasksMax: 1
+  autoRestart:
+    enabled: true
+  state: stopped
+  config:
+    database.hostname: organization-postgresql-rw.monadiam-data.svc.cluster.local
+    database.port: "5432"
+    database.user: "${secrets:monadiam-data/organization-postgresql-debezium:username}"
+    database.password: "${secrets:monadiam-data/organization-postgresql-debezium:password}"
+    database.dbname: organization-service
+    database.sslmode: require
+    topic.prefix: organization-postgresql
+    schema.include.list: system
+    table.include.list: system\.outbox
+    plugin.name: pgoutput
+    slot.name: organization_postgresql_outbox_slot
+    publication.name: organization_postgresql_outbox_publication
+    publication.autocreate.mode: filtered
+    snapshot.mode: initial
+    tombstones.on.delete: "false"
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    transforms: outbox,partition
+    transforms.outbox.type: io.debezium.transforms.outbox.EventRouter
+    transforms.outbox.predicate: outboxTable
+    transforms.outbox.route.topic.replacement: ${routedByValue}
+    transforms.outbox.route.by.field: destination_topic
+    transforms.outbox.table.field.event.key: id
+    transforms.outbox.table.field.event.id: id
+    transforms.outbox.table.field.event.payload: payload
+    transforms.outbox.table.expand.json.payload: "true"
+    transforms.outbox.table.fields.additional.placement: action_type:envelope:actionType
+    transforms.partition.type: io.debezium.transforms.partitions.PartitionRouting
+    transforms.partition.partition.payload.fields: payload.realm
+    transforms.partition.partition.topic.num: "${PROJECTION_JOURNAL_PARTITIONS}"
+    transforms.partition.partition.hash.function: murmur
+    transforms.partition.predicate: projectionJournal
+    predicates: outboxTable,projectionJournal
+    predicates.outboxTable.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
+    predicates.outboxTable.pattern: organization-postgresql\.system\.outbox
+    predicates.projectionJournal.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
+    predicates.projectionJournal.pattern: projection-journal

@@ -64,9 +64,9 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 		Expect(os.WriteFile(path, []byte(`{"root_token":"private-token","unseal_keys_b64":["first-key","second-key"]}`), 0600)).To(Succeed())
 
 		credential = credentialDefinition{
-			Path:        "monadiam-data/postgresql/main/superuser",
+			Path:        "monadiam-data/postgresql/identity/app",
 			UserKey:     "username",
-			User:        "postgres",
+			User:        "identity",
 			PasswordKey: "password",
 		}
 		environment := config.Environment{
@@ -155,6 +155,62 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 	})
 
 	Describe("[Method] - Client.ensureCredential", func() {
+		It("[case] - creates independent service database credentials and preserves them on reconciliation", func() {
+			// Arrange
+			stored := map[string]map[string]string{
+				"kv/monadiam-data/postgresql/access-control/app": {"username": "access_control", "password": "existing-pilot-password"},
+			}
+			writes := 0
+			run = func(_ context.Context, request command.Request) (command.Result, error) {
+				if slices.Contains(request.Args, "get") {
+					value := stored[request.Args[len(request.Args)-1]]
+					if value == nil {
+						return command.Result{Stderr: []byte("No value found at kv/path")}, errors.New("not found")
+					}
+
+					data, err := json.Marshal(map[string]any{"data": map[string]any{"data": value, "metadata": map[string]int{"version": 1}}})
+					return command.Result{Output: data}, err
+				}
+
+				writes++
+				_, payload, _ := bytes.Cut(request.Input, []byte("\n"))
+				var value map[string]string
+				err := json.Unmarshal(payload, &value)
+				stored[request.Args[len(request.Args)-2]] = value
+
+				return command.Result{}, err
+			}
+
+			// Act
+			for range 2 {
+				for _, definition := range credentialDefinitions(client.Environment) {
+					if strings.Contains(definition.Path, "/postgresql/") {
+						Expect(client.ensureCredential(context.Background(), definition)).To(Succeed())
+					}
+				}
+			}
+
+			// Assert
+			Expect(writes).To(Equal(11))
+			Expect(stored).To(HaveLen(12))
+			passwords := make(map[string]bool)
+			for _, definition := range credentialDefinitions(client.Environment) {
+				if !strings.Contains(definition.Path, "/postgresql/") {
+					continue
+				}
+
+				value := stored["kv/"+definition.Path]
+				Expect(value["username"]).To(Equal(definition.User))
+				Expect(passwords).NotTo(HaveKey(value["password"]))
+				passwords[value["password"]] = true
+				if definition.Path == "monadiam-data/postgresql/access-control/app" {
+					Expect(value["password"]).To(Equal("existing-pilot-password"))
+				} else {
+					Expect(value["password"]).To(HaveLen(64))
+				}
+			}
+		})
+
 		It("[case] - preserves existing credentials", func() {
 			// Arrange
 			run = func(_ context.Context, _ command.Request) (command.Result, error) {
@@ -213,7 +269,7 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			Expect(separated).To(BeTrue())
 			Expect(string(token)).To(Equal("private-token"))
 			Expect(decodeErr).To(Succeed())
-			Expect(fields["username"]).To(Equal("postgres"))
+			Expect(fields["username"]).To(Equal("identity"))
 			Expect(fields["password"]).To(HaveLen(64))
 			Expect(arguments).NotTo(ContainSubstring(fields["password"]))
 			Expect(arguments).NotTo(ContainSubstring("private-token"))

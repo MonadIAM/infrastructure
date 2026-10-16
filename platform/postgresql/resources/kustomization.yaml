@@ -2,5 +2,15 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - postgresql-main.yaml
-  - postgresql-main-podmonitor.yaml
+  - access-control-postgresql.yaml
+  - access-control-postgresql-podmonitor.yaml
+  - notification-postgresql.yaml
+  - notification-postgresql-podmonitor.yaml
+  - organization-postgresql.yaml
+  - organization-postgresql-podmonitor.yaml
+  - identity-postgresql.yaml
+  - identity-postgresql-podmonitor.yaml
+  - template-postgresql.yaml
+  - template-postgresql-podmonitor.yaml
+  - hr-postgresql.yaml
+  - hr-postgresql-podmonitor.yaml

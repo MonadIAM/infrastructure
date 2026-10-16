@@ -15,6 +15,15 @@ const (
 	vaultOperatorDeployment = "deployment/vault-secrets-operator-controller-manager"
 )
 
+var postgresqlClusters = []string{
+	"access-control-postgresql",
+	"identity-postgresql",
+	"notification-postgresql",
+	"organization-postgresql",
+	"hr-postgresql",
+	"template-postgresql",
+}
+
 func (platform Platform) phases() []phaseDefinition {
 	return []phaseDefinition{
 		{
@@ -205,6 +214,66 @@ func secretDefinitions() []secretDefinition {
 	return []secretDefinition{
 		{
 			Namespace:   dataNamespace,
+			Name:        "access-control-postgresql-app",
+			Destination: "access-control-postgresql-app",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "access-control-postgresql-debezium",
+			Destination: "access-control-postgresql-debezium",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "identity-postgresql-app",
+			Destination: "identity-postgresql-app",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "identity-postgresql-debezium",
+			Destination: "identity-postgresql-debezium",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "notification-postgresql-app",
+			Destination: "notification-postgresql-app",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "notification-postgresql-debezium",
+			Destination: "notification-postgresql-debezium",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "organization-postgresql-app",
+			Destination: "organization-postgresql-app",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "organization-postgresql-debezium",
+			Destination: "organization-postgresql-debezium",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "hr-postgresql-app",
+			Destination: "hr-postgresql-app",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "hr-postgresql-debezium",
+			Destination: "hr-postgresql-debezium",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "template-postgresql-app",
+			Destination: "template-postgresql-app",
+		},
+		{
+			Namespace:   dataNamespace,
+			Name:        "template-postgresql-debezium",
+			Destination: "template-postgresql-debezium",
+		},
+		{
+			Namespace:   dataNamespace,
 			Name:        "seaweedfs-main-s3",
 			Destination: "seaweedfs-main-s3",
 		},
@@ -237,21 +306,6 @@ func secretDefinitions() []secretDefinition {
 			Namespace:   "monadiam-observability",
 			Name:        "grafana-admin",
 			Destination: "grafana-admin",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "postgresql-main-superuser",
-			Destination: "postgresql-main-superuser",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "postgresql-main-app",
-			Destination: "postgresql-main-app",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "postgresql-main-debezium",
-			Destination: "postgresql-main-debezium",
 		},
 		{
 			Namespace:   "monadiam-messaging",

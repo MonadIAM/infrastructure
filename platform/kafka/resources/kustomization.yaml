@@ -9,4 +9,9 @@ resources:
   - kafka-connect-user.yaml
   - kafka-connect-postgresql-secret-reader.yaml
   - kafka-connect.yaml
-  - postgresql-main-outbox-connector.yaml
+  - access-control-postgresql-outbox-connector.yaml
+  - notification-postgresql-outbox-connector.yaml
+  - organization-postgresql-outbox-connector.yaml
+  - identity-postgresql-outbox-connector.yaml
+  - template-postgresql-outbox-connector.yaml
+  - hr-postgresql-outbox-connector.yaml

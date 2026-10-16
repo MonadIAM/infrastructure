@@ -197,6 +197,38 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 		})
 	})
 
+	Describe("[Method] - Platform.Clusters", func() {
+		It("[case] - stops when the service PostgreSQL cluster is not ready", func() {
+			// Arrange
+			var commands []string
+			runner := runnerFunc(func(_ context.Context, request command.Request) (command.Result, error) {
+				arguments := strings.Join(request.Args, " ")
+				commands = append(commands, arguments)
+				if strings.Contains(arguments, "cluster.postgresql.cnpg.io/template-postgresql") {
+					return command.Result{}, errors.New("template PostgreSQL unavailable")
+				}
+
+				return command.Result{Output: []byte("rendered resources")}, nil
+			})
+			platform := New(environment, runner, io.Discard)
+			platform.Helm = helm.Client{Runner: runner, Attempts: 1, Output: io.Discard}
+
+			// Act
+			err := platform.Clusters(context.Background())
+			joined := strings.Join(commands, "\n")
+
+			// Assert
+			Expect(err).To(MatchError("template PostgreSQL unavailable"))
+			Expect(joined).NotTo(ContainSubstring("cluster.postgresql.cnpg.io/postgresql-main"))
+			Expect(commands[len(commands)-1]).To(ContainSubstring("cluster.postgresql.cnpg.io/template-postgresql"))
+			for _, service := range []string{"access-control", "identity", "notification", "organization", "hr", "template"} {
+				Expect(joined).To(ContainSubstring("cluster.postgresql.cnpg.io/" + service + "-postgresql"))
+			}
+
+			Expect(joined).NotTo(ContainSubstring("strimzi.io/name=kafka-main-kafka"))
+		})
+	})
+
 	Describe("[Method] - Platform.Operators", func() {
 		It("[case] - establishes ServiceMonitor before installing the ClickHouse operator", func() {
 			// Arrange
