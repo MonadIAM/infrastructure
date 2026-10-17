@@ -3,7 +3,9 @@
 package integration
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -178,4 +180,85 @@ func (fixture *clusterFixture) removeRegistry(ctx context.Context) (string, erro
 	} else {
 		return fixture.run(ctx, "k3d", "registry", "delete", fixture.registry())
 	}
+}
+
+func (fixture *clusterFixture) forward(ctx context.Context, target, remotePort string) string {
+	ginkgo.GinkgoHelper()
+
+	if strings.HasPrefix(target, "service/") {
+		service := strings.TrimPrefix(target, "service/")
+		var pod string
+		gomega.Eventually(func() (string, error) {
+			var err error
+			pod, err = fixture.endpoint(ctx, service)
+
+			return pod, err
+		}).WithContext(ctx).WithTimeout(time.Minute).ShouldNot(gomega.BeEmpty())
+		target = "pod/" + pod
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+	command := exec.CommandContext(ctx, "kubectl", "--context", "k3d-"+fixture.name,
+		"port-forward", "--address=127.0.0.1", "-n", "monadiam-data", target, ":"+remotePort)
+	command.Env = fixture.environment
+	command.Stderr = ginkgo.GinkgoWriter
+	command.WaitDelay = 5 * time.Second
+	output, err := command.StdoutPipe()
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	err = command.Start()
+	if err != nil {
+		cancel()
+	}
+
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	ginkgo.DeferCleanup(func() {
+		cancel()
+		_ = command.Wait()
+	})
+
+	ready := make(chan int, 1)
+	go func() {
+		defer close(ready)
+		scanner := bufio.NewScanner(output)
+		for scanner.Scan() {
+			var port int
+			count, err := fmt.Sscanf(scanner.Text(), "Forwarding from 127.0.0.1:%d ->", &port)
+			if err == nil && count == 1 {
+				ready <- port
+				_, _ = io.Copy(io.Discard, output)
+				return
+			}
+		}
+	}()
+
+	var port int
+	gomega.Eventually(ready).WithContext(ctx).WithTimeout(30 * time.Second).Should(gomega.Receive(&port))
+	gomega.Expect(port).To(gomega.BeNumerically(">", 0))
+
+	return fmt.Sprintf("127.0.0.1:%d", port)
+}
+
+func (fixture *clusterFixture) secret(ctx context.Context, name string) map[string][]byte {
+	ginkgo.GinkgoHelper()
+	output, err := fixture.kubectl(ctx, "get", "secret", name, "-n", "monadiam-data", "-o", "json")
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "read secret "+name)
+	var secret resource
+	gomega.Expect(json.Unmarshal([]byte(output), &secret)).To(gomega.Succeed())
+	gomega.Expect(secret.Data).NotTo(gomega.BeEmpty(), name)
+	return secret.Data
+}
+
+func (fixture *clusterFixture) endpoint(ctx context.Context, service string) (string, error) {
+	output, err := fixture.kubectl(ctx, "get", "endpointslices.discovery.k8s.io", "-n", "monadiam-data", "-l", "kubernetes.io/service-name="+service,
+		"-o", "jsonpath={.items[*].endpoints[?(@.conditions.ready==true)].targetRef.name}")
+	if err != nil {
+		return "", err
+	}
+
+	pods := strings.Fields(output)
+	if len(pods) == 0 {
+		return "", nil
+	}
+
+	return pods[0], nil
 }

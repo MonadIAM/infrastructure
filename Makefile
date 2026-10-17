@@ -5,6 +5,7 @@ GINKGO := $(GO) run github.com/onsi/ginkgo/v2/ginkgo
 GOLANGCI_LINT := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 ENV_FILE ?= .env
 COMPONENT ?= all
+FILTER ?=
 
 .PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile vault-status seaweedfs utest itest
 
@@ -46,4 +47,5 @@ seaweedfs:
 utest:
 	$(GINKGO) --fd --succinct=false --keep-going --race --skip-package=cli/tests/integration ./cli/...
 itest:
-	$(GINKGO) --fd --succinct=false --keep-going --tags=integration --timeout=2h --json-report=build/integration-report.json ./cli/tests/integration/...
+	mkdir -p build
+	$(GINKGO) --fd --succinct=false --keep-going --tags=integration --label-filter="$(FILTER)" --timeout=2h --output-dir=build --json-report=integration-report.json ./cli/tests/integration/...

@@ -13,6 +13,15 @@ type resource struct {
 		UID       string `json:"uid"`
 	} `json:"metadata"`
 	Data map[string][]byte `json:"data"`
+	Spec struct {
+		NodeName string `json:"nodeName"`
+	} `json:"spec"`
+	Status struct {
+		Conditions []struct {
+			Type   string `json:"type"`
+			Status string `json:"status"`
+		} `json:"conditions"`
+	} `json:"status"`
 }
 
 type resourceList struct {
@@ -32,3 +41,5 @@ type vaultState struct {
 	FileMode      fs.FileMode `json:"-"`
 	DirectoryMode fs.FileMode `json:"-"`
 }
+
+var services = []string{"access-control", "identity", "notification", "organization", "hr", "template"}

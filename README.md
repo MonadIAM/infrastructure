@@ -98,6 +98,50 @@ Components available for selective reconciliation: `cert-manager`, `metrics-serv
 ----
 
 <details>
+<summary><strong>Tests</strong></summary>
+
+| Layer       | Location                          | Scope                                      |
+| :---------- | :-------------------------------- | :----------------------------------------- |
+| Unit        | `cli/*_test.go`                   | Commands, arguments and errors.            |
+| Unit        | `cli/config/*_test.go`            | Configuration loading and validation.      |
+| Unit        | `cli/platform/*/*_test.go`        | Component operations and command ordering. |
+| Integration | `cli/tests/integration/*_test.go` | Real components in an isolated k3d stand.  |
+
+| Label        | Test file            | Scenarios                                                      |
+| :----------- | :------------------- | :------------------------------------------------------------- |
+| `bootstrap`  | `bootstrap_test.go`  | Vault initialization, credentials and persistent storage.      |
+| `postgresql` | `postgresql_test.go` | Six clusters, TLS, roles, isolation, replication and recovery. |
+| `redis`      | `redis_test.go`      | Six groups, mTLS, isolation, Sentinel quorum and recovery.     |
+| `lifecycle`  | `lifecycle_test.go`  | Reconcile, restart and deletion protection; PG/Redis/S3 data.  |
+| `seaweedfs`  | `seaweedfs_test.go`  | Versioning, retention and access restrictions.                 |
+| `failover`   | PostgreSQL and Redis | Primary and replica failures, writes and restored replication. |
+
+```bash
+make utest
+make itest
+make itest FILTER=postgresql
+make itest FILTER=redis
+make itest FILTER='redis && failover'
+make itest FILTER='(postgresql || redis) && !failover'
+```
+
+Integration runs always create and delete their own stand, including when filtered.
+Run sequentially; Ginkgo parallel execution is rejected. Reports are saved to
+`build/integration-report.json`.
+
+Failure tests wait for marker replication, cordon the affected node and delete one
+pod. Cleanup uncordons the node and waits for workload recovery. These checks cover
+pod failures within one machine; replication remains asynchronous.
+
+PostgreSQL uses `pgx`; Redis uses `go-redis` with Sentinel discovery. Kubernetes
+port forwards provide transport and preserve TLS hostname verification. These tests
+do not validate application deployment, cluster DNS or network policies.
+
+</details>
+
+----
+
+<details>
 <summary><strong>Structure</strong></summary>
 
 ```text
@@ -122,10 +166,18 @@ stand/
 |   |   +-- vault/                       # Initialization, unseal and secret configuration
 |   +-- tests/integration/               # Tests against a real k3d cluster
 |       +-- cluster_helpers.go           # Test environment management
-|       +-- platform_helpers.go          # Resource state, Vault and PostgreSQL checks
-|       +-- seaweedfs_helpers.go         # S3 settings and port forwarding
+|       +-- platform_helpers.go          # Resource snapshots, credentials and Vault
+|       +-- seaweedfs_helpers.go         # S3 settings
 |       +-- storage_helpers.go           # S3 client and object checks
-|       +-- bootstrap_test.go            # Bootstrap, permissions and data persistence
+|       +-- integration_test.go          # Shared isolated stand and cleanup
+|       +-- bootstrap_test.go            # Vault and synchronized credentials
+|       +-- lifecycle_test.go            # Reconcile, restart and deletion protection
+|       +-- seaweedfs_test.go            # Archive permissions and retention
+|       +-- postgresql_test.go           # PostgreSQL access, replication and failover
+|       +-- postgresql_helpers.go        # pgx client and service connections
+|       +-- redis_test.go                # Redis access, Sentinel and failover
+|       +-- redis_helpers.go             # go-redis client and Sentinel discovery
+|       +-- failure_helpers.go           # Pod failures and recovery
 |       +-- testdata/                    # Isolated ports and test registry
 |
 +-- bootstrap/k3d/cluster.yaml           # k3s nodes, registry and host ports

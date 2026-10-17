@@ -9,10 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 )
-
-var postgresqlServices = []string{"access-control", "identity", "notification", "organization", "hr", "template"}
 
 func (fixture *clusterFixture) state(ctx context.Context) (platformState, error) {
 	state := platformState{
@@ -167,42 +164,4 @@ func (fixture *clusterFixture) vault(ctx context.Context) (vaultState, error) {
 	state.DirectoryMode = directory.Mode().Perm()
 
 	return state, nil
-}
-
-func (fixture *clusterFixture) postgresqlValues(ctx context.Context) ([]string, error) {
-	values := make([]string, 0, len(postgresqlServices))
-	for _, service := range postgresqlServices {
-		value, err := fixture.postgresqlDatabase(ctx, service+"-postgresql", service+"-service", "SELECT value FROM integration_probe WHERE id = 1")
-		if err != nil {
-			return nil, fmt.Errorf("read %s PostgreSQL: %w", service, err)
-		}
-
-		values = append(values, value)
-	}
-
-	return values, nil
-}
-
-func (fixture *clusterFixture) postgresqlDatabase(ctx context.Context, cluster, database, query string) (string, error) {
-	primary, err := fixture.kubectl(ctx, "get", "cluster.postgresql.cnpg.io", cluster, "-n", "monadiam-data", "-o", "jsonpath={.status.currentPrimary}")
-	if err != nil {
-		return "", fmt.Errorf("integration.clusterFixture.postgresql: read PostgreSQL primary: %w", err)
-	}
-
-	output, err := fixture.kubectl(ctx, "exec", "-n", "monadiam-data", primary, "-c", "postgres", "--", "psql", "-U", "postgres", "-d", database, "-At", "-v", "ON_ERROR_STOP=1", "-c", query)
-
-	return strings.TrimSpace(output), err
-}
-
-func (fixture *clusterFixture) seed(ctx context.Context) error {
-	query := "CREATE TABLE IF NOT EXISTS integration_probe (id integer PRIMARY KEY, value text NOT NULL); " +
-		"INSERT INTO integration_probe VALUES (1, '" + fixture.name + "') ON CONFLICT (id) DO UPDATE SET value = EXCLUDED.value;"
-	for _, service := range postgresqlServices {
-		_, err := fixture.postgresqlDatabase(ctx, service+"-postgresql", service+"-service", query)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
