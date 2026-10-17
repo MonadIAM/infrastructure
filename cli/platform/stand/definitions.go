@@ -17,6 +17,12 @@ const (
 	vaultOperatorDeployment = "deployment/vault-secrets-operator-controller-manager"
 )
 
+var kafkaPartitionKeys = []string{
+	"PROJECTION_JOURNAL_PARTITIONS",
+	"REALM_PARTITIONS",
+	"POSITION_PARTITIONS",
+}
+
 var postgresqlClusters = []string{
 	"access-control-postgresql",
 	"identity-postgresql",

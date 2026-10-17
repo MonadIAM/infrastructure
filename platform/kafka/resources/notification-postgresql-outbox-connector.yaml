@@ -29,26 +29,48 @@ spec:
     slot.name: notification_postgresql_outbox_slot
     publication.name: notification_postgresql_outbox_publication
     publication.autocreate.mode: filtered
-    snapshot.mode: initial
+    snapshot.mode: no_data
     tombstones.on.delete: "false"
     key.converter: org.apache.kafka.connect.storage.StringConverter
-    transforms: outbox,partition
+    value.converter: org.apache.kafka.connect.json.JsonConverter
+    value.converter.schemas.enable: "false"
+    producer.override.enable.idempotence: "true"
+    producer.override.max.in.flight.requests.per.connection: "1"
+    transforms: outbox,envelope,partition,realmPartition,positionPartition
     transforms.outbox.type: io.debezium.transforms.outbox.EventRouter
     transforms.outbox.predicate: outboxTable
     transforms.outbox.route.topic.replacement: ${routedByValue}
     transforms.outbox.route.by.field: destination_topic
     transforms.outbox.table.field.event.key: id
+    transforms.outbox.table.field.event.type: action_type
     transforms.outbox.table.field.event.id: id
     transforms.outbox.table.field.event.payload: payload
     transforms.outbox.table.expand.json.payload: "true"
     transforms.outbox.table.fields.additional.placement: action_type:envelope:actionType
+    # PartitionRouting requires a schema name ending in .Envelope after Outbox Event Router.
+    transforms.envelope.type: org.apache.kafka.connect.transforms.SetSchemaMetadata$Value
+    transforms.envelope.schema.name: monadiam.outbox.Envelope
     transforms.partition.type: io.debezium.transforms.partitions.PartitionRouting
     transforms.partition.partition.payload.fields: payload.realm
     transforms.partition.partition.topic.num: "${PROJECTION_JOURNAL_PARTITIONS}"
     transforms.partition.partition.hash.function: murmur
     transforms.partition.predicate: projectionJournal
-    predicates: outboxTable,projectionJournal
+    transforms.realmPartition.type: io.debezium.transforms.partitions.PartitionRouting
+    transforms.realmPartition.partition.payload.fields: payload.realm
+    transforms.realmPartition.partition.topic.num: "${REALM_PARTITIONS}"
+    transforms.realmPartition.partition.hash.function: murmur
+    transforms.realmPartition.predicate: realm
+    transforms.positionPartition.type: io.debezium.transforms.partitions.PartitionRouting
+    transforms.positionPartition.partition.payload.fields: payload.input.organization
+    transforms.positionPartition.partition.topic.num: "${POSITION_PARTITIONS}"
+    transforms.positionPartition.partition.hash.function: murmur
+    transforms.positionPartition.predicate: position
+    predicates: outboxTable,projectionJournal,realm,position
     predicates.outboxTable.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
     predicates.outboxTable.pattern: notification-postgresql\.system\.outbox
     predicates.projectionJournal.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
     predicates.projectionJournal.pattern: projection-journal
+    predicates.realm.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
+    predicates.realm.pattern: realm
+    predicates.position.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
+    predicates.position.pattern: position

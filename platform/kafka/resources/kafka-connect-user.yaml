@@ -19,6 +19,7 @@ spec:
           type: cluster
         operations:
           - Describe
+          - IdempotentWrite
       - resource:
           type: topic
           name: "*"

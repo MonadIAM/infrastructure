@@ -10,27 +10,10 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
 spec:
-  partitions: 1
+  partitions: ${REALM_PARTITIONS}
   replicas: 1
   config:
     retention.ms: "259200000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: realm-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: realm-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
@@ -40,6 +23,40 @@ metadata:
   labels:
     strimzi.io/cluster: kafka-main
     app.kubernetes.io/name: realm-dead
+    app.kubernetes.io/component: messaging-topic
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: "2592000000"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: position
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/name: position
+    app.kubernetes.io/component: messaging-topic
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  partitions: ${POSITION_PARTITIONS}
+  replicas: 1
+  config:
+    retention.ms: "259200000"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: position-dead
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/name: position-dead
     app.kubernetes.io/component: messaging-topic
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
@@ -69,79 +86,11 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
-  name: account-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: account-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
   name: account-dead
   namespace: monadiam-messaging
   labels:
     strimzi.io/cluster: kafka-main
     app.kubernetes.io/name: account-dead
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "2592000000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: membership
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: membership
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "259200000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: membership-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: membership-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: membership-dead
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: membership-dead
     app.kubernetes.io/component: messaging-topic
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
@@ -167,23 +116,6 @@ spec:
   replicas: 1
   config:
     retention.ms: "259200000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: identifier-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: identifier-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
@@ -222,23 +154,6 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
-  name: service-client-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: service-client-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
   name: service-client-dead
   namespace: monadiam-messaging
   labels:
@@ -269,23 +184,6 @@ spec:
   replicas: 1
   config:
     retention.ms: "259200000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: interface-client-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: interface-client-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
@@ -324,23 +222,6 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
-  name: notification-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: notification-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
   name: notification-dead
   namespace: monadiam-messaging
   labels:
@@ -375,23 +256,6 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
-  name: message-dispatch-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: message-dispatch-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
   name: message-dispatch-dead
   namespace: monadiam-messaging
   labels:
@@ -409,6 +273,23 @@ spec:
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
+  name: message-dispatch-retry-notification-service
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/name: message-dispatch-retry-notification-service
+    app.kubernetes.io/component: messaging-topic
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: "604800000"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
   name: access-cache
   namespace: monadiam-messaging
   labels:
@@ -422,23 +303,6 @@ spec:
   replicas: 1
   config:
     retention.ms: "259200000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: access-cache-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: access-cache-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
@@ -507,23 +371,6 @@ spec:
   replicas: 1
   config:
     retention.ms: "1800000"
----
-apiVersion: kafka.strimzi.io/v1
-kind: KafkaTopic
-metadata:
-  name: reauthentication-retry
-  namespace: monadiam-messaging
-  labels:
-    strimzi.io/cluster: kafka-main
-    app.kubernetes.io/name: reauthentication-retry
-    app.kubernetes.io/component: messaging-topic
-    app.kubernetes.io/part-of: monadiam
-    app.kubernetes.io/managed-by: kustomize
-spec:
-  partitions: 1
-  replicas: 1
-  config:
-    retention.ms: "604800000"
 ---
 apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic

@@ -7,9 +7,11 @@ import (
 )
 
 func (platform Platform) KafkaResources(ctx context.Context) error {
-	_, err := platform.Environment.PositiveInt("PROJECTION_JOURNAL_PARTITIONS")
-	if err != nil {
-		return err
+	for _, key := range kafkaPartitionKeys {
+		_, err := platform.Environment.PositiveInt(key)
+		if err != nil {
+			return err
+		}
 	}
 
 	data, err := platform.Kubernetes.Capture(ctx, "kustomize", "platform/kafka/resources")
@@ -17,7 +19,10 @@ func (platform Platform) KafkaResources(ctx context.Context) error {
 		return err
 	}
 
-	rendered := strings.ReplaceAll(string(data), "${PROJECTION_JOURNAL_PARTITIONS}", platform.Environment["PROJECTION_JOURNAL_PARTITIONS"])
+	rendered := string(data)
+	for _, key := range kafkaPartitionKeys {
+		rendered = strings.ReplaceAll(rendered, "${"+key+"}", platform.Environment[key])
+	}
 
 	return platform.Kubernetes.Apply(ctx, []byte(rendered), false)
 }
@@ -103,10 +108,12 @@ func (platform Platform) waitKafka(ctx context.Context) error {
 		return err
 	}
 
+	err = platform.Kubernetes.Run(ctx, "wait", "kafkatopic.kafka.strimzi.io", "-n", messagingNamespace, "-l", "strimzi.io/cluster=kafka-main", "--for=condition=Ready", "--timeout=300s")
+	if err != nil {
+		return err
+	}
+
 	resources := []string{
-		"kafkatopic.kafka.strimzi.io/connect-configs",
-		"kafkatopic.kafka.strimzi.io/connect-offsets",
-		"kafkatopic.kafka.strimzi.io/connect-status",
 		"kafkauser.kafka.strimzi.io/kafka-main-admin",
 		"kafkauser.kafka.strimzi.io/kafka-connect",
 	}

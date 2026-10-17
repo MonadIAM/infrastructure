@@ -552,13 +552,45 @@ flowchart LR
 | Capture              | `system.outbox`; `pgoutput`                                              |
 | Slot / publication   | `<service>_postgresql_outbox_{slot,publication}`; hyphens -> underscores |
 | Publication creation | Automatic, filtered to the outbox table                                  |
-| First start          | `snapshot.mode: initial`; existing rows, then streaming                  |
+| First start          | `snapshot.mode: no_data`; stream new changes; no historical row snapshot |
 | Default state        | `stopped`; activate after service migrations                             |
 | Topic                | `destination_topic`                                                      |
 | Key / event ID       | `id`                                                                     |
 | Message              | `{ "actionType": ..., "payload": ... }`                                  |
 | Projection partition | `payload.realm`; `PROJECTION_JOURNAL_PARTITIONS`                         |
+| Realm partition      | `payload.realm`; `REALM_PARTITIONS`                                      |
+| Position partition   | `payload.input.organization`; `POSITION_PARTITIONS`                      |
+| Producer             | Idempotence enabled; one in-flight request per connection                |
 | PostgreSQL TLS       | `require`: encrypted; server identity not verified                       |
+
+[local-topics]: ../local/cli/platform/kafka/definitions.go
+[local-outbox]: ../local/messaging/debezium/outbox.connector.json
+
+Outbox output is named `monadiam.outbox.Envelope` with Kafka `SetSchemaMetadata`
+before `PartitionRouting`; otherwise Debezium skips routing. JSON values and UUID keys stay unchanged.
+
+**Topic contract**
+
+| Setting            | Value                                                                                               |
+| :----------------- | :-------------------------------------------------------------------------------------------------- |
+| Source             | [Local topics][local-topics] / [outbox template][local-outbox]                                      |
+| Partition defaults | `REALM_PARTITIONS=4`, `POSITION_PARTITIONS=4`, `PROJECTION_JOURNAL_PARTITIONS=4`; other topics: `1` |
+| Retention          | Events and archives: `72h`; dead letters: `30d`; dispatch retry and blacklist dead letters: `7d`    |
+| Short retention    | `reauthentication`: `30m`; `blacklist`: `15m`, `compact,delete`                                     |
+| Retry              | `message-dispatch-retry-notification-service`; other consumers use inline retries                   |
+| Legacy topics      | `membership*`, old `*-retry`; removed from manifests, retained in existing clusters                 |
+| Connect storage    | `connect-configs`, `connect-offsets`, `connect-status`: `compact`                                   |
+| Schema Registry    | Deployment and storage topics are a separate stage                                                  |
+
+Existing `.env` files need `REALM_PARTITIONS` and `POSITION_PARTITIONS`.
+Before applying to an existing stand, compare partition counts and data: changing
+realm/position partition counts changes key routing. Migrate populated topics explicitly;
+do not decrease partitions or delete topics/offsets to reconcile configuration.
+
+Stand keeps TLS/SCRAM, CNPG endpoints and `publication.autocreate.mode=filtered`.
+Unlike local's `all_tables`, filtered publications work with the scoped Debezium role.
+`no_data` affects first initialization; existing offsets continue to be used.
+Activate a new connector before producing events that must be delivered.
 
 **Activation per service**
 
@@ -567,7 +599,7 @@ flowchart LR
 3. Apply, check connector/task status, verify an outbox event in Kafka.
 
 ```bash
-# CLI renders PROJECTION_JOURNAL_PARTITIONS; do not apply raw Kafka YAML.
+# CLI renders partition counts; do not apply raw Kafka YAML.
 make reconcile COMPONENT=clusters
 kubectl --context k3d-monadiam -n monadiam-messaging get kafkaconnectors
 ```
