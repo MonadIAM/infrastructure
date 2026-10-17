@@ -73,6 +73,8 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.realmPartition.partition.topic.num", "4"))
 			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.positionPartition.partition.topic.num", "2"))
 			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.partition.partition.topic.num", "8"))
+			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms", "outbox,envelope,partition,realmPartition,positionPartition"))
+			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.envelope.schema.name", "monadiam.outbox.Envelope"))
 
 			Expect(connectors[0].Config).To(HaveLen(len(original)))
 

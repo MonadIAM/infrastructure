@@ -22,7 +22,7 @@
     "tasks.max": "1",
     "producer.override.enable.idempotence": "true",
     "producer.override.max.in.flight.requests.per.connection": "1",
-    "transforms": "outbox,partition,realmPartition,positionPartition",
+    "transforms": "outbox,envelope,partition,realmPartition,positionPartition",
     "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
     "transforms.outbox.route.topic.replacement": "${routedByValue}",
     "transforms.outbox.route.by.field": "destination_topic",
@@ -30,6 +30,9 @@
     "transforms.outbox.table.field.event.type": "action_type",
     "transforms.outbox.table.expand.json.payload": "true",
     "transforms.outbox.table.fields.additional.placement": "action_type:envelope:actionType",
+
+    "transforms.envelope.type": "org.apache.kafka.connect.transforms.SetSchemaMetadata$Value",
+    "transforms.envelope.schema.name": "monadiam.outbox.Envelope",
 
     "transforms.partition.type": "io.debezium.transforms.partitions.PartitionRouting",
     "transforms.partition.partition.payload.fields": "payload.realm",
