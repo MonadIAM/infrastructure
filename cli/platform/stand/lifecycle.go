@@ -175,6 +175,8 @@ func (platform Platform) Status(ctx context.Context) error {
 		{"get", "cluster.postgresql.cnpg.io", "-n", "monadiam-data"},
 		{"get", "pods,svc", "-l", "app.kubernetes.io/name=redis", "-n", "monadiam-data"},
 		{"get", kafkaResources, "-n", "monadiam-messaging"},
+		{"get", "deployment,pods,svc", "-n", messagingNamespace, "-l", "app.kubernetes.io/name=schema-registry-main"},
+		{"get", "jobs,pods", "-n", messagingNamespace, "-l", "app.kubernetes.io/name=shared-schemas"},
 		{"get", "clickhouseinstallations.clickhouse.altinity.com", "-n", "monadiam-data"},
 		{"get", "pods,svc", "-n", "monadiam-observability"},
 	}

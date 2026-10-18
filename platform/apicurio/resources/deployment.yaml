@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-registry-main
+  namespace: monadiam-messaging
+  labels:
+    app.kubernetes.io/name: schema-registry-main
+    app.kubernetes.io/component: schema-registry
+    app.kubernetes.io/part-of: monadiam
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: schema-registry-main
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: schema-registry-main
+        app.kubernetes.io/component: schema-registry
+        app.kubernetes.io/part-of: monadiam
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: registry
+          image: apicurio/apicurio-registry:3.3.2
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: management
+              containerPort: 9000
+          env:
+            - name: QUARKUS_CONFIG_LOCATIONS
+              value: /etc/apicurio/application.properties
+            - name: JAVA_OPTS_APPEND
+              value: -Xms128m -Xmx512m
+            - name: KAFKA_JAAS_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: schema-registry-main
+                  key: sasl.jaas.config
+          volumeMounts:
+            - name: configuration
+              mountPath: /etc/apicurio
+              readOnly: true
+            - name: kafka-ca
+              mountPath: /etc/kafka-ca
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /health/ready
+              port: management
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: management
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: management
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              memory: 1Gi
+      volumes:
+        - name: configuration
+          configMap:
+            name: schema-registry-main-config
+        - name: kafka-ca
+          secret:
+            secretName: kafka-main-cluster-ca-cert
+            items:
+              - key: ca.crt
+                path: ca.crt

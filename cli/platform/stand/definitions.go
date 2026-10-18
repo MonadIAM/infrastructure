@@ -44,6 +44,10 @@ var redisClusters = []string{
 func (platform Platform) phases() []phaseDefinition {
 	return []phaseDefinition{
 		{
+			Name: "images",
+			Run:  platform.Images,
+		},
+		{
 			Name: "cert-manager",
 			Run:  platform.CertManager,
 		},
@@ -70,6 +74,14 @@ func (platform Platform) phases() []phaseDefinition {
 		{
 			Name: "clusters",
 			Run:  platform.Clusters,
+		},
+		{
+			Name: "apicurio",
+			Run:  platform.Apicurio,
+		},
+		{
+			Name: "schemas",
+			Run:  platform.Schemas,
 		},
 		{
 			Name: "seaweedfs",

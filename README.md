@@ -79,8 +79,8 @@ for them to become ready. Applications and their routes are deployed separately.
 | `--confirm-delete` | Allow deletion for `cluster recreate`.                 |
 | `--help`           | General or command-specific help.                      |
 
-Components available for selective reconciliation: `cert-manager`, `metrics-server`,
-`istio`, `gateway`, `vault`, `operators`, `clusters`, `seaweedfs`, `observability`.
+Components available for selective reconciliation: `images`, `cert-manager`, `metrics-server`,
+`istio`, `gateway`, `vault`, `operators`, `clusters`, `apicurio`, `schemas`, `seaweedfs`, `observability`.
 
 > - Makefile is the main entry point. To run the CLI directly, use
 >   `go run . <component> <action> [options]`; for help, use `go run . --help`.
@@ -192,6 +192,7 @@ stand/
     +-- postgresql/                      # CNPG clusters and monitoring
     +-- redis/                           # Redis/Sentinel values and TLS certificates
     +-- kafka/                           # Broker, Connect, topics and outbox connector
+    +-- apicurio/                        # Registry, KafkaSQL, credentials and schema publication
     +-- clickhouse/                      # ClickHouse cluster and monitoring
     +-- seaweedfs/                       # Helm values, bootstrap Job and S3 policies
     +-- vault/                           # Server, certificates and access policies
@@ -241,7 +242,7 @@ Default k3d topology: one server + one worker on the same host.
 | Namespace                | Components                               |
 | :----------------------- | :--------------------------------------- |
 | `monadiam-data`          | PostgreSQL, Redis, ClickHouse, SeaweedFS |
-| `monadiam-messaging`     | Kafka, Kafka Connect                     |
+| `monadiam-messaging`     | Kafka, Kafka Connect, Apicurio           |
 | `monadiam-observability` | Metrics, logs, traces, Grafana           |
 | `vault`                  | Vault                                    |
 | `monadiam-apps`          | Applications; deployed separately        |
@@ -528,7 +529,7 @@ flowchart LR
 | Kafka Connect   | [Worker and Debezium image build][kafka-connect]; local registry |
 | Secret access   | [RBAC][kafka-pg-rbac]; `get` on six CDC Secrets only             |
 | Connectors      | [Manifest directory][kafka-resources]                            |
-| Schema Registry | Not deployed                                                     |
+| Schema Registry | [Apicurio 3.3.2](platform/apicurio/); KafkaSQL storage           |
 
 [kafka-broker]: platform/kafka/resources/kafka-main.yaml
 [kafka-topics]: platform/kafka/resources/kafka-main-topics.yaml
@@ -580,7 +581,7 @@ before `PartitionRouting`; otherwise Debezium skips routing. JSON values and UUI
 | Retry              | `message-dispatch-retry-notification-service`; other consumers use inline retries                   |
 | Legacy topics      | `membership*`, old `*-retry`; removed from manifests, retained in existing clusters                 |
 | Connect storage    | `connect-configs`, `connect-offsets`, `connect-status`: `compact`                                   |
-| Schema Registry    | Deployment and storage topics are a separate stage                                                  |
+| Schema Registry    | `kafkasql-journal`, `kafkasql-snapshots`, `registry-events`: unlimited retention                    |
 
 Existing `.env` files need `REALM_PARTITIONS` and `POSITION_PARTITIONS`.
 Before applying to an existing stand, compare partition counts and data: changing
@@ -613,6 +614,88 @@ kubectl --context k3d-monadiam -n monadiam-messaging get kafkaconnectors
 | Primary failover       | Verify logical slot synchronization and CDC recovery separately |
 
 [Debezium Outbox Event Router](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html)
+
+</details>
+
+----
+
+<details>
+<summary><strong>Apicurio Schema Registry</strong></summary>
+
+| Setting             | Value                                                                    |
+| :------------------ | :----------------------------------------------------------------------- |
+| Namespace / Service | `monadiam-messaging` / `schema-registry-main:8080`                       |
+| Image               | `apicurio/apicurio-registry:3.3.2`; same version as local                |
+| Replicas            | `1`; [deployment.yaml](platform/apicurio/resources/deployment.yaml)      |
+| Resources           | Requests: `100m` CPU, `512Mi` RAM; RAM limit: `1Gi`; JVM heap: `512Mi`   |
+| Storage             | KafkaSQL; existing Kafka PVC (`5Gi`); no separate database or PVC        |
+| Kafka security      | TLS + SCRAM-SHA-512; dedicated user; ACLs for registry topics and groups |
+| API access          | Internal HTTP, no authentication; no Gateway route                       |
+| Native / compatible | `/apis/registry/v3` / `/apis/ccompat/v7`                                 |
+| Rules               | Validity `FULL`; compatibility `BACKWARD`; integrity `FULL`              |
+| Health              | Management port `9000`: `/health/ready`, `/health/live`                  |
+
+KafkaSQL replays the journal on startup. All three registry topics use one partition,
+one replica and unlimited retention. Monitor the shared Kafka disk usage.
+
+| File / directory                                                                 | Purpose                                        |
+| :------------------------------------------------------------------------------- | :--------------------------------------------- |
+| [config/application.properties](platform/apicurio/config/application.properties) | Kafka connection, topic names and rules        |
+| [kafka/topics.yaml](platform/apicurio/kafka/topics.yaml)                         | Journal, snapshots and events topics           |
+| [kafka/user.yaml](platform/apicurio/kafka/user.yaml)                             | Strimzi user and scoped ACLs                   |
+| [resources/](platform/apicurio/resources/)                                       | Deployment, probes and internal Service        |
+| [apicurio.go](cli/platform/stand/apicurio.go)                                    | Kafka readiness, credentials, registry rollout |
+| [apicurio_test.go](cli/platform/stand/apicurio_test.go)                          | Command ordering and failure propagation       |
+
+```bash
+# Included in make start/resume; apply separately after Kafka is ready.
+make reconcile COMPONENT=apicurio
+
+# Optional local API access.
+kubectl --context k3d-monadiam -n monadiam-messaging \
+  port-forward service/schema-registry-main 8085:8080
+```
+
+Config changes update the generated ConfigMap hash and trigger a rollout.
+After rotating Kafka credentials or the CA, restart the registry deployment.
+
+**Schema publication**
+
+```text
+images -> ... -> clusters -> apicurio -> schemas -> seaweedfs -> observability
+```
+
+| Setting        | Value                                                                                       |
+| :------------- | :------------------------------------------------------------------------------------------ |
+| Image          | `SHARED_SCHEMAS_IMAGE` in `.env`; `3.0.1` pinned by digest in [.env.example](.env.example)  |
+| Preparation    | `images`: Docker pull and import into every k3d node before platform installation; limit 3m |
+| Scope          | Image preparation currently covers `shared-schemas`; other images use existing flows        |
+| Job            | `shared-schemas`; runs `scripts/apply.sh` after Apicurio readiness                          |
+| Resources      | Requests: `50m` CPU, `32Mi` RAM; RAM limit: `128Mi`                                         |
+| Failure        | No automatic retry; deadline 300s; CLI prints Job/Pod details and container logs            |
+| Reconciliation | Recreates the Job; identical schemas keep their existing versions                           |
+| Retention      | Finished Job and logs retained for 24h, or until the next reconciliation                    |
+
+| File                                                             | Purpose                                       |
+| :--------------------------------------------------------------- | :-------------------------------------------- |
+| [schemas/job.yaml](platform/apicurio/schemas/job.yaml)           | Publisher container and execution limits      |
+| [schemas/.env.registry](platform/apicurio/schemas/.env.registry) | Registry URL, API paths and request timeouts  |
+| [images.go](cli/platform/stand/images.go)                        | Download and import of the pinned image       |
+| [schemas.go](cli/platform/stand/schemas.go)                      | Job replacement, completion and diagnostics   |
+| [schemas_test.go](cli/platform/stand/schemas_test.go)            | Ordering, failures and repeated publication   |
+
+```bash
+# Included in make start/resume. Also prepares the image.
+make reconcile COMPONENT=schemas
+
+# Prepare only the shared image for an existing cluster.
+make reconcile COMPONENT=images
+```
+
+To update schemas, set `SHARED_SCHEMAS_IMAGE` (release tag + digest) in `.env.example`
+and `.env`, then run `make reconcile COMPONENT=schemas`. Existing `.env` files need this variable.
+
+[Secured KafkaSQL deployment](https://www.apicur.io/registry/docs/apicurio-registry/3.3.x/getting-started/assembly-deploying-registry-secured-kafka.html)
 
 </details>
 

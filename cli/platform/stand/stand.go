@@ -52,6 +52,9 @@ func (platform Platform) Reconcile(ctx context.Context, component string) error 
 		}
 
 		phases = []phaseDefinition{phase}
+		if component == "schemas" {
+			phases = append([]phaseDefinition{{Name: "images", Run: platform.Images}}, phases...)
+		}
 	}
 
 	for _, phase := range phases {

@@ -1,0 +1,54 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: schema-registry-main
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: schema-registry
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: cluster
+        operations:
+          - Describe
+          - IdempotentWrite
+      - resource:
+          type: topic
+          name: kafkasql-journal
+          patternType: literal
+        operations:
+          - Describe
+          - DescribeConfigs
+          - Read
+          - Write
+      - resource:
+          type: topic
+          name: kafkasql-snapshots
+          patternType: literal
+        operations:
+          - Describe
+          - DescribeConfigs
+          - Read
+          - Write
+      - resource:
+          type: topic
+          name: registry-events
+          patternType: literal
+        operations:
+          - Describe
+          - DescribeConfigs
+          - Read
+          - Write
+      - resource:
+          type: group
+          name: schema-registry-main-
+          patternType: prefix
+        operations:
+          - Describe
+          - Read

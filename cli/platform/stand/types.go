@@ -31,3 +31,14 @@ type secretCondition struct {
 type clusterSummary struct {
 	Name string `json:"name"`
 }
+
+type schemaJob struct {
+	Status struct {
+		Conditions []struct {
+			Type    string `json:"type"`
+			Status  string `json:"status"`
+			Reason  string `json:"reason"`
+			Message string `json:"message"`
+		} `json:"conditions"`
+	} `json:"status"`
+}

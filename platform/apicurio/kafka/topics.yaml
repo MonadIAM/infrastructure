@@ -1,0 +1,50 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafkasql-journal
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: schema-registry
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    cleanup.policy: delete
+    retention.ms: "-1"
+    retention.bytes: "-1"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: kafkasql-snapshots
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: schema-registry
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    cleanup.policy: delete
+    retention.ms: "-1"
+    retention.bytes: "-1"
+---
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: registry-events
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: schema-registry
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    cleanup.policy: delete
+    retention.ms: "-1"
+    retention.bytes: "-1"
