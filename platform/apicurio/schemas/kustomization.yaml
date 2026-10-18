@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: monadiam-messaging
 
 resources:
+  - service-account.yaml
   - job.yaml
 
 configMapGenerator:

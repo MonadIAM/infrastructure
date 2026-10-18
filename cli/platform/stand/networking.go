@@ -65,7 +65,7 @@ func (platform Platform) MetricsServer(ctx context.Context) error {
 }
 
 func (platform Platform) Istio(ctx context.Context) error {
-	err := platform.Kubernetes.ApplyKustomize(ctx, "clusters/local")
+	err := platform.installGatewayAPI(ctx)
 	if err != nil {
 		return err
 	}
@@ -75,25 +75,25 @@ func (platform Platform) Istio(ctx context.Context) error {
 		return err
 	}
 
-	releases := []string{"istio-base", "istiod"}
-
-	for _, release := range releases {
-		err := platform.install(ctx, release)
+	for _, component := range istioComponents {
+		err := platform.install(ctx, component.Release)
 		if err != nil {
 			return err
 		}
+
+		if component.Workload != "" {
+			err = platform.Kubernetes.Rollout(ctx, "istio-system", component.Workload, "300s")
+			if err != nil {
+				return err
+			}
+		}
 	}
 
-	return platform.Kubernetes.Rollout(ctx, "istio-system", "deployment/istiod", "180s")
+	return platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/networking/istio/resources")
 }
 
 func (platform Platform) Gateway(ctx context.Context) error {
-	err := platform.installGatewayAPI(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Rollout(ctx, "istio-system", "deployment/istiod", "180s")
+	err := platform.Kubernetes.Rollout(ctx, "istio-system", "deployment/istiod", "180s")
 	if err != nil {
 		return err
 	}

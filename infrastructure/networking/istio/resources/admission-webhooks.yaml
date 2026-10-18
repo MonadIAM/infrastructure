@@ -1,0 +1,29 @@
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: cnpg-admission
+  namespace: cnpg-system
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudnative-pg
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "9443":
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: prometheus-admission
+  namespace: monadiam-observability
+spec:
+  selector:
+    matchLabels:
+      app: kube-prometheus-stack-operator
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "10250":
+      mode: PERMISSIVE

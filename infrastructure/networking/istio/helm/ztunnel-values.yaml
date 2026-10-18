@@ -1,0 +1,9 @@
+env:
+  SECRET_TTL: 24h
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 512Mi

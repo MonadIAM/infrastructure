@@ -17,6 +17,16 @@ const (
 	vaultOperatorDeployment = "deployment/vault-secrets-operator-controller-manager"
 )
 
+var istioComponents = []struct {
+	Release  string
+	Workload string
+}{
+	{Release: "istio-base"},
+	{Release: "istiod", Workload: "deployment/istiod"},
+	{Release: "istio-cni", Workload: "daemonset/istio-cni-node"},
+	{Release: "ztunnel", Workload: "daemonset/ztunnel"},
+}
+
 var kafkaPartitionKeys = []string{
 	"PROJECTION_JOURNAL_PARTITIONS",
 	"REALM_PARTITIONS",
@@ -117,7 +127,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/base-values.yaml",
-			Arguments: []string{"--set", "platform=" + environment["ISTIO_PLATFORM"]},
+			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
 		},
 		"istiod": {
 			Name:      "istiod",
@@ -125,7 +135,23 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/istiod-values.yaml",
-			Arguments: []string{"--set", "platform=" + environment["ISTIO_PLATFORM"]},
+			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
+		},
+		"istio-cni": {
+			Name:      "istio-cni",
+			Chart:     "istio/cni",
+			Version:   environment["ISTIO_VERSION"],
+			Namespace: "istio-system",
+			Values:    "infrastructure/networking/istio/helm/istio-cni-values.yaml",
+			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
+		},
+		"ztunnel": {
+			Name:      "ztunnel",
+			Chart:     "istio/ztunnel",
+			Version:   environment["ISTIO_VERSION"],
+			Namespace: "istio-system",
+			Values:    "infrastructure/networking/istio/helm/ztunnel-values.yaml",
+			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
 		},
 		"vault": {
 			Name:      "vault",

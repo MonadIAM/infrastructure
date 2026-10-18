@@ -43,6 +43,57 @@ for them to become ready. Applications and their routes are deployed separately.
 ----
 
 <details>
+<summary><strong>Service mesh (Istio)</strong></summary>
+
+| Setting              | Value                                                                                    |
+| :------------------- | :--------------------------------------------------------------------------------------- |
+| Dataplane            | Ambient: Istio CNI + one ztunnel per node; no application sidecars                       |
+| Version              | All four Helm releases use `ISTIO_VERSION`                                               |
+| Platform             | `global.platform=k3d`; CNI binaries: `/var/lib/rancher/k3s/data/cni`                     |
+| Transport            | TCP over HBONE/mTLS; namespace `PeerAuthentication` requires `STRICT`                    |
+| Workload identity    | `spiffe://cluster.local/ns/<namespace>/sa/<service-account>`                             |
+| Certificates         | Issued by Istiod; ztunnel requests 24h certificates and renews them before expiry        |
+| Certificate settings | `helm/ztunnel-values.yaml`: `SECRET_TTL`; `helm/istiod-values.yaml`: default/maximum TTL |
+| Application access   | Database roles, passwords and Kafka ACL remain required; mesh identity is additional     |
+
+Paths in this section are relative to `infrastructure/networking/istio/`.
+Certificate renewal does not require restarting application pods. The Istio CA is separate
+from the cert-manager CA used by native component TLS; workload renewal does not rotate the root CA.
+
+| Namespace scope                                                                           | Protection / exception                                          |
+| :---------------------------------------------------------------------------------------- | :-------------------------------------------------------------- |
+| `monadiam-apps`, `monadiam-data`, `monadiam-messaging`, `monadiam-observability`          | Ambient + mandatory mTLS for captured TCP traffic               |
+| `vault`, `vault-secrets-operator`, `cnpg-system`, `strimzi-system`, `clickhouse-operator` | Ambient + mandatory mTLS for captured TCP traffic               |
+| CNPG webhook `9443`, Prometheus operator webhook `10250`                                  | Native HTTPS; API server is outside mesh                        |
+| `istio-ingress`                                                                           | Gateway proxy; external HTTPS and internal mesh connections     |
+| `kube-system`, `cert-manager`, `istio-system`, host-network pods                          | Control plane / node infrastructure; outside ambient enrollment |
+| UDP, including DNS                                                                        | Not covered by Istio mTLS                                       |
+
+Namespace enrollment is declared in `clusters/local/namespaces.yaml`. `resources/network-policy.yaml`
+allows HBONE (`15008/TCP`) through the Kafka and SeaweedFS network policies. New application workloads
+must use dedicated ServiceAccounts; per-service `AuthorizationPolicy` rules belong with their deployments.
+Native PostgreSQL, Redis, Kafka and Vault TLS remains enabled.
+
+```text
+Gateway API CRDs -> istio-base -> istiod -> istio-cni -> ztunnel -> mesh policies
+application -> ztunnel == mTLS == ztunnel -> destination
+```
+
+```sh
+make reconcile COMPONENT=istio
+kubectl -n istio-system get deployments,daemonsets,pods
+kubectl get peerauthentication -A
+```
+
+References: [Ambient installation](https://istio.io/latest/docs/ambient/install/helm/),
+[k3d prerequisites](https://istio.io/latest/docs/ambient/install/platform-prerequisites/#k3d),
+[mTLS verification](https://istio.io/latest/docs/ambient/usage/verify-mtls-enabled/).
+
+</details>
+
+----
+
+<details>
 <summary><strong>Commands</strong></summary>
 
 | Makefile            | CLI                                              | Purpose                                                 |

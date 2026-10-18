@@ -40,6 +40,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient
 ---
 apiVersion: v1
 kind: Namespace
@@ -51,6 +52,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient
 ---
 apiVersion: v1
 kind: Namespace
@@ -62,6 +64,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient
 ---
 apiVersion: v1
 kind: Namespace
@@ -73,6 +76,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient
 ---
 apiVersion: v1
 kind: Namespace
@@ -84,6 +88,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient
 ---
 apiVersion: v1
 kind: Namespace
@@ -95,6 +100,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient
 ---
 apiVersion: v1
 kind: Namespace
@@ -106,6 +112,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient
 ---
 apiVersion: v1
 kind: Namespace
@@ -117,6 +124,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient
 ---
 apiVersion: v1
 kind: Namespace
@@ -128,3 +136,4 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
     istio-injection: disabled
+    istio.io/dataplane-mode: ambient

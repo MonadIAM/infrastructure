@@ -1,1 +1,9 @@
-{}
+profile: ambient
+
+meshConfig:
+  trustDomain: cluster.local
+  enableAutoMtls: true
+
+env:
+  DEFAULT_WORKLOAD_CERT_TTL: 24h
+  MAX_WORKLOAD_CERT_TTL: 24h

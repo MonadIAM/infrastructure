@@ -1,0 +1,11 @@
+profile: ambient
+
+cni:
+  cniBinDir: /var/lib/rancher/k3s/data/cni
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 100Mi
+  limits:
+    memory: 256Mi

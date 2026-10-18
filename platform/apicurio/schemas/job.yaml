@@ -16,6 +16,7 @@ spec:
         app.kubernetes.io/name: shared-schemas
     spec:
       restartPolicy: Never
+      serviceAccountName: shared-schemas
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true

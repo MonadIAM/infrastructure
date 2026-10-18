@@ -20,6 +20,7 @@ spec:
         app.kubernetes.io/component: schema-registry
         app.kubernetes.io/part-of: monadiam
     spec:
+      serviceAccountName: schema-registry-main
       automountServiceAccountToken: false
       containers:
         - name: registry
