@@ -1,0 +1,218 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: access-control-service
+  namespace: monadiam-apps
+  labels:
+    app.kubernetes.io/name: access-control-service
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: application
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  minReadySeconds: 10
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: access-control-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: access-control-service
+        app.kubernetes.io/part-of: monadiam
+        app.kubernetes.io/component: application
+      annotations:
+        monadiam.io/credentials-checksum: ${ACCESS_CONTROL_CREDENTIALS_CHECKSUM}
+    spec:
+      serviceAccountName: access-control-service
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: vault-agent
+          image: hashicorp/vault:2.0.3
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          command:
+            - vault
+          args:
+            - agent
+            - -config=/etc/vault/agent.hcl
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - test
+                - -S
+                - /vault/proxy/agent.sock
+            periodSeconds: 2
+            failureThreshold: 60
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+          volumeMounts:
+            - name: agent-config
+              mountPath: /etc/vault
+              readOnly: true
+            - name: vault-ca
+              mountPath: /tls/vault
+              readOnly: true
+            - name: vault-token
+              mountPath: /var/run/secrets/vault
+              readOnly: true
+            - name: vault-proxy
+              mountPath: /vault/proxy
+            - name: agent-temporary
+              mountPath: /tmp
+      containers:
+        - name: service
+          image: ${ACCESS_CONTROL_IMAGE}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: access-control-env
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: access-control-postgresql
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: access-control-postgresql
+                  key: password
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: access-control-redis
+                  key: redis-password
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=768
+          ports:
+            - name: http
+              containerPort: 4001
+            - name: grpc
+              containerPort: 50051
+          startupProbe:
+            httpGet:
+              path: /api/v1/health/liveness
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health/liveness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: postgresql-ca
+              mountPath: /tls/postgresql
+              readOnly: true
+            - name: kafka-ca
+              mountPath: /tls/kafka
+              readOnly: true
+            - name: redis-tls
+              mountPath: /tls/redis
+              readOnly: true
+            - name: kafka-auth
+              mountPath: /secrets/kafka
+              readOnly: true
+            - name: vault-proxy
+              mountPath: /vault/proxy
+            - name: temporary
+              mountPath: /tmp
+            - name: uploads
+              mountPath: /app/uploads
+            - name: database-credentials
+              mountPath: /vault/secrets
+              readOnly: true
+      volumes:
+        - name: postgresql-ca
+          secret:
+            secretName: access-control-postgresql-ca
+        - name: kafka-ca
+          secret:
+            secretName: access-control-kafka-ca
+        - name: kafka-auth
+          secret:
+            secretName: access-control-kafka-auth
+        - name: redis-tls
+          secret:
+            secretName: access-control-redis-client
+        - name: vault-ca
+          secret:
+            secretName: access-control-vault-ca
+        - name: agent-config
+          configMap:
+            name: access-control-vault-agent
+        - name: vault-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  audience: vault
+                  expirationSeconds: 3600
+        - name: vault-proxy
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+        - name: temporary
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+        - name: agent-temporary
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: access-control-uploads
+        - name: database-credentials
+          secret:
+            secretName: access-control-postgresql
+            items:
+              - key: username
+                path: postgresql_username
+              - key: password
+                path: postgresql_password

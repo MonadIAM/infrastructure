@@ -1,0 +1,21 @@
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: template-service
+  namespace: monadiam-apps
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: template-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces:
+              - monadiam-apps
+              - monadiam-observability
+              - istio-ingress
+      to:
+        - operation:
+            ports:
+              - "4000"

@@ -6,6 +6,14 @@ import (
 
 const tokenCommand = `IFS= read -r VAULT_TOKEN; export VAULT_TOKEN; exec "$@"`
 
+var identityKeys = [][]string{
+	{"transit/keys/identity-access-token", "type=ecdsa-p256"},
+	{"transit/keys/identity-refresh-token", "type=ecdsa-p256"},
+	{"transit/keys/identity-id-token", "type=ecdsa-p256"},
+	{"transit/keys/identity-totp-secret", "type=aes256-gcm96"},
+	{"transit/keys/identity-pairwise-sub", "type=hmac", "key_size=32"},
+}
+
 func credentialDefinitions(environment config.Environment) []credentialDefinition {
 	return []credentialDefinition{
 		{

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hr-uploads
+  namespace: monadiam-apps
+  labels:
+    app.kubernetes.io/name: hr-service
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: application
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path-retain
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,19 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: applications-gateway-tls
+  namespace: istio-ingress
+spec:
+  secretName: applications-gateway-tls
+  duration: 2160h
+  renewBefore: 720h
+  ipAddresses:
+    - ${APPLICATIONS_IP}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  issuerRef:
+    name: monadiam-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

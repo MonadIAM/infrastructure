@@ -2,6 +2,7 @@ package stand
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
@@ -98,12 +99,23 @@ func (platform Platform) Gateway(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/networking/gateway-api/resources")
+	data, err := platform.Kubernetes.Capture(ctx, "kustomize", "infrastructure/networking/gateway-api/resources")
+	if err != nil {
+		return err
+	}
+
+	manifest := strings.ReplaceAll(string(data), "${APPLICATIONS_IP}", platform.Environment["APPLICATIONS_IP"])
+	err = platform.Kubernetes.Apply(ctx, []byte(manifest), false)
 	if err != nil {
 		return err
 	}
 
 	err = platform.Kubernetes.Wait(ctx, "istio-ingress", "certificate/monadiam-localhost-gateway-tls", "condition=Ready", "180s")
+	if err != nil {
+		return err
+	}
+
+	err = platform.Kubernetes.Wait(ctx, "istio-ingress", "certificate/applications-gateway-tls", "condition=Ready", "180s")
 	if err != nil {
 		return err
 	}
@@ -117,7 +129,7 @@ func (platform Platform) Gateway(ctx context.Context) error {
 		}
 	}
 
-	return nil
+	return platform.publishApplicationPorts(ctx)
 }
 
 func (platform Platform) metricsAvailable(ctx context.Context) (bool, error) {

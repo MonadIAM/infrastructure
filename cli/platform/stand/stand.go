@@ -52,8 +52,15 @@ func (platform Platform) Reconcile(ctx context.Context, component string) error 
 		}
 
 		phases = []phaseDefinition{phase}
-		if component == "schemas" {
-			phases = append([]phaseDefinition{{Name: "images", Run: platform.Images}}, phases...)
+		imageKeys := map[string]string{"schemas": "SHARED_SCHEMAS_IMAGE"}
+		for _, application := range applications {
+			imageKeys[application.Name] = application.ImageKey
+		}
+
+		if key, exists := imageKeys[component]; exists {
+			phases = append([]phaseDefinition{{Name: "images", Run: func(ctx context.Context) error {
+				return platform.prepareImage(ctx, key)
+			}}}, phases...)
 		}
 	}
 

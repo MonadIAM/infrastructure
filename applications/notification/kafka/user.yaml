@@ -1,0 +1,121 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: notification-service
+  namespace: monadiam-messaging
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: application
+    strimzi.io/cluster: kafka-main
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: cluster
+        operations:
+          - Describe
+          - IdempotentWrite
+      - resource:
+          type: group
+          name: notification-service-
+          patternType: prefix
+        operations:
+          - Describe
+          - Read
+      - resource:
+          type: topic
+          name: account
+          patternType: literal
+        operations:
+          - Describe
+          - Read
+      - resource:
+          type: topic
+          name: account-dead
+          patternType: literal
+        operations:
+          - Describe
+          - Write
+      - resource:
+          type: topic
+          name: notification
+          patternType: literal
+        operations:
+          - Describe
+          - Read
+      - resource:
+          type: topic
+          name: notification-dead
+          patternType: literal
+        operations:
+          - Describe
+          - Write
+      - resource:
+          type: topic
+          name: message-dispatch
+          patternType: literal
+        operations:
+          - Describe
+          - Read
+          - Write
+      - resource:
+          type: topic
+          name: message-dispatch-dead
+          patternType: literal
+        operations:
+          - Describe
+          - Write
+      - resource:
+          type: topic
+          name: reauthentication
+          patternType: literal
+        operations:
+          - Describe
+          - Read
+      - resource:
+          type: topic
+          name: reauthentication-dead
+          patternType: literal
+        operations:
+          - Describe
+          - Write
+      - resource:
+          type: topic
+          name: blacklist
+          patternType: literal
+        operations:
+          - Describe
+          - Read
+      - resource:
+          type: topic
+          name: blacklist-dead
+          patternType: literal
+        operations:
+          - Describe
+          - Write
+      - resource:
+          type: topic
+          name: access-cache
+          patternType: literal
+        operations:
+          - Describe
+          - Read
+      - resource:
+          type: topic
+          name: access-cache-dead
+          patternType: literal
+        operations:
+          - Describe
+          - Write
+      - resource:
+          type: topic
+          name: message-dispatch-retry-notification-service
+          patternType: literal
+        operations:
+          - Describe
+          - Read
+          - Write

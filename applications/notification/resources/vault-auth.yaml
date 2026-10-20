@@ -1,0 +1,19 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: notification-service
+  namespace: monadiam-apps
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: application
+spec:
+  method: kubernetes
+  mount: kubernetes
+  vaultConnectionRef: vault-secrets-operator/vault
+  kubernetes:
+    role: notification-service
+    serviceAccount: notification-service
+    audiences:
+      - vault
+    tokenExpirationSeconds: 600

@@ -38,7 +38,13 @@ var _ = Describe("[Infrastructure] - Shared schemas", func() {
 				return command.Result{}, failure
 			}
 
-			if strings.Contains(arguments, "kustomize") {
+			if strings.HasPrefix(arguments, "docker ps ") {
+				return command.Result{Output: []byte("k3d-monadiam-server-0 server\n")}, nil
+			} else if strings.Contains(arguments, "images ls name==") {
+				cache := strings.TrimPrefix(request.Args[len(request.Args)-1], "name==")
+				_, digest, _ := strings.Cut(cache, ":cache-")
+				return command.Result{Output: []byte(cache + " manifest sha256:" + digest)}, nil
+			} else if strings.Contains(arguments, "kustomize") {
 				return command.Result{Output: []byte("image: ${SHARED_SCHEMAS_IMAGE}")}, nil
 			} else if strings.Contains(arguments, "get job/shared-schemas") {
 				return command.Result{Output: []byte(jobState)}, nil
@@ -67,24 +73,29 @@ var _ = Describe("[Infrastructure] - Shared schemas", func() {
 		// Arrange
 		image := environment["SHARED_SCHEMAS_IMAGE"]
 		imported := strings.Replace(image, ":3.0.1@", "@", 1)
+		cache := "ghcr.io/monadiam/shared-schemas:cache-" + strings.Repeat("a", 64)
 
 		// Act
 		err := platform.Reconcile(context.Background(), "schemas")
 
 		// Assert
 		Expect(err).To(Succeed())
-		Expect(requests).To(HaveLen(8))
+		Expect(requests).To(HaveLen(13))
 		Expect(requests[0].Name).To(Equal("docker"))
 		Expect(requests[0].Args).To(Equal([]string{"pull", imported}))
-		Expect(requests[1].Name).To(Equal("k3d"))
-		Expect(requests[1].Args).To(Equal([]string{"image", "import", imported, "--cluster", environment["CLUSTER"]}))
-		Expect(strings.Join(requests[2].Args, " ")).To(ContainSubstring("rollout status deployment/schema-registry-main"))
-		Expect(requests[3].Args[2:]).To(Equal([]string{"kustomize", "platform/apicurio/schemas"}))
-		Expect(requests[4].Args[2:]).To(Equal([]string{"delete", "job", "shared-schemas", "-n", messagingNamespace, "--ignore-not-found", "--wait=true", "--timeout=60s"}))
-		Expect(string(requests[5].Input)).To(Equal("image: " + image))
-		Expect(requests[6].Args[2:]).To(Equal([]string{"get", "job/shared-schemas", "-n", messagingNamespace, "-o", "json", "--request-timeout=10s"}))
-		Expect(requests[7].Args[2:]).To(Equal([]string{"logs", "job/shared-schemas", "-n", messagingNamespace, "--tail=100"}))
-		for _, request := range requests[2:] {
+		Expect(requests[1].Name).To(Equal("docker"))
+		Expect(requests[1].Args).To(Equal([]string{"tag", imported, cache}))
+		Expect(requests[2].Name).To(Equal("k3d"))
+		Expect(requests[2].Args).To(Equal([]string{"image", "import", cache, "--cluster", environment["CLUSTER"]}))
+		Expect(requests[5].Args).To(Equal([]string{"exec", "k3d-monadiam-server-0", "ctr", "-n", "k8s.io", "images", "tag", "--force", cache, imported}))
+		Expect(requests[6].Args).To(Equal([]string{"exec", "k3d-monadiam-server-0", "crictl", "inspecti", imported}))
+		Expect(strings.Join(requests[7].Args, " ")).To(ContainSubstring("rollout status deployment/schema-registry-main"))
+		Expect(requests[8].Args[2:]).To(Equal([]string{"kustomize", "platform/apicurio/schemas"}))
+		Expect(requests[9].Args[2:]).To(Equal([]string{"delete", "job", "shared-schemas", "-n", messagingNamespace, "--ignore-not-found", "--wait=true", "--timeout=60s"}))
+		Expect(string(requests[10].Input)).To(Equal("image: " + image))
+		Expect(requests[11].Args[2:]).To(Equal([]string{"get", "job/shared-schemas", "-n", messagingNamespace, "-o", "json", "--request-timeout=10s"}))
+		Expect(requests[12].Args[2:]).To(Equal([]string{"logs", "job/shared-schemas", "-n", messagingNamespace, "--tail=100"}))
+		for _, request := range requests[7:] {
 			Expect(request.Name).To(Equal("kubectl"))
 			Expect(request.Args[:2]).To(Equal([]string{"--context", environment["KUBE_CONTEXT"]}))
 		}
@@ -118,7 +129,8 @@ var _ = Describe("[Infrastructure] - Shared schemas", func() {
 		// Assert
 		Expect(err).To(Succeed())
 		Expect(requests[0].Args).To(Equal([]string{"pull", imported + digest}))
-		Expect(requests[1].Args[2]).To(Equal(imported + digest))
+		Expect(requests[1].Args).To(Equal([]string{"tag", imported + digest, imported + ":cache-" + strings.Repeat("a", 64)}))
+		Expect(requests[2].Args[2]).To(Equal(imported + ":cache-" + strings.Repeat("a", 64)))
 	},
 		Entry("digest only", "ghcr.io/monadiam/shared-schemas", "ghcr.io/monadiam/shared-schemas"),
 		Entry("registry port and tag", "localhost:5000/shared-schemas:3.0.1", "localhost:5000/shared-schemas"),
@@ -137,11 +149,11 @@ var _ = Describe("[Infrastructure] - Shared schemas", func() {
 		Expect(requests).To(HaveLen(count))
 	},
 		Entry("download", "docker pull", 1),
-		Entry("import", "k3d image import", 2),
-		Entry("registry readiness", "rollout status", 3),
-		Entry("render", "kustomize", 4),
-		Entry("old Job deletion", "delete job", 5),
-		Entry("apply", "apply -f", 6),
+		Entry("import", "k3d image import", 3),
+		Entry("registry readiness", "rollout status", 8),
+		Entry("render", "kustomize", 9),
+		Entry("old Job deletion", "delete job", 10),
+		Entry("apply", "apply -f", 11),
 	)
 
 	DescribeTable("[case] - reports terminal Job failure immediately with diagnostics", func(condition string) {

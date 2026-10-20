@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: access-control-uploads
+  namespace: monadiam-apps
+  labels:
+    app.kubernetes.io/name: access-control-service
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: application
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path-retain
+  resources:
+    requests:
+      storage: 1Gi

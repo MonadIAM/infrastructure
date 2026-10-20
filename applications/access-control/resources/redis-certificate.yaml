@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: access-control-redis-client
+  namespace: monadiam-apps
+  labels:
+    app.kubernetes.io/name: access-control-service
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: application
+spec:
+  secretName: access-control-redis-client
+  commonName: access-control-service
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    rotationPolicy: Always
+  usages:
+    - digital signature
+    - key encipherment
+    - client auth
+  issuerRef:
+    name: monadiam-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -57,6 +58,10 @@ func (environment Environment) Validate() error {
 		return err
 	}
 
+	if net.ParseIP(environment["APPLICATIONS_IP"]).To4() == nil {
+		return errors.New("APPLICATIONS_IP must be an IPv4 address")
+	}
+
 	keys := []string{
 		"HELM_RETRY_ATTEMPTS",
 		"HELM_RETRY_DELAY_SECONDS",
@@ -81,6 +86,11 @@ func (environment Environment) Validate() error {
 	threshold, _ := environment.PositiveInt("VAULT_KEY_THRESHOLD")
 	if threshold > shares {
 		return errors.New("VAULT_KEY_THRESHOLD must not exceed VAULT_KEY_SHARES")
+	}
+
+	_, err = environment.Duration("IMAGE_PREPARE_TIMEOUT", "15m")
+	if err != nil {
+		return err
 	}
 
 	_, err = environment.Duration("INFRA_TIMEOUT", "60m")

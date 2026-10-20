@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []
+namespace: monadiam-apps
+configMapGenerator:
+  - name: hr-env
+    envs:
+      - .env.hr
+  - name: hr-vault-agent
+    files:
+      - agent.hcl

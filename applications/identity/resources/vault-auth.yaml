@@ -1,0 +1,19 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: identity-service
+  namespace: monadiam-apps
+  labels:
+    app.kubernetes.io/name: identity-service
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: application
+spec:
+  method: kubernetes
+  mount: kubernetes
+  vaultConnectionRef: vault-secrets-operator/vault
+  kubernetes:
+    role: identity-service
+    serviceAccount: identity-service
+    audiences:
+      - vault
+    tokenExpirationSeconds: 600

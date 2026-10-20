@@ -179,6 +179,7 @@ func (platform Platform) Status(ctx context.Context) error {
 		{"get", "jobs,pods", "-n", messagingNamespace, "-l", "app.kubernetes.io/name=shared-schemas"},
 		{"get", "clickhouseinstallations.clickhouse.altinity.com", "-n", "monadiam-data"},
 		{"get", "pods,svc", "-n", "monadiam-observability"},
+		{"get", "deployment,pods,svc", "-n", appsNamespace},
 	}
 
 	for _, args := range commands {

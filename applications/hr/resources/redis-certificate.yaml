@@ -1,0 +1,24 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hr-redis-client
+  namespace: monadiam-apps
+  labels:
+    app.kubernetes.io/name: hr-service
+    app.kubernetes.io/part-of: monadiam
+    app.kubernetes.io/component: application
+spec:
+  secretName: hr-redis-client
+  commonName: hr-service
+  duration: 2160h
+  renewBefore: 720h
+  privateKey:
+    rotationPolicy: Always
+  usages:
+    - digital signature
+    - key encipherment
+    - client auth
+  issuerRef:
+    name: monadiam-ca
+    kind: ClusterIssuer
+    group: cert-manager.io

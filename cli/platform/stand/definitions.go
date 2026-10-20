@@ -1,6 +1,7 @@
 package stand
 
 import (
+	"context"
 	"strings"
 
 	"github.com/MonadIAM/infrastructure/cli/config"
@@ -10,6 +11,7 @@ import (
 const kafkaResources = "kafka.kafka.strimzi.io,kafkanodepool.kafka.strimzi.io,kafkatopic.kafka.strimzi.io,kafkauser.kafka.strimzi.io,kafkaconnect.kafka.strimzi.io,kafkaconnector.kafka.strimzi.io"
 
 const (
+	appsNamespace           = "monadiam-apps"
 	dataNamespace           = "monadiam-data"
 	messagingNamespace      = "monadiam-messaging"
 	observabilityNamespace  = "monadiam-observability"
@@ -51,8 +53,21 @@ var redisClusters = []string{
 	"template-redis",
 }
 
+var applications = []struct {
+	Name     string
+	ImageKey string
+	Port     string
+}{
+	{Name: "access-control", ImageKey: "ACCESS_CONTROL_IMAGE", Port: "4001"},
+	{Name: "identity", ImageKey: "IDENTITY_IMAGE", Port: "4002"},
+	{Name: "notification", ImageKey: "NOTIFICATION_IMAGE", Port: "4003"},
+	{Name: "organization", ImageKey: "ORGANIZATION_IMAGE", Port: "4004"},
+	{Name: "hr", ImageKey: "HR_IMAGE", Port: "4005"},
+	{Name: "template", ImageKey: "TEMPLATE_IMAGE", Port: "4000"},
+}
+
 func (platform Platform) phases() []phaseDefinition {
-	return []phaseDefinition{
+	phases := []phaseDefinition{
 		{
 			Name: "images",
 			Run:  platform.Images,
@@ -102,6 +117,14 @@ func (platform Platform) phases() []phaseDefinition {
 			Run:  platform.Observability,
 		},
 	}
+
+	for _, application := range applications {
+		phases = append(phases, phaseDefinition{Name: application.Name, Run: func(ctx context.Context) error {
+			return platform.Application(ctx, application.Name, application.ImageKey)
+		}})
+	}
+
+	return phases
 }
 
 func releaseDefinitions(environment config.Environment) map[string]helm.Release {

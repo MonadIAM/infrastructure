@@ -8,17 +8,6 @@ import (
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
 
-type staticSecret struct {
-	Metadata struct {
-		Generation int64 `json:"generation"`
-	} `json:"metadata"`
-	Status struct {
-		LastGeneration int64             `json:"lastGeneration"`
-		SecretMAC      string            `json:"secretMAC"`
-		Conditions     []secretCondition `json:"conditions"`
-	} `json:"status"`
-}
-
 func (secret staticSecret) ready() bool {
 	conditions := map[string]string{}
 	for _, condition := range secret.Status.Conditions {

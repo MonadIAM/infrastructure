@@ -34,7 +34,7 @@ make status
 ```
 
 `make start` creates or starts the cluster, installs platform components and waits
-for them to become ready. Applications and their routes are deployed separately.
+for them to become ready, including AccessControl. External routes are configured separately.
 
 > - `make env` preserves an existing `.env`.
 > - Use `make resume` to start a stopped stand and `make stop` to stop it.
@@ -259,16 +259,17 @@ stand/
 
 Host bindings are defined in `bootstrap/k3d/cluster.yaml`.
 
-| Component      | Host address     | Purpose                     |
-| :------------- | :--------------- | :-------------------------- |
-| Kubernetes API | `127.0.0.1:6550` | Cluster management.         |
-| Gateway HTTP   | `127.0.0.1:8080` | HTTP ingress.               |
-| Gateway HTTPS  | `127.0.0.1:8443` | HTTPS ingress.              |
-| Registry       | `127.0.0.1:5001` | Images for the k3d cluster. |
+| Component      | Host address                   | Purpose                     |
+| :------------- | :----------------------------- | :-------------------------- |
+| Kubernetes API | `127.0.0.1:6550`                | Cluster management.         |
+| Gateway HTTP   | `127.0.0.1:8080`                | HTTP ingress.               |
+| Gateway HTTPS  | `127.0.0.1:8443`                | Domain-based HTTPS ingress. |
+| Applications   | `<APPLICATIONS_IP>:4000–4005`   | HTTPS API and Scalar.       |
+| Registry       | `127.0.0.1:5001`                | Images for the k3d cluster. |
 
-The Gateway accepts `monadiam.localhost` and `*.monadiam.localhost`.
-Application `HTTPRoute` resources from `monadiam-apps` are added separately.
-Creating the Gateway does not expose Grafana, Vault or other interfaces.
+Ports `8080`/`8443` accept `monadiam.localhost` and `*.monadiam.localhost`.
+Ports `4000–4005` route to applications by port, using an IP certificate.
+Grafana, Vault and other administrative interfaces require port forwarding.
 
 For local access, forward a port from the required resource. Grafana example
 using the default context:
@@ -713,19 +714,19 @@ After rotating Kafka credentials or the CA, restart the registry deployment.
 **Schema publication**
 
 ```text
-images -> ... -> clusters -> apicurio -> schemas -> seaweedfs -> observability
+images -> ... -> clusters -> apicurio -> schemas -> seaweedfs -> observability -> applications
 ```
 
-| Setting        | Value                                                                                       |
-| :------------- | :------------------------------------------------------------------------------------------ |
-| Image          | `SHARED_SCHEMAS_IMAGE` in `.env`; `3.0.1` pinned by digest in [.env.example](.env.example)  |
-| Preparation    | `images`: Docker pull and import into every k3d node before platform installation; limit 3m |
-| Scope          | Image preparation currently covers `shared-schemas`; other images use existing flows        |
-| Job            | `shared-schemas`; runs `scripts/apply.sh` after Apicurio readiness                          |
-| Resources      | Requests: `50m` CPU, `32Mi` RAM; RAM limit: `128Mi`                                         |
-| Failure        | No automatic retry; deadline 300s; CLI prints Job/Pod details and container logs            |
-| Reconciliation | Recreates the Job; identical schemas keep their existing versions                           |
-| Retention      | Finished Job and logs retained for 24h, or until the next reconciliation                    |
+| Setting        | Value                                                                                        |
+| :------------- | :------------------------------------------------------------------------------------------- |
+| Image          | `SHARED_SCHEMAS_IMAGE` in `.env`; `3.0.1` pinned by digest in [.env.example](.env.example)   |
+| Preparation    | `images`: pull by digest, import with cache tag, register digest and verify CRI on each node |
+| Scope          | `shared-schemas` and all application images; timeout: `IMAGE_PREPARE_TIMEOUT`                |
+| Job            | `shared-schemas`; runs `scripts/apply.sh` after Apicurio readiness                           |
+| Resources      | Requests: `50m` CPU, `32Mi` RAM; RAM limit: `128Mi`                                          |
+| Failure        | No automatic retry; deadline 300s; CLI prints Job/Pod details and container logs             |
+| Reconciliation | Recreates the Job; identical schemas keep their existing versions                            |
+| Retention      | Finished Job and logs retained for 24h, or until the next reconciliation                     |
 
 | File                                                             | Purpose                                       |
 | :--------------------------------------------------------------- | :-------------------------------------------- |
@@ -739,7 +740,7 @@ images -> ... -> clusters -> apicurio -> schemas -> seaweedfs -> observability
 # Included in make start/resume. Also prepares the image.
 make reconcile COMPONENT=schemas
 
-# Prepare only the shared image for an existing cluster.
+# Prepare pinned application images for an existing cluster.
 make reconcile COMPONENT=images
 ```
 
@@ -805,5 +806,55 @@ The Grafana username and password are stored in Vault and copied to the `grafana
 > - OTel Collector writes received OTLP metrics only to its diagnostic log.
 >   Prometheus collects metrics by scraping components; log ingestion through
 >   OTel Collector is not configured.
+
+</details>
+
+----
+
+<details>
+<summary><strong>Applications</strong></summary>
+
+| Component        | Image variable         | HTTP | gRPC  | Configuration                                                            |
+| :--------------- | :--------------------- | ---: | ----: | :----------------------------------------------------------------------- |
+| `access-control` | `ACCESS_CONTROL_IMAGE` | 4001 | 50051 | [access-control](applications/access-control/config/.env.access-control) |
+| `identity`       | `IDENTITY_IMAGE`       | 4002 |       | [identity](applications/identity/config/.env.identity)                   |
+| `notification`   | `NOTIFICATION_IMAGE`   | 4003 |       | [notification](applications/notification/config/.env.notification)       |
+| `organization`   | `ORGANIZATION_IMAGE`   | 4004 |       | [organization](applications/organization/config/.env.organization)       |
+| `hr`             | `HR_IMAGE`             | 4005 |       | [hr](applications/hr/config/.env.hr)                                     |
+| `template`       | `TEMPLATE_IMAGE`       | 4000 |       | [template](applications/template/config/.env.template)                   |
+
+| Per-service setting | Value                                                                           |
+| :------------------ | :------------------------------------------------------------------------------ |
+| Image               | Public GHCR; version + digest in `.env`                                         |
+| Image timeout       | `IMAGE_PREPARE_TIMEOUT=15m`; pull + import per image                            |
+| DNS                 | `<component>-service.monadiam-apps.svc.cluster.local`                           |
+| Application         | 1 replica; CPU request `100m`; RAM request/limit `256Mi` / `1Gi`                |
+| Updates             | `RollingUpdate`: unavailable `0`, surge `1`; ready for `10s` before replacement |
+| Vault Agent         | Kubernetes auth; Unix socket; CPU `25m`; RAM `64Mi` / `128Mi`                   |
+| Storage             | Uploads PVC `1Gi`, `local-path-retain`                                          |
+| Credentials         | PostgreSQL/Redis from VSO; Kafka password and CAs copied on reconcile           |
+| TLS                 | Istio ambient + native server TLS; Redis client certificate                     |
+| Browser access      | `https://<APPLICATIONS_IP>:<port>/docs/`; Gateway terminates TLS                |
+| External providers  | Google/GitHub OAuth and AWS SES/SNS credentials are not configured              |
+
+```sh
+make reconcile COMPONENT=identity
+kubectl -n monadiam-apps exec deployment/identity-service -c service -- make migrate
+```
+
+Set `APPLICATIONS_IP` to the Linux LAN IPv4 address; default: `127.0.0.1`.
+`make start` publishes ports `4000–4005` and issues the IP certificate.
+For an existing cluster, run `make reconcile COMPONENT=gateway`, then reconcile the applications.
+The browser requires accepting the stand CA certificate warning; DNS and hosts entries are unnecessary.
+
+Migrations and seeders are manual. `make seed` replaces datasets.
+After Identity seeding or an IP change, update only the Scalar OAuth client:
+
+```sh
+kubectl -n monadiam-apps exec deployment/identity-service -c service -- \
+  pnpm exec mikro-orm database:import /stand/docs-client.sql
+```
+After Kafka credential or CA rotation, reconcile the component. After Redis client
+certificate renewal, restart its Deployment to reload the mounted certificate.
 
 </details>
