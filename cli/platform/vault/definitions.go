@@ -77,18 +77,6 @@ func credentialDefinitions(environment config.Environment) []credentialDefinitio
 			PasswordKey: "password",
 		},
 		{
-			Path:        "monadiam-data/postgresql/template/app",
-			UserKey:     "username",
-			User:        "template",
-			PasswordKey: "password",
-		},
-		{
-			Path:        "monadiam-data/postgresql/template/debezium",
-			UserKey:     "username",
-			User:        "debezium",
-			PasswordKey: "password",
-		},
-		{
 			Path:        "monadiam-messaging/kafka/main/admin",
 			UserKey:     "username",
 			User:        "kafka-main-admin",
@@ -129,10 +117,6 @@ func credentialDefinitions(environment config.Environment) []credentialDefinitio
 		},
 		{
 			Path:        "monadiam-data/redis/hr/auth",
-			PasswordKey: "redis-password",
-		},
-		{
-			Path:        "monadiam-data/redis/template/auth",
 			PasswordKey: "redis-password",
 		},
 		{

@@ -13,5 +13,4 @@ resources:
   - notification-postgresql-outbox-connector.yaml
   - organization-postgresql-outbox-connector.yaml
   - identity-postgresql-outbox-connector.yaml
-  - template-postgresql-outbox-connector.yaml
   - hr-postgresql-outbox-connector.yaml

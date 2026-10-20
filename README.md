@@ -158,14 +158,14 @@ Components available for selective reconciliation: `images`, `cert-manager`, `me
 | Unit        | `cli/platform/*/*_test.go`        | Component operations and command ordering. |
 | Integration | `cli/tests/integration/*_test.go` | Real components in an isolated k3d stand.  |
 
-| Label        | Test file            | Scenarios                                                      |
-| :----------- | :------------------- | :------------------------------------------------------------- |
-| `bootstrap`  | `bootstrap_test.go`  | Vault initialization, credentials and persistent storage.      |
-| `postgresql` | `postgresql_test.go` | Six clusters, TLS, roles, isolation, replication and recovery. |
-| `redis`      | `redis_test.go`      | Six groups, mTLS, isolation, Sentinel quorum and recovery.     |
-| `lifecycle`  | `lifecycle_test.go`  | Reconcile, restart and deletion protection; PG/Redis/S3 data.  |
-| `seaweedfs`  | `seaweedfs_test.go`  | Versioning, retention and access restrictions.                 |
-| `failover`   | PostgreSQL and Redis | Primary and replica failures, writes and restored replication. |
+| Label        | Test file            | Scenarios                                                       |
+| :----------- | :------------------- | :-------------------------------------------------------------- |
+| `bootstrap`  | `bootstrap_test.go`  | Vault initialization, credentials and persistent storage.       |
+| `postgresql` | `postgresql_test.go` | Five clusters, TLS, roles, isolation, replication and recovery. |
+| `redis`      | `redis_test.go`      | Five groups, mTLS, isolation, Sentinel quorum and recovery.     |
+| `lifecycle`  | `lifecycle_test.go`  | Reconcile, restart and deletion protection; PG/Redis/S3 data.   |
+| `seaweedfs`  | `seaweedfs_test.go`  | Versioning, retention and access restrictions.                  |
+| `failover`   | PostgreSQL and Redis | Primary and replica failures, writes and restored replication.  |
 
 ```bash
 make utest
@@ -264,11 +264,11 @@ Host bindings are defined in `bootstrap/k3d/cluster.yaml`.
 | Kubernetes API | `127.0.0.1:6550`                | Cluster management.         |
 | Gateway HTTP   | `127.0.0.1:8080`                | HTTP ingress.               |
 | Gateway HTTPS  | `127.0.0.1:8443`                | Domain-based HTTPS ingress. |
-| Applications   | `<APPLICATIONS_IP>:4000–4005`   | HTTPS API and Scalar.       |
+| Applications   | `<APPLICATIONS_IP>:4001–4005`   | HTTPS API and Scalar.       |
 | Registry       | `127.0.0.1:5001`                | Images for the k3d cluster. |
 
 Ports `8080`/`8443` accept `monadiam.localhost` and `*.monadiam.localhost`.
-Ports `4000–4005` route to applications by port, using an IP certificate.
+Ports `4001–4005` route to applications by port, using an IP certificate.
 Grafana, Vault and other administrative interfaces require port forwarding.
 
 For local access, forward a port from the required resource. Grafana example
@@ -301,8 +301,8 @@ Default k3d topology: one server + one worker on the same host.
 
 | Component  | Configuration                                                |
 | :--------- | :----------------------------------------------------------- |
-| PostgreSQL | Six CNPG clusters; one primary + one replica each            |
-| Redis      | Six releases; one primary + two replicas; three Sentinel      |
+| PostgreSQL | Five CNPG clusters; one primary + one replica each           |
+| Redis      | Five releases; one primary + two replicas; three Sentinel    |
 | Storage    | `local-path-retain`; retained volumes require manual cleanup |
 
 [Platform manifests](platform/) / [Operators](infrastructure/operators/) / [Secrets contract](platform/secrets/contract.yaml)
@@ -318,14 +318,12 @@ Namespace: `monadiam-data`. Database name: `<service>-service`.
 | `notification`   | [notification-postgresql][pg-notification]     | `notification`   |
 | `organization`   | [organization-postgresql][pg-organization]     | `organization`   |
 | `hr`             | [hr-postgresql][pg-hr]                         | `hr`             |
-| `template`       | [template-postgresql][pg-template]             | `template`       |
 
 [pg-access-control]: platform/postgresql/resources/access-control-postgresql.yaml
 [pg-identity]: platform/postgresql/resources/identity-postgresql.yaml
 [pg-notification]: platform/postgresql/resources/notification-postgresql.yaml
 [pg-organization]: platform/postgresql/resources/organization-postgresql.yaml
 [pg-hr]: platform/postgresql/resources/hr-postgresql.yaml
-[pg-template]: platform/postgresql/resources/template-postgresql.yaml
 
 | Parameter                      | Value                                                     |
 | :----------------------------- | :-------------------------------------------------------- |
@@ -366,7 +364,7 @@ kubectl --context k3d-monadiam -n monadiam-data get clusters.postgresql.cnpg.io 
   -o custom-columns=NAME:.metadata.name,DESIRED:.spec.instances,READY:.status.readyInstances
 
 # Temporary override; the next reconcile restores the manifest value.
-kubectl --context k3d-monadiam -n monadiam-data patch cluster/template-postgresql \
+kubectl --context k3d-monadiam -n monadiam-data patch cluster/access-control-postgresql \
   --type=merge -p '{"spec":{"instances":3}}'
 ```
 
@@ -401,7 +399,7 @@ kubectl --context k3d-monadiam -n monadiam-data delete pvc -l cnpg.io/cluster=po
 | Released PVs       | Retained; inspect before reclaiming disk space                           |
 | Vault KV           | Admin session: `vault kv delete kv/monadiam-data/postgresql/main/<role>` |
 | Old Vault entries  | Repeat for `app`, `debezium`, `superuser`; history remains               |
-| Kafka Connect RBAC | Keep; reapply the updated allowlist of six CDC Secrets                   |
+| Kafka Connect RBAC | Keep; reapply the updated allowlist of five CDC Secrets                  |
 
 **Redis / Sentinel**
 
@@ -415,7 +413,6 @@ Topology follows [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_s
 | `notification`   | `notification-redis`          | [notification.yaml](platform/redis/helm/services/notification.yaml)     |
 | `organization`   | `organization-redis`          | [organization.yaml](platform/redis/helm/services/organization.yaml)     |
 | `hr`             | `hr-redis`                    | [hr.yaml](platform/redis/helm/services/hr.yaml)                         |
-| `template`       | `template-redis`              | [template.yaml](platform/redis/helm/services/template.yaml)             |
 
 ```text
 <service>-redis
@@ -427,18 +424,18 @@ Topology follows [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_s
 Sentinel quorum 2/3 -> elect primary -> client reconnects
 ```
 
-| Parameter           | Default                                                                    |
-| :------------------ | :------------------------------------------------------------------------- |
-| Redis / Sentinel    | 3 Redis; 3 Sentinel; quorum 2; majority 2                                  |
-| Redis data          | AOF enabled; `1Gi` PVC per Redis pod                                       |
-| Sentinel state      | `100Mi` PVC per pod; persists topology and epochs                          |
-| Total, six releases | 18 pods; 36 active PVCs; `18Gi + 1800Mi`; RAM request/limit `7680/16896Mi` |
-| Failure detection   | `10s`; election and reconnect add time; failover timeout `180s`            |
-| Placement           | Hard anti-affinity; 3 schedulable Kubernetes nodes required                |
-| Evictions           | PDB `minAvailable: 2`; protects against voluntary disruptions              |
-| Monitoring          | Exporter on each pod; Redis and Sentinel metrics                           |
-| Write safety        | At least 1 replica with lag <= 10s; otherwise Redis rejects writes         |
-| Durability          | Asynchronous replication can lose recent writes; AOF is not a backup       |
+| Parameter            | Default                                                                    |
+| :------------------- | :------------------------------------------------------------------------- |
+| Redis / Sentinel     | 3 Redis; 3 Sentinel; quorum 2; majority 2                                  |
+| Redis data           | AOF enabled; `1Gi` PVC per Redis pod                                       |
+| Sentinel state       | `100Mi` PVC per pod; persists topology and epochs                          |
+| Total, five releases | 15 pods; 30 active PVCs; `15Gi + 1500Mi`; RAM request/limit `6528/14592Mi` |
+| Failure detection    | `10s`; election and reconnect add time; failover timeout `180s`            |
+| Placement            | Hard anti-affinity; 3 schedulable Kubernetes nodes required                |
+| Evictions            | PDB `minAvailable: 2`; protects against voluntary disruptions              |
+| Monitoring           | Exporter on each pod; Redis and Sentinel metrics                           |
+| Write safety         | At least 1 replica with lag <= 10s; otherwise Redis rejects writes         |
+| Durability           | Asynchronous replication can lose recent writes; AOF is not a backup       |
 
 k3d uses 1 server + 2 agents on one host. Redis tolerates loss of one pod or k3d node.
 The stand targets recovery inside this host; physical host redundancy is outside its scope.
@@ -566,7 +563,7 @@ Existing credentials are preserved when configuration is reapplied.
 <details>
 <summary><strong>Kafka and Debezium</strong></summary>
 
-Namespace: `monadiam-messaging`. One Kafka Connect deployment; six PostgreSQL connectors.
+Namespace: `monadiam-messaging`. One Kafka Connect deployment; five PostgreSQL connectors.
 
 ```mermaid
 flowchart LR
@@ -579,7 +576,7 @@ flowchart LR
 | :-------------- | :--------------------------------------------------------------- |
 | Kafka broker    | [Broker][kafka-broker] / [Topics][kafka-topics]; TLS + SCRAM     |
 | Kafka Connect   | [Worker and Debezium image build][kafka-connect]; local registry |
-| Secret access   | [RBAC][kafka-pg-rbac]; `get` on six CDC Secrets only             |
+| Secret access   | [RBAC][kafka-pg-rbac]; `get` on five CDC Secrets only            |
 | Connectors      | [Manifest directory][kafka-resources]                            |
 | Schema Registry | [Apicurio 3.3.2](platform/apicurio/); KafkaSQL storage           |
 
@@ -596,7 +593,6 @@ flowchart LR
 | `notification-postgresql-outbox`   | `notification-service`   |
 | `organization-postgresql-outbox`   | `organization-service`   |
 | `hr-postgresql-outbox`             | `hr-service`             |
-| `template-postgresql-outbox`       | `template-service`       |
 
 | Connector parameter  | Value                                                                    |
 | :------------------- | :----------------------------------------------------------------------- |
@@ -821,7 +817,6 @@ The Grafana username and password are stored in Vault and copied to the `grafana
 | `notification`   | `NOTIFICATION_IMAGE`   | 4003 |       | [notification](applications/notification/config/.env.notification)       |
 | `organization`   | `ORGANIZATION_IMAGE`   | 4004 |       | [organization](applications/organization/config/.env.organization)       |
 | `hr`             | `HR_IMAGE`             | 4005 |       | [hr](applications/hr/config/.env.hr)                                     |
-| `template`       | `TEMPLATE_IMAGE`       | 4000 |       | [template](applications/template/config/.env.template)                   |
 
 | Per-service setting | Value                                                                           |
 | :------------------ | :------------------------------------------------------------------------------ |
@@ -843,7 +838,7 @@ kubectl -n monadiam-apps exec deployment/identity-service -c service -- make mig
 ```
 
 Set `APPLICATIONS_IP` to the Linux LAN IPv4 address; default: `127.0.0.1`.
-`make start` publishes ports `4000–4005` and issues the IP certificate.
+`make start` publishes ports `4001–4005` and issues the IP certificate.
 For an existing cluster, run `make reconcile COMPONENT=gateway`, then reconcile the applications.
 The browser requires accepting the stand CA certificate warning; DNS and hosts entries are unnecessary.
 

@@ -41,7 +41,6 @@ var postgresqlClusters = []string{
 	"notification-postgresql",
 	"organization-postgresql",
 	"hr-postgresql",
-	"template-postgresql",
 }
 
 var redisClusters = []string{
@@ -50,7 +49,6 @@ var redisClusters = []string{
 	"notification-redis",
 	"organization-redis",
 	"hr-redis",
-	"template-redis",
 }
 
 var applications = []struct {
@@ -63,7 +61,6 @@ var applications = []struct {
 	{Name: "notification", ImageKey: "NOTIFICATION_IMAGE", Port: "4003"},
 	{Name: "organization", ImageKey: "ORGANIZATION_IMAGE", Port: "4004"},
 	{Name: "hr", ImageKey: "HR_IMAGE", Port: "4005"},
-	{Name: "template", ImageKey: "TEMPLATE_IMAGE", Port: "4000"},
 }
 
 func (platform Platform) phases() []phaseDefinition {
@@ -350,16 +347,6 @@ func secretDefinitions() []secretDefinition {
 		},
 		{
 			Namespace:   dataNamespace,
-			Name:        "template-postgresql-app",
-			Destination: "template-postgresql-app",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "template-postgresql-debezium",
-			Destination: "template-postgresql-debezium",
-		},
-		{
-			Namespace:   dataNamespace,
 			Name:        "seaweedfs-main-s3",
 			Destination: "seaweedfs-main-s3",
 		},
@@ -422,11 +409,6 @@ func secretDefinitions() []secretDefinition {
 			Namespace:   "monadiam-data",
 			Name:        "hr-redis-auth",
 			Destination: "hr-redis-auth",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "template-redis-auth",
-			Destination: "template-redis-auth",
 		},
 		{
 			Namespace:   "monadiam-data",

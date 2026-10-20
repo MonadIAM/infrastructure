@@ -10,7 +10,5 @@ resources:
   - organization-postgresql-podmonitor.yaml
   - identity-postgresql.yaml
   - identity-postgresql-podmonitor.yaml
-  - template-postgresql.yaml
-  - template-postgresql-podmonitor.yaml
   - hr-postgresql.yaml
   - hr-postgresql-podmonitor.yaml

@@ -191,8 +191,8 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			}
 
 			// Assert
-			Expect(writes).To(Equal(11))
-			Expect(stored).To(HaveLen(12))
+			Expect(writes).To(Equal(9))
+			Expect(stored).To(HaveLen(10))
 			passwords := make(map[string]bool)
 			for _, definition := range credentialDefinitions(client.Environment) {
 				if !strings.Contains(definition.Path, "/postgresql/") {

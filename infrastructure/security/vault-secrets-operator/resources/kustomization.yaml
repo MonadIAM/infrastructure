@@ -12,8 +12,6 @@ resources:
   - organization-postgresql-debezium-static-secret.yaml
   - hr-postgresql-app-static-secret.yaml
   - hr-postgresql-debezium-static-secret.yaml
-  - template-postgresql-app-static-secret.yaml
-  - template-postgresql-debezium-static-secret.yaml
   - seaweedfs-main-s3-static-secret.yaml
   - seaweedfs-main-admin-static-secret.yaml
   - seaweedfs-main-archiver-static-secret.yaml
@@ -39,7 +37,6 @@ resources:
   - notification-redis-auth-static-secret.yaml
   - organization-redis-auth-static-secret.yaml
   - hr-redis-auth-static-secret.yaml
-  - template-redis-auth-static-secret.yaml
   - clickhouse-main-app-static-secret.yaml
   - clickhouse-main-intercluster-static-secret.yaml
   - clickhouse-operator-static-secret.yaml

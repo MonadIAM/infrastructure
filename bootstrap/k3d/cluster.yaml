@@ -16,9 +16,6 @@ ports:
   - port: "127.0.0.1:8443:443"
     nodeFilters:
       - loadbalancer
-  - port: "${APPLICATIONS_IP}:4000:4000"
-    nodeFilters:
-      - loadbalancer
   - port: "${APPLICATIONS_IP}:4001:4001"
     nodeFilters:
       - loadbalancer

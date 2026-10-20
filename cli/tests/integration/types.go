@@ -42,4 +42,4 @@ type vaultState struct {
 	DirectoryMode fs.FileMode `json:"-"`
 }
 
-var services = []string{"access-control", "identity", "notification", "organization", "hr", "template"}
+var services = []string{"access-control", "identity", "notification", "organization", "hr"}

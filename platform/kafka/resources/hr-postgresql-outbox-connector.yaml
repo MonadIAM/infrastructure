@@ -47,7 +47,6 @@ spec:
     transforms.outbox.table.field.event.payload: payload
     transforms.outbox.table.expand.json.payload: "true"
     transforms.outbox.table.fields.additional.placement: action_type:envelope:actionType
-    # PartitionRouting requires a schema name ending in .Envelope after Outbox Event Router.
     transforms.envelope.type: org.apache.kafka.connect.transforms.SetSchemaMetadata$Value
     transforms.envelope.schema.name: monadiam.outbox.Envelope
     transforms.partition.type: io.debezium.transforms.partitions.PartitionRouting

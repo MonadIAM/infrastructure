@@ -6,5 +6,4 @@ resources:
   - notification-redis-certificate.yaml
   - organization-redis-certificate.yaml
   - identity-redis-certificate.yaml
-  - template-redis-certificate.yaml
   - hr-redis-certificate.yaml

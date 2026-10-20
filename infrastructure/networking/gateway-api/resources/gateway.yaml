@@ -152,18 +152,3 @@ spec:
           selector:
             matchLabels:
               kubernetes.io/metadata.name: monadiam-apps
-    - name: template
-      port: 4000
-      protocol: HTTPS
-      tls:
-        mode: Terminate
-        certificateRefs:
-          - group: ""
-            kind: Secret
-            name: applications-gateway-tls
-      allowedRoutes:
-        namespaces:
-          from: Selector
-          selector:
-            matchLabels:
-              kubernetes.io/metadata.name: monadiam-apps
