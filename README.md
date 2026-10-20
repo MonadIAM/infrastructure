@@ -843,12 +843,17 @@ For an existing cluster, run `make reconcile COMPONENT=gateway`, then reconcile 
 The browser requires accepting the stand CA certificate warning; DNS and hosts entries are unnecessary.
 
 Migrations and seeders are manual. `make seed` replaces datasets.
-After Identity seeding or an IP change, update only the Scalar OAuth client:
+Identity seeds OAuth clients from [its environment](applications/identity/config/.env.identity):
 
-```sh
-kubectl -n monadiam-apps exec deployment/identity-service -c service -- \
-  pnpm exec mikro-orm database:import /stand/docs-client.sql
-```
+| Variable                   | Purpose                                                    |
+| :------------------------- | :--------------------------------------------------------- |
+| `IDENTITY_SERVICE_URL`     | Base URL for the Scalar authorization page.                |
+| `DOCS_OAUTH_REDIRECT_URIS` | JSON array of the five service documentation URLs.         |
+| `WEB_OAUTH_AUTH_ADDRESS`   | Web login URL; empty until the web interface is deployed.  |
+| `WEB_OAUTH_REDIRECT_URIS`  | Web callback URLs; empty array until the interface exists. |
+
+Environment changes affect subsequent seeding; existing OAuth clients require a targeted database update.
+
 After Kafka credential or CA rotation, reconcile the component. After Redis client
 certificate renewal, restart its Deployment to reload the mounted certificate.
 

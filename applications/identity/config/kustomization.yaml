@@ -9,6 +9,3 @@ configMapGenerator:
   - name: identity-vault-agent
     files:
       - agent.hcl
-  - name: identity-stand-config
-    files:
-      - docs-client.sql

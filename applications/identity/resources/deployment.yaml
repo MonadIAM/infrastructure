@@ -162,16 +162,10 @@ spec:
               mountPath: /tmp
             - name: uploads
               mountPath: /app/uploads
-            - name: stand-config
-              mountPath: /stand
-              readOnly: true
             - name: database-credentials
               mountPath: /vault/secrets
               readOnly: true
       volumes:
-        - name: stand-config
-          configMap:
-            name: identity-stand-config
         - name: postgresql-ca
           secret:
             secretName: identity-postgresql-ca
