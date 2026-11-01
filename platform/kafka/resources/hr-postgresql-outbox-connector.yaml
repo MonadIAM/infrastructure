@@ -14,7 +14,7 @@ spec:
   tasksMax: 1
   autoRestart:
     enabled: true
-  state: stopped
+  state: running
   config:
     database.hostname: hr-postgresql-rw.monadiam-data.svc.cluster.local
     database.port: "5432"
