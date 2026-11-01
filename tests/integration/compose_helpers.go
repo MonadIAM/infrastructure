@@ -24,11 +24,11 @@ func (fixture composeFixture) compose(ctx context.Context, args ...string) (stri
 	options := []string{
 		"compose",
 		"--project-name", fixture.project,
-		"--env-file", "../../../.env.example",
+		"--env-file", "../../.env.example",
 		"-f", file,
 	}
 
-	environment, err := config.ReadFile("../../../.env.example")
+	environment, err := config.ReadFile("../../.env.example")
 	if err != nil {
 		return "", err
 	}
@@ -45,7 +45,7 @@ func (fixture composeFixture) compose(ctx context.Context, args ...string) (stri
 }
 
 func (fixture composeFixture) cli(ctx context.Context, command ...string) (string, error) {
-	args := append([]string{"run", "--rm", "--no-deps", "cli"}, command...)
-
-	return fixture.compose(ctx, append(args, "--env-file=")...)
+	args := append([]string{"run", "--rm", "--no-deps", "cli"}, command[:2]...)
+	args = append(args, "--env-file=")
+	return fixture.compose(ctx, append(args, command[2:]...)...)
 }

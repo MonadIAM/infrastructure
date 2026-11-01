@@ -2,7 +2,7 @@ services:
   kafka:
     image: monadiam-infrastructure-kafka:local
     build:
-      context: ../../../..
+      context: ../../..
       dockerfile: Dockerfile
       target: kafka-runtime
       args:
@@ -11,7 +11,7 @@ services:
       KAFKA_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qg
     command: ["kafka", "start", "--env-file="]
     volumes:
-      - ../../../../messaging/kafka/server.properties:/etc/kafka/server.properties:ro
+      - ../../../messaging/kafka/server.properties:/etc/kafka/server.properties:ro
       - kafka-data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:29092 >/dev/null 2>&1"]

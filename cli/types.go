@@ -14,6 +14,7 @@ const usage = `Usage:
   infra debezium reconcile [options]
   infra vault initialize [options]
   infra vault bootstrap [options]
+  infra vault exec [options] -- command [arguments]
   infra clickhouse reconcile [options]
   infra seaweedfs reconcile [options]
   infra seaweedfs start [options] -- [server arguments]

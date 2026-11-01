@@ -30,11 +30,21 @@ var commands = map[string]commandHandler{
 	"debezium reconcile":   (*application).reconcileDebezium,
 	"vault initialize":     (*application).initializeVault,
 	"vault bootstrap":      (*application).bootstrapVault,
+	"vault exec":           (*application).executeVault,
 	"clickhouse reconcile": (*application).reconcileClickHouse,
 	"seaweedfs reconcile":  (*application).reconcileSeaweedFS,
 	"seaweedfs start":      (*application).startSeaweedFS,
 	"archive run":          (*application).runArchive,
 	"archive loop":         (*application).loopArchive,
+}
+
+func (app *application) executeVault(ctx context.Context) error {
+	settings, err := vault.Load(app.environment)
+	if err != nil {
+		return err
+	}
+
+	return vault.New(settings).Execute(ctx, app.output, app.options.arguments...)
 }
 
 func (app *application) validateConfiguration(_ context.Context) error {

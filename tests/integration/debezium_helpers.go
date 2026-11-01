@@ -81,10 +81,11 @@ func (fixture composeFixture) deliverOutbox(ctx context.Context) (string, error)
 func integrationSettings(endpoint string) config.Debezium {
 	return config.Debezium{
 		ConnectURL:                  endpoint,
-		TemplatePath:                "../../../messaging/debezium/outbox.connector.json",
+		TemplatePath:                "../../messaging/debezium/outbox.connector.json",
 		Timeout:                     time.Minute,
 		RequestTimeout:              10 * time.Second,
 		RetryInterval:               time.Second,
+		AccountPartitions:           1,
 		RealmPartitions:             4,
 		PositionPartitions:          2,
 		ProjectionJournalPartitions: 8,

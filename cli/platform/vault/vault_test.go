@@ -34,9 +34,9 @@ func readCredentialPermissions(directory string) (map[string]os.FileMode, error)
 	return permissions, nil
 }
 
-func TestVault(t *testing.T) {
+func TestVault(test *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Vault")
+	RunSpecs(test, "Vault")
 }
 
 var _ = Describe("[Infrastructure] - Vault", func() {
@@ -88,11 +88,10 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			}))
 			DeferCleanup(server.Close)
 			settings := Settings{
-				Address:     server.URL,
-				InitDir:     GinkgoT().TempDir(),
-				PoliciesDir: "unused",
-				LocalToken:  "private-local",
-				Timeout:     time.Second,
+				Address:    server.URL,
+				InitDir:    GinkgoT().TempDir(),
+				LocalToken: "private-local",
+				Timeout:    time.Second,
 			}
 
 			service := New(settings)
@@ -131,11 +130,10 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 				}))
 				DeferCleanup(server.Close)
 				settings := Settings{
-					Address:     server.URL,
-					InitDir:     GinkgoT().TempDir(),
-					PoliciesDir: "unused",
-					LocalToken:  "private-local",
-					Timeout:     time.Second,
+					Address:    server.URL,
+					InitDir:    GinkgoT().TempDir(),
+					LocalToken: "private-local",
+					Timeout:    time.Second,
 				}
 
 				// Act
@@ -160,11 +158,10 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			}))
 			DeferCleanup(server.Close)
 			settings := Settings{
-				Address:     server.URL,
-				InitDir:     GinkgoT().TempDir(),
-				PoliciesDir: "unused",
-				LocalToken:  "private-local",
-				Timeout:     time.Second,
+				Address:    server.URL,
+				InitDir:    GinkgoT().TempDir(),
+				LocalToken: "private-local",
+				Timeout:    time.Second,
 			}
 
 			// Act
@@ -190,11 +187,10 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			}))
 			DeferCleanup(server.Close)
 			settings := Settings{
-				Address:     server.URL,
-				InitDir:     GinkgoT().TempDir(),
-				PoliciesDir: "unused",
-				LocalToken:  "private-local",
-				Timeout:     time.Minute,
+				Address:    server.URL,
+				InitDir:    GinkgoT().TempDir(),
+				LocalToken: "private-local",
+				Timeout:    time.Minute,
 			}
 
 			// Act
@@ -204,38 +200,6 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			Expect(err).To(MatchError(context.Canceled))
 			Expect(requests.Load()).To(Equal(int32(1)))
 		})
-	})
-
-	Describe("[Method] - Service.ensureKey", func() {
-		DescribeTable("[Behavior] - creates only missing Transit keys",
-			func(code int, expectedWrites int32, succeeds bool) {
-				// Arrange
-				var writes atomic.Int32
-				server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-					if request.Method == http.MethodGet {
-						writer.WriteHeader(code)
-						_, _ = io.WriteString(writer, `{"data":{"type":"aes256-gcm96"}}`)
-					} else {
-						writes.Add(1)
-						writer.WriteHeader(http.StatusNoContent)
-					}
-				}))
-				DeferCleanup(server.Close)
-				service := New(Settings{Address: server.URL})
-				key := keyDefinition{Name: "test", Type: "aes256-gcm96"}
-
-				// Act
-				err := service.ensureKey(context.Background(), key)
-
-				// Assert
-				Expect(err == nil).To(Equal(succeeds))
-				Expect(writes.Load()).To(Equal(expectedWrites))
-			},
-			Entry("[case] - existing key", http.StatusOK, int32(0), true),
-			Entry("[case] - missing key", http.StatusNotFound, int32(1), true),
-			Entry("[case] - forbidden lookup", http.StatusForbidden, int32(0), false),
-			Entry("[case] - failed lookup", http.StatusServiceUnavailable, int32(0), false),
-		)
 	})
 
 	Describe("[Method] - Service.prepareInit", func() {
@@ -269,16 +233,9 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 	})
 
 	Describe("[Behavior] - resource definitions", func() {
-		It("[case] - keeps generated role policies and secret mappings independent between calls", func() {
+		It("[case] - keeps generated secret mappings independent between calls", func() {
 			// Arrange
-			roles := roleDefinitions()
 			secrets := secretDefinitions()
-
-			for _, role := range roles {
-				for index := range role.Policies {
-					role.Policies[index] = "changed"
-				}
-			}
 
 			for _, secret := range secrets {
 				for index := range secret.Fields {
@@ -287,14 +244,9 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 			}
 
 			// Act
-			freshRoles := roleDefinitions()
 			freshSecrets := secretDefinitions()
 
 			// Assert
-			Expect(freshRoles).To(ContainElement(MatchFields(IgnoreExtras, Fields{
-				"Name":     Equal("identity-service"),
-				"Policies": ContainElement("identity-service"),
-			})))
 			Expect(freshSecrets).To(ContainElement(MatchFields(IgnoreExtras, Fields{
 				"Path": Equal("identity-service/runtime"),
 				"Fields": ContainElement(MatchFields(IgnoreExtras, Fields{

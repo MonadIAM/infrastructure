@@ -5,4 +5,8 @@
 !Dockerfile
 !cli/
 !cli/**
-cli/tests/
+!terraform/
+!terraform/vault/
+!terraform/vault/*.tf
+!terraform/vault/.terraform.lock.hcl
+!terraform/Makefile

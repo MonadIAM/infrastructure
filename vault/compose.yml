@@ -1,34 +1,4 @@
-x-base: &base
-  restart: on-failure
-  env_file:
-    - ../.env
-
 services:
-  vault:
-    <<: *base
-    image: ${VAULT_IMAGE:?}
-    container_name: vault
-    cap_add:
-      - IPC_LOCK
-    entrypoint: ["vault"]
-    command: ["server", "-config=/vault/config/vault.hcl"]
-    ports:
-      - "${VAULT_PUBLISHED_PORT:?}:8200"
-    volumes:
-      - ./config/vault.hcl:/vault/config/vault.hcl:ro
-      - vault_data:/vault/file
-    networks:
-      vault_net:
-        aliases:
-          - vault
-      postgres_net:
-    healthcheck:
-      test: ["CMD-SHELL", "VAULT_ADDR=http://127.0.0.1:8200 vault status >/dev/null 2>&1; code=$$?; [ $$code -eq 0 ] || [ $$code -eq 2 ]"]
-      interval: 5s
-      timeout: 3s
-      retries: 40
-      start_period: 5s
-
   vault-init-unseal:
     image: monadiam-infrastructure-cli:local
     build:
@@ -39,9 +9,6 @@ services:
     container_name: vault-init-unseal
     env_file:
       - ../.env
-    depends_on:
-      vault:
-        condition: service_healthy
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_INIT_DIR: /vault/init
@@ -83,17 +50,21 @@ services:
     volumes:
       - ./policies:/vault/policies:ro
       - vault_init:/vault/init
-    command: ["vault", "bootstrap", "--env-file="]
+    entrypoint: ["sh", "-ec"]
+    command:
+      - infra vault exec --env-file= -- make -f terraform/Makefile ROOT=vault apply; exec infra vault bootstrap --env-file=
     networks:
       vault_net:
       postgres_net:
 
 volumes:
-  vault_data:
   vault_init:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME:?}_vault_init
 
 networks:
   vault_net:
+    external: true
     name: ${DOCKER_NETWORK_VAULT:?}
   postgres_net:
     name: ${DOCKER_NETWORK_POSTGRES:?}

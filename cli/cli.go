@@ -124,7 +124,7 @@ func parseOptions(command string, args []string, output io.Writer) (commandOptio
 		}
 	}
 
-	if flags.NArg() != 0 && command != "seaweedfs start" {
+	if flags.NArg() != 0 && command != "seaweedfs start" && command != "vault exec" {
 		return options, errors.New("unexpected positional arguments")
 	}
 

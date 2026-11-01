@@ -42,7 +42,34 @@ var _ = Describe("[Infrastructure] - Local bootstrap", Ordered, ContinueOnFailur
 		Expect(fixture.initialize(ctx)).To(Succeed())
 	}, NodeTimeout(8*time.Minute))
 
+	Describe("[Behavior] - Transit", func() {
+		It("[case] - encrypts and decrypts using the provisioned key", func(ctx SpecContext) {
+			arguments := []string{"exec", "-T", "-e", "VAULT_ADDR=http://127.0.0.1:8200", "-e", "VAULT_TOKEN=integration-local-token", "vault", "vault", "write"}
+			ciphertext, err := fixture.compose(ctx, append(arguments, "-field=ciphertext", "transit/encrypt/identity-totp-secret", "plaintext=dGVzdA==")...)
+			Expect(err).NotTo(HaveOccurred())
+			plaintext, err := fixture.compose(ctx, append(arguments, "-field=plaintext", "transit/decrypt/identity-totp-secret", "ciphertext="+strings.TrimSpace(ciphertext))...)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(strings.TrimSpace(plaintext)).To(Equal("dGVzdA=="))
+		}, SpecTimeout(time.Minute))
+	})
+
 	Describe("[Behavior] - repeated initialization", func() {
+		It("[case] - adopts an existing Transit key without replacing key material", func(ctx SpecContext) {
+			original, err := fixture.vaultField(ctx, "transit/keys/identity-access-token", "keys")
+			Expect(err).NotTo(HaveOccurred())
+			address := `vault_transit_secret_backend_key.app["identity-access-token"]`
+
+			output, err := fixture.cli(ctx, "vault", "exec", "--", "env", "TF_DATA_DIR=/vault/init/terraform/.terraform", "TF_VAR_policies_dir=/vault/policies", "terraform", "-chdir=terraform/vault", "state", "rm", address)
+			Expect(err).NotTo(HaveOccurred(), output)
+			output, err = fixture.cli(ctx, "vault", "exec", "--", "env", "TF_DATA_DIR=/vault/init/terraform/.terraform", "TF_VAR_policies_dir=/vault/policies", "terraform", "-chdir=terraform/vault", "import", address, "transit/keys/identity-access-token")
+			Expect(err).NotTo(HaveOccurred(), output)
+			output, err = fixture.cli(ctx, "vault", "exec", "--", "env", "TF_DATA_DIR=/vault/init/terraform/.terraform", "TF_VAR_policies_dir=/vault/policies", "terraform", "-chdir=terraform/vault", "plan", "-input=false", "-detailed-exitcode")
+			Expect(err).NotTo(HaveOccurred(), output)
+			key, err := fixture.vaultField(ctx, "transit/keys/identity-access-token", "keys")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(key).To(Equal(original))
+		}, SpecTimeout(3*time.Minute))
+
 		It("[case] - preserves Vault keys and token identity while reapplying resource settings", func(ctx SpecContext) {
 			// Arrange
 			originalKey, err := fixture.vaultField(ctx, "transit/keys/identity-access-token", "keys")

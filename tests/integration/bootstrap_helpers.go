@@ -23,6 +23,7 @@ func (fixture composeFixture) initialize(ctx context.Context) error {
 	commands := [][]string{
 		{"kafka", "reconcile"},
 		{"vault", "initialize"},
+		{"vault", "exec", "--", "make", "-f", "terraform/Makefile", "ROOT=vault", "apply"},
 		{"vault", "bootstrap"},
 		{"seaweedfs", "reconcile"},
 		{"clickhouse", "reconcile"},
@@ -50,7 +51,7 @@ func (fixture composeFixture) clickhouse(ctx context.Context, query string) (str
 
 func (fixture composeFixture) storage(ctx context.Context) (*minio.Client, seaweedfs.Settings) {
 	ginkgo.GinkgoHelper()
-	environment, err := config.ReadFile("../../../.env.example")
+	environment, err := config.ReadFile("../../.env.example")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	address, err := fixture.compose(ctx, "port", "seaweedfs", "8333")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
