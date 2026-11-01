@@ -38,7 +38,7 @@ func (fixture *clusterFixture) prepare(ctx context.Context) {
 	source, err := filepath.Abs("../..")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	directories := []string{"clusters", "infrastructure", "platform", "cli"}
+	directories := []string{"applications", "clusters", "infrastructure", "platform", "cli"}
 
 	for _, directory := range directories {
 		err := os.CopyFS(filepath.Join(fixture.directory, directory), os.DirFS(filepath.Join(source, directory)))
@@ -83,6 +83,7 @@ func (fixture *clusterFixture) prepareEnvironment(source string) {
 	values["K3D_CONFIG"] = filepath.Join(fixture.directory, "cluster.yaml")
 	values["VAULT_STATE_DIR"] = filepath.Join(fixture.directory, "vault")
 	values["VAULT_INIT_FILE"] = filepath.Join(fixture.directory, "vault", "init.json")
+	values["GITOPS_STATE_DIR"] = filepath.Join(fixture.directory, "gitops")
 	values["INFRA_TIMEOUT"] = "30m"
 	values["KUBECONFIG"] = filepath.Join(fixture.directory, "kubeconfig")
 	values["HELM_CACHE_HOME"] = filepath.Join(fixture.directory, "helm", "cache")
@@ -227,7 +228,7 @@ func (fixture *clusterFixture) forward(ctx context.Context, target, remotePort s
 		_ = command.Wait()
 	})
 
-	ready := make(chan int, 1)
+	ready := make(chan portForwardResult, 1)
 	go func() {
 		defer close(ready)
 		scanner := bufio.NewScanner(output)
@@ -235,18 +236,21 @@ func (fixture *clusterFixture) forward(ctx context.Context, target, remotePort s
 			var port int
 			count, err := fmt.Sscanf(scanner.Text(), "Forwarding from 127.0.0.1:%d ->", &port)
 			if err == nil && count == 1 {
-				ready <- port
+				ready <- portForwardResult{Port: port}
 				_, _ = io.Copy(io.Discard, output)
 				return
 			}
 		}
+
+		ready <- portForwardResult{Err: scanner.Err()}
 	}()
 
-	var port int
-	gomega.Eventually(ready).WithContext(ctx).WithTimeout(30 * time.Second).Should(gomega.Receive(&port))
-	gomega.Expect(port).To(gomega.BeNumerically(">", 0))
+	var result portForwardResult
+	gomega.Eventually(ready).WithContext(ctx).WithTimeout(30 * time.Second).Should(gomega.Receive(&result))
+	gomega.Expect(result.Err).NotTo(gomega.HaveOccurred())
+	gomega.Expect(result.Port).To(gomega.BeNumerically(">", 0), "port-forward exited before reporting a local port")
 
-	return fmt.Sprintf("127.0.0.1:%d", port)
+	return fmt.Sprintf("127.0.0.1:%d", result.Port)
 }
 
 func (fixture *clusterFixture) secret(ctx context.Context, name string) map[string][]byte {

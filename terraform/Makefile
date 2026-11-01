@@ -5,6 +5,14 @@ endif
 STATE_bootstrap = $(VAULT_STATE_DIR)/terraform-bootstrap
 STATE_vault-server = $(VAULT_STATE_DIR)/terraform-vault-server
 STATE_vault = $(VAULT_STATE_DIR)/terraform
+STATE_gitops = $(GITOPS_STATE_DIR)/bootstrap
+STATE_gitops-apps = $(GITOPS_STATE_DIR)/applications
+
+ifneq ($(filter gitops gitops-apps,$(ROOT)),)
+ifeq ($(strip $(GITOPS_STATE_DIR)),)
+$(error GITOPS_STATE_DIR is required)
+endif
+endif
 
 export TF_VAR_kubeconfig = $(KUBECONFIG)
 export TF_VAR_context = $(KUBE_CONTEXT)

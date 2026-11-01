@@ -7,7 +7,7 @@ ENV_FILE ?= .env
 COMPONENT ?= all
 FILTER ?=
 
-.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest
+.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest gitops-credentials gitops-ui
 
 # Infrastructure
 env:
@@ -58,3 +58,14 @@ platform-plan:
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT="$(COMPONENT)" plan
 platform-apply:
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT="$(COMPONENT)" apply
+
+gitops-credentials:
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+	: "$${GITHUB_APP_ID:?}" "$${GITHUB_APP_INSTALLATION_ID:?}" "$${GITHUB_APP_PRIVATE_KEY_FILE:?}" "$${KUBECONFIG:?}" "$${KUBE_CONTEXT:?}"; \
+	kubectl --kubeconfig "$${KUBECONFIG}" --context "$${KUBE_CONTEXT}" -n argocd create secret generic monadiam-image-updater-github \
+		--from-literal=githubAppID="$${GITHUB_APP_ID}" \
+		--from-literal=githubAppInstallationID="$${GITHUB_APP_INSTALLATION_ID}" \
+		--from-file=githubAppPrivateKey="$${GITHUB_APP_PRIVATE_KEY_FILE}" \
+		--dry-run=client -o yaml | kubectl --kubeconfig "$${KUBECONFIG}" --context "$${KUBE_CONTEXT}" apply --server-side --field-manager=gitops-credentials -f -
+gitops-ui:
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; kubectl --kubeconfig "$${KUBECONFIG:?}" --context "$${KUBE_CONTEXT:?}" -n argocd port-forward --address=127.0.0.1 service/argocd-server 8443:443

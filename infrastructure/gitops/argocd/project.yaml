@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: monadiam-bootstrap
+  namespace: argocd
+spec:
+  sourceRepos:
+    - https://github.com/MonadIAM/infrastructure.git
+  destinations:
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  namespaceResourceWhitelist:
+    - group: argoproj.io
+      kind: Application
+    - group: argoproj.io
+      kind: AppProject
+    - group: argocd-image-updater.argoproj.io
+      kind: ImageUpdater
+  clusterResourceWhitelist: []

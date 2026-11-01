@@ -3,8 +3,23 @@
 package integration
 
 import (
+	"encoding/json"
 	"io/fs"
 )
+
+type portForwardResult struct {
+	Port int
+	Err  error
+}
+
+type gitopsApplication struct {
+	Status struct {
+		Conditions []struct {
+			Type string `json:"type"`
+		} `json:"conditions"`
+		Resources []json.RawMessage `json:"resources"`
+	} `json:"status"`
+}
 
 type resource struct {
 	Metadata struct {

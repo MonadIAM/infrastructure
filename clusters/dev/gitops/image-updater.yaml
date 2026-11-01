@@ -1,0 +1,36 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: monadiam-releases
+  namespace: argocd
+spec:
+  commonUpdateSettings:
+    updateStrategy: semver
+    allowTags: "regexp:^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    platforms:
+      - linux/amd64
+  writeBackConfig:
+    method: git:secret:monadiam-image-updater-github
+    gitConfig:
+      branch: dev
+      writeBackTarget: kustomization
+      pullRequest:
+        github: {}
+  applicationRefs:
+    - namePattern: monadiam-*
+      labelSelectors:
+        matchLabels:
+          monadiam.io/image-updates: enabled
+      images:
+        - alias: access-control
+          imageName: ghcr.io/monadiam/access-control-service
+        - alias: identity
+          imageName: ghcr.io/monadiam/identity-service
+        - alias: notification
+          imageName: ghcr.io/monadiam/notification-service
+        - alias: organization
+          imageName: ghcr.io/monadiam/organization-service
+        - alias: hr
+          imageName: ghcr.io/monadiam/hr-service
+        - alias: shared-schemas
+          imageName: ghcr.io/monadiam/shared-schemas
