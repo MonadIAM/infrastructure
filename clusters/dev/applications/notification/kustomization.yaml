@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../applications/notification/resources
+images:
+  - name: ghcr.io/monadiam/notification-service
+    newName: monadiam-registry:5000/monadiam/notification-service
+    newTag: cve-20261101
+    digest: sha256:dcfbe178f7f39b17f5a00267bd54f2ed475cc9526018a9d89fdc5aeb255d6441
+components:
+  - ../endpoints

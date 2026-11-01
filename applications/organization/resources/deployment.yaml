@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: organization-service
   namespace: monadiam-apps
+  annotations:
+    secret.reloader.stakater.com/reload: "organization-postgresql-ca,organization-kafka-ca,organization-kafka-auth,organization-vault-ca,organization-redis-client"
   labels:
     app.kubernetes.io/name: organization-service
     app.kubernetes.io/part-of: monadiam
@@ -25,8 +27,6 @@ spec:
         app.kubernetes.io/name: organization-service
         app.kubernetes.io/part-of: monadiam
         app.kubernetes.io/component: application
-      annotations:
-        monadiam.io/credentials-checksum: ${ORGANIZATION_CREDENTIALS_CHECKSUM}
     spec:
       serviceAccountName: organization-service
       automountServiceAccountToken: false
@@ -84,7 +84,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: service
-          image: ${ORGANIZATION_IMAGE}
+          image: ghcr.io/monadiam/organization-service
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

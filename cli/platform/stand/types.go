@@ -32,27 +32,6 @@ type clusterSummary struct {
 	Name string `json:"name"`
 }
 
-type schemaJob struct {
-	Status struct {
-		Conditions []struct {
-			Type    string `json:"type"`
-			Status  string `json:"status"`
-			Reason  string `json:"reason"`
-			Message string `json:"message"`
-		} `json:"conditions"`
-	} `json:"status"`
-}
-
-type applicationSecret struct {
-	APIVersion string `json:"apiVersion"`
-	Kind       string `json:"kind"`
-	Metadata   struct {
-		Name      string `json:"name"`
-		Namespace string `json:"namespace"`
-	} `json:"metadata"`
-	Data map[string]string `json:"data"`
-}
-
 type portBinding struct {
 	HostIP   string `json:"HostIp"`
 	HostPort string `json:"HostPort"`

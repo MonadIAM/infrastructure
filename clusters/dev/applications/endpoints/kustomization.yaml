@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+patches:
+  - target:
+      kind: ConfigMap
+      name: .*-env
+    patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: application-env
+      data:
+        JWT_ISSUER: https://192.168.1.143:4002
+        ACCESS_CONTROL_SERVICE_URL: https://192.168.1.143:4001
+        IDENTITY_SERVICE_URL: https://192.168.1.143:4002
+        NOTIFICATION_SERVICE_URL: https://192.168.1.143:4003
+        ORGANIZATION_SERVICE_URL: https://192.168.1.143:4004
+        HR_SERVICE_URL: https://192.168.1.143:4005
+        ALLOWED_SERVICE_ORIGINS: '["https://192.168.1.143:4001","https://192.168.1.143:4002","https://192.168.1.143:4003","https://192.168.1.143:4004","https://192.168.1.143:4005"]'

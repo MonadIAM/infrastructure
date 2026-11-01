@@ -11,3 +11,5 @@ configMapGenerator:
   - name: shared-schemas
     envs:
       - .env.registry
+    literals:
+      - SCHEMA_PUBLICATION_IMAGE=ghcr.io/monadiam/shared-schemas

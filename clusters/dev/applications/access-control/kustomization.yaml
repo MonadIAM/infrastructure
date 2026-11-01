@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../applications/access-control/resources
+images:
+  - name: ghcr.io/monadiam/access-control-service
+    newName: monadiam-registry:5000/monadiam/access-control-service
+    newTag: cve-20261101
+    digest: sha256:ef54e1bd4ce15c103ac04ac9907f7ea88c9e721064f06ac6ebb0eb120afe07a7
+components:
+  - ../endpoints

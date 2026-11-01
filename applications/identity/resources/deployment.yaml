@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: identity-service
   namespace: monadiam-apps
+  annotations:
+    secret.reloader.stakater.com/reload: "identity-postgresql-ca,identity-kafka-ca,identity-kafka-auth,identity-vault-ca,identity-redis-client"
   labels:
     app.kubernetes.io/name: identity-service
     app.kubernetes.io/part-of: monadiam
@@ -25,8 +27,6 @@ spec:
         app.kubernetes.io/name: identity-service
         app.kubernetes.io/part-of: monadiam
         app.kubernetes.io/component: application
-      annotations:
-        monadiam.io/credentials-checksum: ${IDENTITY_CREDENTIALS_CHECKSUM}
     spec:
       serviceAccountName: identity-service
       automountServiceAccountToken: false
@@ -84,7 +84,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: service
-          image: ${IDENTITY_IMAGE}
+          image: ghcr.io/monadiam/identity-service
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

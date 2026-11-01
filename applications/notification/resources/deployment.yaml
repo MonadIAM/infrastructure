@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: notification-service
   namespace: monadiam-apps
+  annotations:
+    secret.reloader.stakater.com/reload: "notification-postgresql-ca,notification-kafka-ca,notification-kafka-auth,notification-vault-ca,notification-redis-client,notification-aws"
   labels:
     app.kubernetes.io/name: notification-service
     app.kubernetes.io/part-of: monadiam
@@ -25,8 +27,6 @@ spec:
         app.kubernetes.io/name: notification-service
         app.kubernetes.io/part-of: monadiam
         app.kubernetes.io/component: application
-      annotations:
-        monadiam.io/credentials-checksum: ${NOTIFICATION_CREDENTIALS_CHECKSUM}
     spec:
       serviceAccountName: notification-service
       automountServiceAccountToken: false
@@ -84,7 +84,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: service
-          image: ${NOTIFICATION_IMAGE}
+          image: ghcr.io/monadiam/notification-service
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -113,6 +113,16 @@ spec:
                   key: redis-password
             - name: NODE_OPTIONS
               value: --max-old-space-size=768
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: notification-aws
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: notification-aws
+                  key: AWS_SECRET_ACCESS_KEY
           ports:
             - name: http
               containerPort: 4003

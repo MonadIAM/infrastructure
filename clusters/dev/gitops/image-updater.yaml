@@ -17,20 +17,47 @@ spec:
       pullRequest:
         github: {}
   applicationRefs:
-    - namePattern: monadiam-*
+    - namePattern: monadiam-access-control
       labelSelectors:
         matchLabels:
           monadiam.io/image-updates: enabled
       images:
         - alias: access-control
           imageName: ghcr.io/monadiam/access-control-service
+    - namePattern: monadiam-identity
+      labelSelectors:
+        matchLabels:
+          monadiam.io/image-updates: enabled
+      images:
         - alias: identity
           imageName: ghcr.io/monadiam/identity-service
+    - namePattern: monadiam-notification
+      labelSelectors:
+        matchLabels:
+          monadiam.io/image-updates: enabled
+      images:
         - alias: notification
           imageName: ghcr.io/monadiam/notification-service
+    - namePattern: monadiam-organization
+      labelSelectors:
+        matchLabels:
+          monadiam.io/image-updates: enabled
+      images:
         - alias: organization
           imageName: ghcr.io/monadiam/organization-service
+    - namePattern: monadiam-hr
+      labelSelectors:
+        matchLabels:
+          monadiam.io/image-updates: enabled
+      images:
         - alias: hr
           imageName: ghcr.io/monadiam/hr-service
+    - namePattern: monadiam-shared-schemas
+      labelSelectors:
+        matchLabels:
+          monadiam.io/image-updates: enabled
+      images:
         - alias: shared-schemas
           imageName: ghcr.io/monadiam/shared-schemas
+          commonUpdateSettings:
+            forceUpdate: true

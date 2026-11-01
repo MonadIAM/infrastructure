@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../applications/identity/resources
+images:
+  - name: ghcr.io/monadiam/identity-service
+    newName: monadiam-registry:5000/monadiam/identity-service
+    newTag: cve-20261101
+    digest: sha256:a3b82283904b7c56d661e55050c6f499c0c4f2db443b54fd42c81fbb8a8bb009
+components:
+  - ../endpoints
+configMapGenerator:
+  - name: identity-env
+    namespace: monadiam-apps
+    behavior: merge
+    literals:
+      - DOCS_OAUTH_REDIRECT_URIS=["https://192.168.1.143:4001/docs/","https://192.168.1.143:4002/docs/","https://192.168.1.143:4003/docs/","https://192.168.1.143:4004/docs/","https://192.168.1.143:4005/docs/"]

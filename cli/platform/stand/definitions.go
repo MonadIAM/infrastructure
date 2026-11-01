@@ -1,7 +1,6 @@
 package stand
 
 import (
-	"context"
 	"strings"
 
 	"github.com/MonadIAM/infrastructure/cli/config"
@@ -53,23 +52,18 @@ var redisClusters = []string{
 }
 
 var applications = []struct {
-	Name     string
-	ImageKey string
-	Port     string
+	Name string
+	Port string
 }{
-	{Name: "access-control", ImageKey: "ACCESS_CONTROL_IMAGE", Port: "4001"},
-	{Name: "identity", ImageKey: "IDENTITY_IMAGE", Port: "4002"},
-	{Name: "notification", ImageKey: "NOTIFICATION_IMAGE", Port: "4003"},
-	{Name: "organization", ImageKey: "ORGANIZATION_IMAGE", Port: "4004"},
-	{Name: "hr", ImageKey: "HR_IMAGE", Port: "4005"},
+	{Name: "access-control", Port: "4001"},
+	{Name: "identity", Port: "4002"},
+	{Name: "notification", Port: "4003"},
+	{Name: "organization", Port: "4004"},
+	{Name: "hr", Port: "4005"},
 }
 
 func (platform Platform) phases() []phaseDefinition {
 	phases := []phaseDefinition{
-		{
-			Name: "images",
-			Run:  platform.Images,
-		},
 		{
 			Name: "cert-manager",
 			Run:  platform.CertManager,
@@ -100,10 +94,6 @@ func (platform Platform) phases() []phaseDefinition {
 			Run:  platform.Apicurio,
 		},
 		{
-			Name: "schemas",
-			Run:  platform.Schemas,
-		},
-		{
 			Name: "seaweedfs",
 			Run:  platform.SeaweedFS,
 		},
@@ -111,12 +101,6 @@ func (platform Platform) phases() []phaseDefinition {
 			Name: "observability",
 			Run:  platform.Observability,
 		},
-	}
-
-	for _, application := range applications {
-		phases = append(phases, phaseDefinition{Name: application.Name, Run: func(ctx context.Context) error {
-			return platform.Application(ctx, application.Name, application.ImageKey)
-		}})
 	}
 
 	return phases

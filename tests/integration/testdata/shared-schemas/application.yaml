@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: shared-schemas-probe
+  namespace: argocd
+spec:
+  project: monadiam-applications
+  source:
+    repoURL: https://github.com/MonadIAM/infrastructure.git
+    targetRevision: dev
+    path: platform/apicurio/schemas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monadiam-messaging

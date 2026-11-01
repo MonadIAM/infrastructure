@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monadiam-shared-schemas
+  namespace: argocd
+  labels:
+    monadiam.io/image-updates: enabled
+spec:
+  project: monadiam-applications
+  source:
+    repoURL: https://github.com/MonadIAM/infrastructure.git
+    targetRevision: dev
+    path: clusters/dev/applications/shared-schemas
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monadiam-messaging
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+      - FailOnSharedResource=true
