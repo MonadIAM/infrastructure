@@ -12,6 +12,7 @@ import (
 )
 
 type commandOptions struct {
+	arguments     []string
 	envFile       string
 	timeout       string
 	component     string
@@ -113,12 +114,13 @@ func parseOptions(name string, args []string, output io.Writer) (commandOptions,
 		return options, errors.New("invalid options; use command --help")
 	}
 
-	if flags.NArg() != 0 {
+	if flags.NArg() != 0 && name != "vault exec" {
 		return options, errors.New("unexpected positional arguments")
 	}
 
 	options.applyExplicitFlags(flags)
 
+	options.arguments = flags.Args()
 	return options, nil
 }
 

@@ -46,9 +46,9 @@ func readBackups(path string) (map[string]string, error) {
 	return contents, nil
 }
 
-func TestVault(t *testing.T) {
+func TestVault(test *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Vault")
+	RunSpecs(test, "Vault")
 }
 
 var _ = Describe("[Infrastructure] - Vault", func() {

@@ -13,13 +13,7 @@ import (
 )
 
 func (platform Platform) Application(ctx context.Context, name, imageKey string) error {
-	client := platform.VaultClient()
-	err := client.Application(ctx, name)
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.ApplyKustomize(ctx, "applications/"+name+"/kafka")
+	err := platform.Kubernetes.ApplyKustomize(ctx, "applications/"+name+"/kafka")
 	if err != nil {
 		return err
 	}

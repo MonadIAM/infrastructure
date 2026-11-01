@@ -16,7 +16,7 @@ import (
 func (fixture *clusterFixture) storage(ctx context.Context) seaweedfs.Settings {
 	ginkgo.GinkgoHelper()
 
-	environment, err := godotenv.Read("../../../.env.example")
+	environment, err := godotenv.Read("../../.env.example")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	secrets := []string{"seaweedfs-main-admin", "seaweedfs-main-archiver"}

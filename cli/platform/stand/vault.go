@@ -2,6 +2,8 @@ package stand
 
 import (
 	"context"
+
+	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
 
 func (platform Platform) Vault(ctx context.Context) error {
@@ -35,37 +37,13 @@ func (platform Platform) Vault(ctx context.Context) error {
 }
 
 func (platform Platform) installVault(ctx context.Context) error {
-	err := platform.Kubernetes.ApplyKustomize(ctx, "clusters/local")
+	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"-f", "terraform/Makefile", "ROOT=vault-server", "apply"}})
 	if err != nil {
 		return err
 	}
 
-	err = platform.Helm.Repo(ctx, "hashicorp", platform.Environment["HASHICORP_HELM_REPO"])
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.ApplyKustomize(ctx, "platform/vault/resources")
-	if err != nil {
-		return err
-	}
-
-	namespace := platform.Environment["VAULT_NAMESPACE"]
-	err = platform.Kubernetes.Wait(ctx, namespace, "certificate/vault-server-tls", "condition=Ready", "180s")
-	if err != nil {
-		return err
-	}
-
-	err = platform.install(ctx, "vault")
-	if err != nil {
-		return err
-	}
-
-	pod := "pod/" + platform.Environment["VAULT_POD"]
-	conditions := []string{"create", "condition=PodScheduled", "condition=Ready"}
-
-	for _, condition := range conditions {
-		err := platform.Kubernetes.Wait(ctx, namespace, pod, condition, "300s")
+	for _, condition := range []string{"create", "condition=Ready"} {
+		err := platform.Kubernetes.Wait(ctx, platform.Environment["VAULT_NAMESPACE"], "pod/"+platform.Environment["VAULT_POD"], condition, "300s")
 		if err != nil {
 			return err
 		}
@@ -75,7 +53,12 @@ func (platform Platform) installVault(ctx context.Context) error {
 }
 
 func (platform Platform) installVaultOperator(ctx context.Context) error {
-	err := platform.install(ctx, "vault-secrets-operator")
+	err := platform.Helm.Repo(ctx, "hashicorp", platform.Environment["HASHICORP_HELM_REPO"])
+	if err != nil {
+		return err
+	}
+
+	err = platform.install(ctx, "vault-secrets-operator")
 	if err != nil {
 		return err
 	}
