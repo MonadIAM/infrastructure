@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: hr-service
   namespace: monadiam-apps
+  annotations:
+    secret.reloader.stakater.com/reload: "hr-postgresql-ca,hr-kafka-ca,hr-kafka-auth,hr-vault-ca,hr-redis-client"
   labels:
     app.kubernetes.io/name: hr-service
     app.kubernetes.io/part-of: monadiam
@@ -25,8 +27,6 @@ spec:
         app.kubernetes.io/name: hr-service
         app.kubernetes.io/part-of: monadiam
         app.kubernetes.io/component: application
-      annotations:
-        monadiam.io/credentials-checksum: ${HR_CREDENTIALS_CHECKSUM}
     spec:
       serviceAccountName: hr-service
       automountServiceAccountToken: false
@@ -84,7 +84,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: service
-          image: ${HR_IMAGE}
+          image: ghcr.io/monadiam/hr-service
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

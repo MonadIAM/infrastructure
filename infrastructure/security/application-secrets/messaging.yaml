@@ -1,0 +1,49 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: application-secret-reader
+  namespace: monadiam-messaging
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    resourceNames:
+      - kafka-main-cluster-ca-cert
+      - access-control-service
+      - identity-service
+      - notification-service
+      - organization-service
+      - hr-service
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: application-secret-reader
+  namespace: monadiam-messaging
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: application-secret-reader
+subjects:
+  - kind: ServiceAccount
+    name: application-secret-reader
+    namespace: monadiam-apps
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: kubernetes-messaging
+  namespace: monadiam-apps
+spec:
+  provider:
+    kubernetes:
+      remoteNamespace: monadiam-messaging
+      server:
+        url: https://kubernetes.default.svc
+        caProvider:
+          type: ConfigMap
+          name: kube-root-ca.crt
+          key: ca.crt
+      auth:
+        serviceAccount:
+          name: application-secret-reader

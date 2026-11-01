@@ -89,11 +89,6 @@ func (environment Environment) Validate() error {
 		return errors.New("VAULT_KEY_THRESHOLD must not exceed VAULT_KEY_SHARES")
 	}
 
-	_, err = environment.Duration("IMAGE_PREPARE_TIMEOUT", "15m")
-	if err != nil {
-		return err
-	}
-
 	_, err = environment.Duration("INFRA_TIMEOUT", "60m")
 
 	return err

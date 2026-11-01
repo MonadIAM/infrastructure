@@ -41,7 +41,7 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 		}
 
 		// Assert
-		Expect(strings.Join(names, ",")).To(ContainSubstring("clusters,apicurio,schemas,seaweedfs"))
+		Expect(strings.Join(names, ",")).To(ContainSubstring("clusters,apicurio,seaweedfs"))
 	})
 
 	It("[case] - prepares Kafka storage and credentials before starting the registry", func() {

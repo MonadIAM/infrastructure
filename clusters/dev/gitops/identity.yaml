@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monadiam-identity
+  namespace: argocd
+spec:
+  project: monadiam-applications
+  source:
+    repoURL: https://github.com/MonadIAM/infrastructure.git
+    targetRevision: dev
+    path: clusters/dev/applications/identity
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monadiam-apps
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/metadata/annotations/reloader.stakater.com~1last-reloaded-from
+        - /spec/template/metadata/annotations/vso.secrets.hashicorp.com~1restartedAt
+        - /spec/template/metadata/annotations/kubectl.kubernetes.io~1restartedAt
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+    syncOptions:
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+      - FailOnSharedResource=true

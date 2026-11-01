@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: access-control-service
   namespace: monadiam-apps
+  annotations:
+    secret.reloader.stakater.com/reload: "access-control-postgresql-ca,access-control-kafka-ca,access-control-kafka-auth,access-control-vault-ca,access-control-redis-client"
   labels:
     app.kubernetes.io/name: access-control-service
     app.kubernetes.io/part-of: monadiam
@@ -25,8 +27,6 @@ spec:
         app.kubernetes.io/name: access-control-service
         app.kubernetes.io/part-of: monadiam
         app.kubernetes.io/component: application
-      annotations:
-        monadiam.io/credentials-checksum: ${ACCESS_CONTROL_CREDENTIALS_CHECKSUM}
     spec:
       serviceAccountName: access-control-service
       automountServiceAccountToken: false
@@ -84,7 +84,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: service
-          image: ${ACCESS_CONTROL_IMAGE}
+          image: ghcr.io/monadiam/access-control-service
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false

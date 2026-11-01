@@ -2,6 +2,10 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: shared-schemas
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
   labels:
     app.kubernetes.io/name: shared-schemas
     app.kubernetes.io/component: schema-publisher
@@ -9,7 +13,6 @@ metadata:
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 300
-  ttlSecondsAfterFinished: 86400
   template:
     metadata:
       labels:
@@ -26,7 +29,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: publisher
-          image: "${SHARED_SCHEMAS_IMAGE}"
+          image: ghcr.io/monadiam/shared-schemas
           imagePullPolicy: IfNotPresent
           args: [scripts/apply.sh]
           envFrom:
