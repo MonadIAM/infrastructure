@@ -5,7 +5,6 @@ resources:
 images:
   - name: ghcr.io/monadiam/shared-schemas
     newTag: 3.4.0
-    digest: sha256:db7ff1c192353c8bade54cd5fdbacee1291e2008a177c05ab90191020d5b1c3b
 replacements:
   - source:
       kind: Job
