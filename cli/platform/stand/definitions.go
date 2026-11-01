@@ -33,6 +33,7 @@ var kafkaPartitionKeys = []string{
 	"PROJECTION_JOURNAL_PARTITIONS",
 	"REALM_PARTITIONS",
 	"POSITION_PARTITIONS",
+	"ACCOUNT_PARTITIONS",
 }
 
 var postgresqlClusters = []string{

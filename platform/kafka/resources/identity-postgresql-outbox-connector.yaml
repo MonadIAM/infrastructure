@@ -36,7 +36,7 @@ spec:
     value.converter.schemas.enable: "false"
     producer.override.enable.idempotence: "true"
     producer.override.max.in.flight.requests.per.connection: "1"
-    transforms: outbox,envelope,partition,realmPartition,positionPartition
+    transforms: outbox,envelope,partition,realmPartition,positionPartition,accountPartition
     transforms.outbox.type: io.debezium.transforms.outbox.EventRouter
     transforms.outbox.predicate: outboxTable
     transforms.outbox.route.topic.replacement: ${routedByValue}
@@ -64,7 +64,15 @@ spec:
     transforms.positionPartition.partition.topic.num: "${POSITION_PARTITIONS}"
     transforms.positionPartition.partition.hash.function: murmur
     transforms.positionPartition.predicate: position
-    predicates: outboxTable,projectionJournal,realm,position
+    transforms.accountPartition.type: io.debezium.transforms.partitions.PartitionRouting
+    transforms.accountPartition.partition.payload.fields: payload.account
+    transforms.accountPartition.partition.topic.num: "${ACCOUNT_PARTITIONS}"
+    transforms.accountPartition.partition.hash.function: murmur
+    transforms.accountPartition.predicate: account
+
+    predicates: outboxTable,projectionJournal,realm,position,account
+    predicates.account.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
+    predicates.account.pattern: account
     predicates.outboxTable.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches
     predicates.outboxTable.pattern: identity-postgresql\.system\.outbox
     predicates.projectionJournal.type: org.apache.kafka.connect.transforms.predicates.TopicNameMatches

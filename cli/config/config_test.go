@@ -153,6 +153,7 @@ var _ = Describe("[Config] - Environment", func() {
 			Entry("[case] - malformed partition count", "PROJECTION_JOURNAL_PARTITIONS", "private-value", "PROJECTION_JOURNAL_PARTITIONS"),
 			Entry("[case] - invalid realm partitions", "REALM_PARTITIONS", "0", "REALM_PARTITIONS"),
 			Entry("[case] - invalid position partitions", "POSITION_PARTITIONS", "-1", "POSITION_PARTITIONS"),
+			Entry("[case] - invalid account partitions", "ACCOUNT_PARTITIONS", "0", "ACCOUNT_PARTITIONS"),
 			Entry("[case] - unseal threshold exceeds shares", "VAULT_KEY_THRESHOLD", "2", "VAULT_KEY_THRESHOLD must not exceed VAULT_KEY_SHARES"),
 			Entry("[case] - invalid deadline", "INFRA_TIMEOUT", "0s", "INFRA_TIMEOUT"),
 		)

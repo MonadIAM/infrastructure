@@ -146,12 +146,13 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 			// Arrange
 			environment["REALM_PARTITIONS"] = "8"
 			environment["POSITION_PARTITIONS"] = "12"
+			environment["ACCOUNT_PARTITIONS"] = "5"
 			var applied []byte
 			var contexts [][]string
 			runner := runnerFunc(func(_ context.Context, request command.Request) (command.Result, error) {
 				contexts = append(contexts, request.Args[:2])
 				if request.Args[2] == "kustomize" {
-					return command.Result{Output: []byte(`${PROJECTION_JOURNAL_PARTITIONS} ${REALM_PARTITIONS} ${POSITION_PARTITIONS} ${secrets:ns/password:key} ${routedByValue}`)}, nil
+					return command.Result{Output: []byte(`${PROJECTION_JOURNAL_PARTITIONS} ${REALM_PARTITIONS} ${POSITION_PARTITIONS} ${ACCOUNT_PARTITIONS} ${secrets:ns/password:key} ${routedByValue}`)}, nil
 				}
 
 				applied = request.Input
@@ -166,7 +167,7 @@ var _ = Describe("[Infrastructure] - Stand", func() {
 			// Assert
 			Expect(err).To(Succeed())
 			Expect(contexts).To(HaveEach(Equal([]string{"--context", environment["KUBE_CONTEXT"]})))
-			Expect(string(applied)).To(Equal(`4 8 12 ${secrets:ns/password:key} ${routedByValue}`))
+			Expect(string(applied)).To(Equal(`4 8 12 5 ${secrets:ns/password:key} ${routedByValue}`))
 		})
 	})
 

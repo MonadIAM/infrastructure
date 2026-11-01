@@ -78,7 +78,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
 spec:
-  partitions: 1
+  partitions: ${ACCOUNT_PARTITIONS}
   replicas: 1
   config:
     retention.ms: "259200000"
