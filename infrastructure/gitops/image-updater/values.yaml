@@ -1,0 +1,21 @@
+replicaCount: 1
+createClusterRoles: false
+extraArgs:
+  - --interval
+  - 5m
+config:
+  argocd.namespace: argocd
+  watch.namespaces: argocd
+  log.level: info
+  git.commit-message-template: "chore(deps): update application images"
+  registries:
+    - name: GitHub Container Registry
+      api_url: https://ghcr.io
+      prefix: ghcr.io
+      ping: false
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    memory: 256Mi
