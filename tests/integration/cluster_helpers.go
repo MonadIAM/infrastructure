@@ -28,14 +28,14 @@ type clusterFixture struct {
 func (fixture *clusterFixture) prepare(ctx context.Context) {
 	ginkgo.GinkgoHelper()
 
-	programs := []string{"go", "docker", "k3d", "kubectl", "helm"}
+	programs := []string{"go", "docker", "k3d", "kubectl", "helm", "terraform", "make"}
 
 	for _, program := range programs {
 		_, err := exec.LookPath(program)
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(), program)
 	}
 
-	source, err := filepath.Abs("../../..")
+	source, err := filepath.Abs("../..")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 	directories := []string{"clusters", "infrastructure", "platform", "cli"}
@@ -45,8 +45,19 @@ func (fixture *clusterFixture) prepare(ctx context.Context) {
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	}
 
-	files := []string{"go.mod", "go.sum", "main.go"}
+	files := []string{"go.mod", "go.sum", "main.go", "terraform/Makefile", "terraform/vault/config.auto.tfvars"}
+	for _, pattern := range []string{"terraform/*/*.tf", "terraform/*/.terraform.lock.hcl"} {
+		matches, err := filepath.Glob(filepath.Join(source, pattern))
+		gomega.Expect(err).NotTo(gomega.HaveOccurred())
+		for _, match := range matches {
+			relative, err := filepath.Rel(source, match)
+			gomega.Expect(err).NotTo(gomega.HaveOccurred())
+			files = append(files, relative)
+		}
+	}
+
 	for _, file := range files {
+		gomega.Expect(os.MkdirAll(filepath.Dir(filepath.Join(fixture.directory, file)), 0700)).To(gomega.Succeed())
 		data, err := os.ReadFile(filepath.Join(source, file))
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 		gomega.Expect(os.WriteFile(filepath.Join(fixture.directory, file), data, 0600)).To(gomega.Succeed())

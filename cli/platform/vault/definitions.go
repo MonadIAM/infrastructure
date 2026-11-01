@@ -6,14 +6,6 @@ import (
 
 const tokenCommand = `IFS= read -r VAULT_TOKEN; export VAULT_TOKEN; exec "$@"`
 
-var identityKeys = [][]string{
-	{"transit/keys/identity-access-token", "type=ecdsa-p256"},
-	{"transit/keys/identity-refresh-token", "type=ecdsa-p256"},
-	{"transit/keys/identity-id-token", "type=ecdsa-p256"},
-	{"transit/keys/identity-totp-secret", "type=aes256-gcm96"},
-	{"transit/keys/identity-pairwise-sub", "type=hmac", "key_size=32"},
-}
-
 func credentialDefinitions(environment config.Environment) []credentialDefinition {
 	return []credentialDefinition{
 		{
@@ -124,36 +116,6 @@ func credentialDefinitions(environment config.Environment) []credentialDefinitio
 			UserKey:     "admin-user",
 			User:        environment["GRAFANA_ADMIN_USER"],
 			PasswordKey: "admin-password",
-		},
-	}
-}
-
-func roleDefinitions() []roleDefinition {
-	return []roleDefinition{
-		{
-			Namespace: "monadiam-apps",
-			PolicyKey: "VAULT_POLICY_NAME",
-			RoleKey:   "VAULT_K8S_ROLE",
-		},
-		{
-			Namespace: "monadiam-data",
-			PolicyKey: "VAULT_DATA_POLICY_NAME",
-			RoleKey:   "VAULT_DATA_K8S_ROLE",
-		},
-		{
-			Namespace: "monadiam-messaging",
-			PolicyKey: "VAULT_MESSAGING_POLICY_NAME",
-			RoleKey:   "VAULT_MESSAGING_K8S_ROLE",
-		},
-		{
-			Namespace: "monadiam-observability",
-			PolicyKey: "VAULT_OBSERVABILITY_POLICY_NAME",
-			RoleKey:   "VAULT_OBSERVABILITY_K8S_ROLE",
-		},
-		{
-			Namespace: "clickhouse-operator",
-			PolicyKey: "VAULT_CLICKHOUSE_OPERATOR_POLICY_NAME",
-			RoleKey:   "VAULT_CLICKHOUSE_OPERATOR_K8S_ROLE",
 		},
 	}
 }

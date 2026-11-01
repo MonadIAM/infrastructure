@@ -83,13 +83,10 @@ func (platform Platform) phases() []phaseDefinition {
 			Run:  platform.Istio,
 		},
 		{
-			Name: "gateway",
-			Run:  platform.Gateway,
-		},
-		{
 			Name: "vault",
 			Run:  platform.Vault,
 		},
+		{Name: "gateway", Run: platform.Gateway},
 		{
 			Name: "operators",
 			Run:  platform.Operators,
@@ -135,13 +132,6 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Values:    "platform/seaweedfs/helm/values.yaml",
 			Arguments: []string{"--set-string", "image.tag=" + environment["SEAWEEDFS_VERSION"], "--wait", "--timeout", "600s"},
 		},
-		"cert-manager": {
-			Name:      "cert-manager",
-			Chart:     environment["CERT_MANAGER_CHART"],
-			Version:   environment["CERT_MANAGER_VERSION"],
-			Namespace: "cert-manager",
-			Values:    "infrastructure/security/cert-manager/helm/values.yaml",
-		},
 		"istio-base": {
 			Name:      "istio-base",
 			Chart:     "istio/base",
@@ -173,13 +163,6 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/ztunnel-values.yaml",
 			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
-		},
-		"vault": {
-			Name:      "vault",
-			Chart:     "hashicorp/vault",
-			Version:   environment["VAULT_CHART_VERSION"],
-			Namespace: environment["VAULT_NAMESPACE"],
-			Values:    "platform/vault/helm/values.yaml",
 		},
 		"vault-secrets-operator": {
 			Name:      "vault-secrets-operator",

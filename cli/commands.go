@@ -28,6 +28,8 @@ var commands = map[string]commandHandler{
 	"cluster recreate":    (*application).recreateCluster,
 	"cluster status":      (*application).clusterStatus,
 	"platform reconcile":  (*application).reconcilePlatform,
+	"vault exec":          (*application).executeVault,
+	"vault initialize":    (*application).initializeVault,
 	"vault status":        (*application).vaultStatus,
 	"seaweedfs reconcile": (*application).reconcileSeaweedFS,
 }
@@ -112,4 +114,19 @@ func (app *application) vaultStatus(ctx context.Context) error {
 	encoder.SetIndent("", "  ")
 
 	return encoder.Encode(status)
+}
+
+func (app *application) executeVault(ctx context.Context) error {
+	client := app.newPlatform().VaultClient()
+	return client.Execute(ctx, app.options.arguments...)
+}
+
+func (app *application) initializeVault(ctx context.Context) error {
+	client := app.newPlatform().VaultClient()
+	err := client.Initialize(ctx)
+	if err != nil {
+		return err
+	}
+
+	return client.Unseal(ctx)
 }

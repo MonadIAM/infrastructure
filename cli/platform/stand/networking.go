@@ -9,36 +9,8 @@ import (
 )
 
 func (platform Platform) CertManager(ctx context.Context) error {
-	err := platform.install(ctx, "cert-manager")
-	if err != nil {
-		return err
-	}
-
-	deployments := []string{"cert-manager", "cert-manager-cainjector", "cert-manager-webhook"}
-
-	for _, deployment := range deployments {
-		err := platform.Kubernetes.Rollout(ctx, "cert-manager", "deployment/"+deployment, "180s")
-		if err != nil {
-			return err
-		}
-	}
-
-	err = platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/security/cert-manager/resources")
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Wait(ctx, "", "clusterissuer/monadiam-selfsigned", "condition=Ready", "60s")
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Wait(ctx, "cert-manager", "certificate/monadiam-root-ca", "condition=Ready", "180s")
-	if err != nil {
-		return err
-	}
-
-	return platform.Kubernetes.Wait(ctx, "", "clusterissuer/monadiam-ca", "condition=Ready", "60s")
+	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"-f", "terraform/Makefile", "ROOT=bootstrap", "apply"}})
+	return err
 }
 
 func (platform Platform) MetricsServer(ctx context.Context) error {

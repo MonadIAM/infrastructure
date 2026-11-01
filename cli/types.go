@@ -16,7 +16,9 @@ const usage = `Usage:
   infra cluster recreate --confirm-delete [options]
   infra cluster status [options]
   infra platform reconcile [--component=all] [options]
+  infra vault initialize [options]
   infra vault status [options]
+  infra vault exec [options] -- command [arguments]
   infra seaweedfs reconcile [options]
 
 Options: --env-file=.env, --timeout=60m

@@ -7,7 +7,7 @@ ENV_FILE ?= .env
 COMPONENT ?= all
 FILTER ?=
 
-.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile vault-status seaweedfs utest itest
+.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest
 
 # Infrastructure
 env:
@@ -31,7 +31,7 @@ build:
 lint:
 	$(GOLANGCI_LINT) run
 lint-fix:
-	gofmt -w main.go cli
+	gofmt -w main.go cli tests
 env-check:
 	$(GO) run . config validate --env-file "$(ENV_FILE)"
 
@@ -40,12 +40,21 @@ reconcile:
 	$(GO) run . platform reconcile --component "$(COMPONENT)" --env-file "$(ENV_FILE)"
 vault-status:
 	$(GO) run . vault status --env-file "$(ENV_FILE)"
+vault-plan:
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(GO) run . vault exec --env-file= -- make -f terraform/Makefile ROOT=vault plan
+vault-apply:
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(GO) run . vault exec --env-file= -- make -f terraform/Makefile ROOT=vault apply
 seaweedfs:
 	$(GO) run . platform reconcile --component seaweedfs --env-file "$(ENV_FILE)"
 
 # Test
 utest:
-	$(GINKGO) --fd --succinct=false --keep-going --race --skip-package=cli/tests/integration ./cli/...
+	$(GINKGO) --fd --succinct=false --keep-going --race ./cli/...
 itest:
 	mkdir -p build
-	$(GINKGO) --fd --succinct=false --keep-going --tags=integration --label-filter="$(FILTER)" --timeout=2h --output-dir=build --json-report=integration-report.json ./cli/tests/integration/...
+	$(GINKGO) --fd --succinct=false --keep-going --tags=integration --label-filter="$(FILTER)" --timeout=2h --output-dir=build --json-report=integration-report.json ./tests/integration/...
+
+platform-plan:
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT="$(COMPONENT)" plan
+platform-apply:
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT="$(COMPONENT)" apply

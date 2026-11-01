@@ -19,12 +19,6 @@ type credentialDefinition struct {
 	Hash        bool
 }
 
-type roleDefinition struct {
-	Namespace string
-	PolicyKey string
-	RoleKey   string
-}
-
 type secretResponse struct {
 	Data struct {
 		Data     map[string]string `json:"data"`
