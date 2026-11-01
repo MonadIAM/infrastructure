@@ -40,9 +40,10 @@ var topicDefinitions = []topicDefinition{
 		Retention:     defaultTopicRetention,
 	},
 	{
-		Name:       "account",
-		DeadLetter: true,
-		Retention:  defaultTopicRetention,
+		Name:          "account",
+		PartitionsKey: "ACCOUNT_PARTITIONS",
+		DeadLetter:    true,
+		Retention:     defaultTopicRetention,
 	},
 	{
 		Name:       "identifier",

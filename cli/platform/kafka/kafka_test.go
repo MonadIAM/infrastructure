@@ -24,6 +24,7 @@ var _ = Describe("[Infrastructure] - Kafka", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(environment.Set("REALM_PARTITIONS", "7")).To(Succeed())
 			Expect(environment.Set("POSITION_PARTITIONS", "9")).To(Succeed())
+			Expect(environment.Set("ACCOUNT_PARTITIONS", "5")).To(Succeed())
 			Expect(environment.Set("PROJECTION_JOURNAL_PARTITIONS", "11")).To(Succeed())
 
 			// Act
@@ -39,6 +40,8 @@ var _ = Describe("[Infrastructure] - Kafka", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(byName["realm"].Partitions).To(Equal(7))
 			Expect(byName["position"].Partitions).To(Equal(9))
+			Expect(byName["account"].Partitions).To(Equal(5))
+			Expect(byName["account"].Grow).To(BeFalse())
 			Expect(byName["projection-journal"].Partitions).To(Equal(11))
 			Expect(byName["projection-journal"].Grow).To(BeTrue())
 			Expect(byName["realm-dead"].Config).To(HaveKeyWithValue("retention.ms", "2592000000"))
@@ -98,13 +101,14 @@ var _ = Describe("[Infrastructure] - Kafka", func() {
 				Expect(err).To(HaveOccurred())
 			}
 		},
+			Entry("[case] - account cannot grow automatically", "account", 1, 4, false, false),
 			Entry("[case] - realm cannot grow", "realm", 2, 4, false, false),
 			Entry("[case] - position cannot shrink", "position", 4, 2, false, false),
 			Entry("[case] - projection can grow", "projection-journal", 2, 4, true, true),
 			Entry("[case] - projection cannot shrink", "projection-journal", 4, 2, true, false),
 			Entry("[case] - missing topic can be created", "realm", 0, 4, false, true),
 			Entry("[case] - matching partition count is accepted", "realm", 4, 4, false, true),
-			Entry("[case] - fixed default does not constrain an existing topic", "account", 4, 1, false, true),
+			Entry("[case] - fixed default does not constrain an existing topic", "notification", 4, 1, false, true),
 		)
 	})
 

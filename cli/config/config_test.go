@@ -23,6 +23,7 @@ func validSettings() Debezium {
 		RetryInterval:               time.Second,
 		RealmPartitions:             4,
 		PositionPartitions:          2,
+		AccountPartitions:           3,
 		ProjectionJournalPartitions: 8,
 		Databases: []Database{
 			{
@@ -107,6 +108,7 @@ var _ = Describe("[Config] - Debezium", func() {
 			},
 			Entry("[case] - realm partitions", "REALM_PARTITIONS"),
 			Entry("[case] - position partitions", "POSITION_PARTITIONS"),
+			Entry("[case] - account partitions", "ACCOUNT_PARTITIONS"),
 			Entry("[case] - projection journal partitions", "PROJECTION_JOURNAL_PARTITIONS"),
 			Entry("[case] - execution deadline", "DEBEZIUM_TIMEOUT"),
 			Entry("[case] - request deadline", "DEBEZIUM_REQUEST_TIMEOUT"),

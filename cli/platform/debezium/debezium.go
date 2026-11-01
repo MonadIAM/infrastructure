@@ -140,6 +140,7 @@ func (service *Service) renderConnector(database config.Database, fields map[str
 		"POSTGRES_OUTBOX_SLOT":          database.Slot,
 		"POSTGRES_OUTBOX_PUBLICATION":   database.Publication,
 		"REALM_PARTITIONS":              strconv.Itoa(service.settings.RealmPartitions),
+		"ACCOUNT_PARTITIONS":            strconv.Itoa(service.settings.AccountPartitions),
 		"POSITION_PARTITIONS":           strconv.Itoa(service.settings.PositionPartitions),
 		"PROJECTION_JOURNAL_PARTITIONS": strconv.Itoa(service.settings.ProjectionJournalPartitions),
 		"routedByValue":                 "${routedByValue}",

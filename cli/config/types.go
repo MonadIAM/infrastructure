@@ -24,6 +24,7 @@ type Debezium struct {
 	RequestTimeout              time.Duration `koanf:"DEBEZIUM_REQUEST_TIMEOUT"`
 	RetryInterval               time.Duration `koanf:"DEBEZIUM_RETRY_INTERVAL"`
 	RealmPartitions             int           `koanf:"REALM_PARTITIONS"`
+	AccountPartitions           int           `koanf:"ACCOUNT_PARTITIONS"`
 	PositionPartitions          int           `koanf:"POSITION_PARTITIONS"`
 	ProjectionJournalPartitions int           `koanf:"PROJECTION_JOURNAL_PARTITIONS"`
 	Databases                   []Database    `koanf:"-"`
@@ -67,7 +68,7 @@ func (settings Debezium) Validate() error {
 		return errors.New("Debezium timeouts and retry interval must be positive")
 	}
 
-	if settings.RealmPartitions < 1 || settings.PositionPartitions < 1 || settings.ProjectionJournalPartitions < 1 {
+	if settings.AccountPartitions < 1 || settings.RealmPartitions < 1 || settings.PositionPartitions < 1 || settings.ProjectionJournalPartitions < 1 {
 		return errors.New("Debezium partition counts must be positive")
 	}
 

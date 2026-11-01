@@ -30,6 +30,7 @@ func testSettings() config.Debezium {
 		RetryInterval:               time.Millisecond,
 		RealmPartitions:             4,
 		PositionPartitions:          2,
+		AccountPartitions:           3,
 		ProjectionJournalPartitions: 8,
 		Databases: []config.Database{
 			{
@@ -73,7 +74,10 @@ var _ = Describe("[Infrastructure] - Debezium", func() {
 			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.realmPartition.partition.topic.num", "4"))
 			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.positionPartition.partition.topic.num", "2"))
 			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.partition.partition.topic.num", "8"))
-			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms", "outbox,envelope,partition,realmPartition,positionPartition"))
+			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.accountPartition.partition.topic.num", "3"))
+			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.accountPartition.partition.payload.fields", "payload.account"))
+			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.outbox.table.field.event.key", "id"))
+			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms", "outbox,envelope,partition,realmPartition,positionPartition,accountPartition"))
 			Expect(connectors[0].Config).To(HaveKeyWithValue("transforms.envelope.schema.name", "monadiam.outbox.Envelope"))
 
 			Expect(connectors[0].Config).To(HaveLen(len(original)))
