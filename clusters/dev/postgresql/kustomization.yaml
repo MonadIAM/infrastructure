@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../platform/postgresql/resources
+
+patches:
+  - target:
+      group: postgresql.cnpg.io
+      kind: Cluster
+    patch: |-
+      apiVersion: postgresql.cnpg.io/v1
+      kind: Cluster
+      metadata:
+        name: postgresql
+      spec:
+        instances: 1
+        storage:
+          storageClass: local-path-retain
+          size: 16Gi
+        walStorage:
+          storageClass: local-path-retain
+          size: 1Gi
+        resources:
+          requests:
+            cpu: "1"
+            memory: 1Gi
+          limits:
+            cpu: "1"
+            memory: 1Gi

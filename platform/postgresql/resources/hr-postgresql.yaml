@@ -10,7 +10,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   imageName: ghcr.io/cloudnative-pg/postgresql:17.6-standard-trixie
-  instances: 2
   enableSuperuserAccess: false
   bootstrap:
     initdb:
@@ -40,18 +39,6 @@ spec:
           - hr
         passwordSecret:
           name: hr-postgresql-debezium
-  storage:
-    storageClass: local-path-retain
-    size: 8Gi
-  walStorage:
-    storageClass: local-path-retain
-    size: 1Gi
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      memory: 1Gi
   inheritedMetadata:
     labels:
       app.kubernetes.io/name: hr-postgresql
