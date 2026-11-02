@@ -41,10 +41,14 @@ func (platform Platform) applyClusterResources(ctx context.Context) error {
 		return err
 	}
 
-	directories := []string{"postgresql", "redis", "clickhouse"}
+	directories := []string{
+		"clusters/" + platform.Environment["PROFILE"] + "/postgresql",
+		"platform/redis/resources",
+		"platform/clickhouse/resources",
+	}
 
 	for _, directory := range directories {
-		err := platform.Kubernetes.ApplyKustomize(ctx, "platform/"+directory+"/resources")
+		err := platform.Kubernetes.ApplyKustomize(ctx, directory)
 		if err != nil {
 			return err
 		}

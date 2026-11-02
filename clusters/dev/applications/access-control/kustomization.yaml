@@ -9,3 +9,9 @@ images:
     digest: sha256:ef54e1bd4ce15c103ac04ac9907f7ea88c9e721064f06ac6ebb0eb120afe07a7
 components:
   - ../endpoints
+configMapGenerator:
+  - name: access-control-env
+    namespace: monadiam-apps
+    behavior: merge
+    literals:
+      - POSTGRES_READ_HOST=access-control-postgresql-rw.monadiam-data.svc.cluster.local

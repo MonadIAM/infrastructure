@@ -9,3 +9,9 @@ images:
     digest: sha256:dcfbe178f7f39b17f5a00267bd54f2ed475cc9526018a9d89fdc5aeb255d6441
 components:
   - ../endpoints
+configMapGenerator:
+  - name: notification-env
+    namespace: monadiam-apps
+    behavior: merge
+    literals:
+      - POSTGRES_READ_HOST=notification-postgresql-rw.monadiam-data.svc.cluster.local

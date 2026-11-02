@@ -9,3 +9,9 @@ images:
     digest: sha256:4f3c03ae1c2bd25abc324f8524c8fe9fa39ceed9451732e213ffeaae10008503
 components:
   - ../endpoints
+configMapGenerator:
+  - name: hr-env
+    namespace: monadiam-apps
+    behavior: merge
+    literals:
+      - POSTGRES_READ_HOST=hr-postgresql-rw.monadiam-data.svc.cluster.local
