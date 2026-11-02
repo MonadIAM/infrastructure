@@ -13,7 +13,12 @@ func (platform Platform) CertManager(ctx context.Context) error {
 }
 
 func (platform Platform) MetricsServer(ctx context.Context) error {
-	err := platform.Kubernetes.Rollout(ctx, "kube-system", "deployment/metrics-server", "180s")
+	err := platform.Kubernetes.Run(ctx, "apply", "--server-side", "--field-manager=resource-budget", "-k", "clusters/"+platform.Environment["PROFILE"]+"/system")
+	if err != nil {
+		return err
+	}
+
+	err = platform.Kubernetes.Rollout(ctx, "kube-system", "deployment/metrics-server", "180s")
 	if err != nil {
 		return err
 	}

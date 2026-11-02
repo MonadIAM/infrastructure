@@ -15,3 +15,5 @@ configMapGenerator:
     behavior: merge
     literals:
       - POSTGRES_READ_HOST=hr-postgresql-rw.monadiam-data.svc.cluster.local
+patches:
+  - path: resources.yaml

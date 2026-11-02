@@ -1,0 +1,84 @@
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      limits:
+        cpu: 100m
+grafana:
+  resources:
+    limits:
+      cpu: 250m
+      memory: 384Mi
+  sidecar:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  initChownData:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+prometheusOperator:
+  resources:
+    limits:
+      cpu: 250m
+  prometheusConfigReloader:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi
+  admissionWebhooks:
+    patch:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 250m
+          memory: 128Mi
+prometheus:
+  additionalServiceMonitors:
+    - name: applications
+      namespaceSelector:
+        matchNames:
+          - monadiam-apps
+      selector:
+        matchLabels:
+          app.kubernetes.io/part-of: monadiam
+          app.kubernetes.io/component: application
+      endpoints:
+        - port: http
+          path: /api/v1/metrics
+          interval: 15s
+          scrapeTimeout: 10s
+  prometheusSpec:
+    retentionSize: 1500MB
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1536Mi

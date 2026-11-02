@@ -1,2 +1,14 @@
 image:
   tag: "4.48"
+master:
+  resources:
+    limits:
+      cpu: 250m
+volume:
+  resources:
+    limits:
+      cpu: 500m
+filer:
+  resources:
+    limits:
+      cpu: 500m

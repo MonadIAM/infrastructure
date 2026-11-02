@@ -44,7 +44,7 @@ func (platform Platform) applyClusterResources(ctx context.Context) error {
 	directories := []string{
 		"clusters/" + platform.Environment["PROFILE"] + "/postgresql",
 		"platform/redis/resources",
-		"platform/clickhouse/resources",
+		"clusters/" + platform.Environment["PROFILE"] + "/clickhouse",
 	}
 
 	for _, directory := range directories {

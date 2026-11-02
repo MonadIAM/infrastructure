@@ -1,0 +1,25 @@
+controller:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+repoServer:
+  resources:
+    limits:
+      cpu: 500m
+server:
+  resources:
+    limits:
+      cpu: 250m
+redis:
+  resources:
+    limits:
+      cpu: 100m
+redisSecretInit:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi

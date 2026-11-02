@@ -1,3 +1,7 @@
+variable "profile" {
+  type = string
+}
+
 resource "kubernetes_namespace_v1" "argocd" {
   metadata {
     name = "argocd"
@@ -16,9 +20,12 @@ resource "helm_release" "argocd" {
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
   version    = "10.11.6"
-  values     = [file("${path.module}/../../infrastructure/gitops/argocd/values.yaml")]
-  wait       = true
-  timeout    = 600
+  values = [
+    file("${path.module}/../../infrastructure/gitops/argocd/values.yaml"),
+    file("${path.module}/../../clusters/${var.profile}/gitops/argocd-values.yaml")
+  ]
+  wait    = true
+  timeout = 600
   lifecycle { prevent_destroy = true }
 }
 
@@ -28,7 +35,10 @@ resource "helm_release" "image_updater" {
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argocd-image-updater"
   version    = "1.4.0"
-  values     = [file("${path.module}/../../infrastructure/gitops/image-updater/values.yaml")]
+  values = [
+    file("${path.module}/../../infrastructure/gitops/image-updater/values.yaml"),
+    file("${path.module}/../../clusters/${var.profile}/gitops/image-updater-values.yaml")
+  ]
   depends_on = [helm_release.argocd]
   wait       = true
   timeout    = 300

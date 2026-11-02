@@ -124,7 +124,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/istiod-values.yaml",
-			Arguments: []string{"--values", profile + "/istio/values.yaml"},
+			Arguments: []string{"--values", profile + "/istio/values.yaml", "--values", profile + "/istio/istiod.yaml"},
 		},
 		"istio-cni": {
 			Name:      "istio-cni",
@@ -132,7 +132,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/istio-cni-values.yaml",
-			Arguments: []string{"--values", profile + "/istio/values.yaml"},
+			Arguments: []string{"--values", profile + "/istio/values.yaml", "--values", profile + "/istio/cni.yaml"},
 		},
 		"ztunnel": {
 			Name:      "ztunnel",
@@ -140,7 +140,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/ztunnel-values.yaml",
-			Arguments: []string{"--values", profile + "/istio/values.yaml"},
+			Arguments: []string{"--values", profile + "/istio/values.yaml", "--values", profile + "/istio/ztunnel.yaml"},
 		},
 		"vault-secrets-operator": {
 			Name:      "vault-secrets-operator",
@@ -156,6 +156,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["CNPG_CHART_VERSION"],
 			Namespace: "cnpg-system",
 			Values:    "infrastructure/operators/cnpg/helm/values.yaml",
+			Arguments: []string{"--values", profile + "/postgresql/operator.yaml"},
 		},
 		"strimzi": {
 			Name:      "strimzi",
@@ -171,6 +172,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["CLICKHOUSE_OPERATOR_CHART_VERSION"],
 			Namespace: "clickhouse-operator",
 			Values:    "infrastructure/operators/clickhouse/helm/values.yaml",
+			Arguments: []string{"--values", profile + "/clickhouse/operator.yaml"},
 		},
 		"kube-prometheus-stack": {
 			Name:      "kube-prometheus-stack",
@@ -178,7 +180,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["KUBE_PROMETHEUS_STACK_CHART_VERSION"],
 			Namespace: observabilityNamespace,
 			Values:    "infrastructure/observability/prometheus-stack/helm/values.yaml",
-			Arguments: []string{"--skip-crds", "--timeout", "600s"},
+			Arguments: []string{"--values", profile + "/observability/prometheus.yaml", "--skip-crds", "--timeout", "600s"},
 		},
 		"loki": {
 			Name:      "loki",
@@ -186,7 +188,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["LOKI_CHART_VERSION"],
 			Namespace: observabilityNamespace,
 			Values:    "infrastructure/observability/loki/helm/values.yaml",
-			Arguments: []string{"--timeout", "600s"},
+			Arguments: []string{"--values", profile + "/observability/loki.yaml", "--timeout", "600s"},
 		},
 		"tempo": {
 			Name:      "tempo",
@@ -194,7 +196,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["TEMPO_CHART_VERSION"],
 			Namespace: observabilityNamespace,
 			Values:    "infrastructure/observability/tempo/helm/values.yaml",
-			Arguments: []string{"--timeout", "600s"},
+			Arguments: []string{"--values", profile + "/observability/tempo.yaml", "--timeout", "600s"},
 		},
 		"otel-collector": {
 			Name:      "otel-collector",
@@ -202,7 +204,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["OPENTELEMETRY_COLLECTOR_CHART_VERSION"],
 			Namespace: observabilityNamespace,
 			Values:    "infrastructure/observability/otel-collector/helm/values.yaml",
-			Arguments: []string{"--timeout", "600s"},
+			Arguments: []string{"--values", profile + "/observability/otel-collector.yaml", "--timeout", "600s"},
 		},
 	}
 

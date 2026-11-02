@@ -1,3 +1,10 @@
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    cpu: 500m
+    memory: 128Mi
 environment:
   SEAWEEDFS_ENDPOINT: http://seaweedfs-main-s3.monadiam-data.svc:8333
   SEAWEEDFS_REGION: us-east-1

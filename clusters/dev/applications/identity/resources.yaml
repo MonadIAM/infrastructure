@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-service
+  namespace: monadiam-apps
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: vault-agent
+          resources:
+            limits:
+              cpu: 100m
+      containers:
+        - name: service
+          resources:
+            limits:
+              cpu: "1"
