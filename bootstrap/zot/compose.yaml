@@ -14,6 +14,11 @@ services:
       - no-new-privileges:true
     ports:
       - "127.0.0.1:5002:5000"
+    networks:
+      default:
+        ipv4_address: 172.30.0.2
+        aliases:
+          - monadiam-registry
     volumes:
       - type: bind
         source: /var/lib/monadiam/zot/data
@@ -32,3 +37,10 @@ services:
 configs:
   zot:
     file: config.json
+
+networks:
+  default:
+    name: monadiam-zot
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

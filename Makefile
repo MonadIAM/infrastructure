@@ -48,15 +48,15 @@ zot-logs:
 # Infrastructure
 env:
 	$(GO) run . config init --env-file "$(ENV_FILE)"
-start: env
+start: env zot-start
 	$(GO) run . cluster start --env-file "$(ENV_FILE)"
-resume: env
+resume: env zot-start
 	$(GO) run . cluster resume --env-file "$(ENV_FILE)"
 stop:
 	$(GO) run . cluster stop --env-file "$(ENV_FILE)"
-restart: env
+restart: env zot-start
 	$(GO) run . cluster restart --env-file "$(ENV_FILE)"
-recreate: env
+recreate: env zot-start
 	$(GO) run . cluster recreate --confirm-delete --env-file "$(ENV_FILE)"
 status:
 	$(GO) run . cluster status --env-file "$(ENV_FILE)"

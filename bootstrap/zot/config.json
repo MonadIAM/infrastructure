@@ -13,6 +13,9 @@
         {
           "repositories": ["**"],
           "deleteUntagged": true,
+          "keepUntagged": {
+            "mostRecentlyPulledCount": 5
+          },
           "keepTags": [
             {"patterns": ["^keep-(dev|prod)-.*$"]},
             {"mostRecentlyPushedCount": 5}
@@ -30,5 +33,54 @@
   },
   "log": {
     "level": "warn"
+  },
+  "extensions": {
+    "sync": {
+      "enable": true,
+      "registries": [
+        {
+          "urls": ["https://index.docker.io"],
+          "onDemand": true,
+          "preserveDigest": true,
+          "manifestCheckInterval": "24h",
+          "content": [{"prefix": "**", "destination": "/docker.io"}]
+        },
+        {
+          "urls": ["https://ghcr.io"],
+          "onDemand": true,
+          "preserveDigest": true,
+          "manifestCheckInterval": "24h",
+          "content": [{"prefix": "**", "destination": "/ghcr.io"}]
+        },
+        {
+          "urls": ["https://quay.io"],
+          "onDemand": true,
+          "preserveDigest": true,
+          "manifestCheckInterval": "24h",
+          "content": [{"prefix": "**", "destination": "/quay.io"}]
+        },
+        {
+          "urls": ["https://registry.k8s.io"],
+          "onDemand": true,
+          "preserveDigest": true,
+          "manifestCheckInterval": "24h",
+          "content": [{"prefix": "**", "destination": "/registry.k8s.io"}]
+        },
+        {
+          "urls": ["https://registry.istio.io"],
+          "onDemand": true,
+          "preserveDigest": true,
+          "manifestCheckInterval": "24h",
+          "content": [{"prefix": "**", "destination": "/registry.istio.io"}]
+        },
+        {
+          "urls": ["https://ecr-public.aws.com"],
+          "onDemand": true,
+          "preserveDigest": true,
+          "manifestCheckInterval": "24h",
+          "content": [{"prefix": "**", "destination": "/ecr-public.aws.com"}]
+        }
+      ]
+    }
   }
 }
