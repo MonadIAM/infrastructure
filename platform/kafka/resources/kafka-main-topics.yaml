@@ -11,7 +11,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -28,7 +27,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -45,7 +43,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -62,7 +59,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -79,7 +75,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -96,7 +91,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -113,7 +107,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -130,7 +123,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -147,7 +139,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -164,7 +155,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -181,7 +171,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -198,7 +187,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -215,7 +203,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -232,7 +219,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -249,7 +235,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -266,7 +251,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -283,7 +267,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "604800000"
 ---
@@ -300,7 +283,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -317,7 +299,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -334,7 +315,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -351,7 +331,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -368,7 +347,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "1800000"
 ---
@@ -385,7 +363,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "2592000000"
 ---
@@ -402,7 +379,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     cleanup.policy: compact,delete
     retention.ms: "900000"
@@ -422,7 +398,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "604800000"
 ---
@@ -439,7 +414,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -456,7 +430,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     retention.ms: "259200000"
 ---
@@ -473,7 +446,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     cleanup.policy: compact
 ---
@@ -490,7 +462,6 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     cleanup.policy: compact
 ---
@@ -507,6 +478,5 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
 spec:
   partitions: 1
-  replicas: 1
   config:
     cleanup.policy: compact
