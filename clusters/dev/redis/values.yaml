@@ -1,0 +1,15 @@
+replica:
+  replicaCount: 1
+  podAntiAffinityPreset: soft
+  pdb:
+    create: true
+    minAvailable: ""
+    maxUnavailable: 1
+  persistence:
+    storageClass: local-path-retain
+
+sentinel:
+  quorum: 1
+  redisShutdownWaitFailover: false
+  persistence:
+    storageClass: local-path-retain
