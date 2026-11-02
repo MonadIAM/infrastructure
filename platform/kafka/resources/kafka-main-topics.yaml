@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
 spec:
-  partitions: ${REALM_PARTITIONS}
+  partitions: 1
   replicas: 1
   config:
     retention.ms: "259200000"
@@ -44,7 +44,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
 spec:
-  partitions: ${POSITION_PARTITIONS}
+  partitions: 1
   replicas: 1
   config:
     retention.ms: "259200000"
@@ -78,7 +78,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
 spec:
-  partitions: ${ACCOUNT_PARTITIONS}
+  partitions: 1
   replicas: 1
   config:
     retention.ms: "259200000"
@@ -333,7 +333,7 @@ metadata:
     app.kubernetes.io/part-of: monadiam
     app.kubernetes.io/managed-by: kustomize
 spec:
-  partitions: ${PROJECTION_JOURNAL_PARTITIONS}
+  partitions: 1
   replicas: 1
   config:
     retention.ms: "259200000"

@@ -2,7 +2,6 @@ package stand
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
@@ -71,13 +70,13 @@ func (platform Platform) Gateway(ctx context.Context) error {
 		return err
 	}
 
-	data, err := platform.Kubernetes.Capture(ctx, "kustomize", "infrastructure/networking/gateway-api/resources")
+	data, err := platform.Helm.Execute(ctx, true, "template", "gateway", "infrastructure/networking/gateway-api",
+		"--set-string", "applicationsIP="+platform.Environment["APPLICATIONS_IP"])
 	if err != nil {
 		return err
 	}
 
-	manifest := strings.ReplaceAll(string(data), "${APPLICATIONS_IP}", platform.Environment["APPLICATIONS_IP"])
-	err = platform.Kubernetes.Apply(ctx, []byte(manifest), false)
+	err = platform.Kubernetes.Apply(ctx, data, false)
 	if err != nil {
 		return err
 	}

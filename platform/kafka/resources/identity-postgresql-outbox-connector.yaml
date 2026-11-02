@@ -51,22 +51,18 @@ spec:
     transforms.envelope.schema.name: monadiam.outbox.Envelope
     transforms.partition.type: io.debezium.transforms.partitions.PartitionRouting
     transforms.partition.partition.payload.fields: payload.realm
-    transforms.partition.partition.topic.num: "${PROJECTION_JOURNAL_PARTITIONS}"
     transforms.partition.partition.hash.function: murmur
     transforms.partition.predicate: projectionJournal
     transforms.realmPartition.type: io.debezium.transforms.partitions.PartitionRouting
     transforms.realmPartition.partition.payload.fields: payload.realm
-    transforms.realmPartition.partition.topic.num: "${REALM_PARTITIONS}"
     transforms.realmPartition.partition.hash.function: murmur
     transforms.realmPartition.predicate: realm
     transforms.positionPartition.type: io.debezium.transforms.partitions.PartitionRouting
     transforms.positionPartition.partition.payload.fields: payload.input.organization
-    transforms.positionPartition.partition.topic.num: "${POSITION_PARTITIONS}"
     transforms.positionPartition.partition.hash.function: murmur
     transforms.positionPartition.predicate: position
     transforms.accountPartition.type: io.debezium.transforms.partitions.PartitionRouting
     transforms.accountPartition.partition.payload.fields: payload.account
-    transforms.accountPartition.partition.topic.num: "${ACCOUNT_PARTITIONS}"
     transforms.accountPartition.partition.hash.function: murmur
     transforms.accountPartition.predicate: account
 

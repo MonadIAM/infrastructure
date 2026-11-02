@@ -8,7 +8,7 @@ spec:
   duration: 2160h
   renewBefore: 720h
   ipAddresses:
-    - ${APPLICATIONS_IP}
+    - {{ .Values.applicationsIP | quote }}
   privateKey:
     algorithm: ECDSA
     size: 256

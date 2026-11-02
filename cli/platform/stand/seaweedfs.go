@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
@@ -97,12 +95,10 @@ func (platform Platform) seaweedFSImage(ctx context.Context) (string, error) {
 }
 
 func (platform Platform) configureSeaweedFS(ctx context.Context, image string) error {
-	data, err := platform.Kubernetes.Capture(ctx, "kustomize", "platform/seaweedfs/bootstrap")
-	if err != nil {
-		return err
-	}
-
-	rendered, err := platform.seaweedFSManifest(string(data), image)
+	data, err := platform.Helm.Execute(ctx, true, "template", "seaweedfs-bootstrap", "platform/seaweedfs/bootstrap",
+		"--namespace", dataNamespace,
+		"--values", "clusters/"+platform.Environment["PROFILE"]+"/seaweedfs/bootstrap.yaml",
+		"--set-string", "image="+image)
 	if err != nil {
 		return err
 	}
@@ -112,7 +108,7 @@ func (platform Platform) configureSeaweedFS(ctx context.Context, image string) e
 		return err
 	}
 
-	err = platform.Kubernetes.Apply(ctx, []byte(rendered), false)
+	err = platform.Kubernetes.Apply(ctx, data, false)
 	if err != nil {
 		return err
 	}
@@ -124,33 +120,4 @@ func (platform Platform) configureSeaweedFS(ctx context.Context, image string) e
 	}
 
 	return nil
-}
-
-func (platform Platform) seaweedFSManifest(manifest, image string) (string, error) {
-	keys := []string{
-		"SEAWEEDFS_ENDPOINT",
-		"SEAWEEDFS_REGION",
-		"SEAWEEDFS_AUDIT_LOG_BUCKET",
-		"SEAWEEDFS_AUDIT_LOG_RETENTION_DAYS",
-		"SEAWEEDFS_CHANGE_LOG_BUCKET",
-		"SEAWEEDFS_CHANGE_LOG_RETENTION_DAYS",
-	}
-
-	manifest = strings.ReplaceAll(manifest, "${SEAWEEDFS_BOOTSTRAP_IMAGE}", image)
-	for _, key := range keys {
-		value := platform.Environment[key]
-		if value == "" || strings.ContainsAny(value, "\r\n\"'\\") {
-			return "", fmt.Errorf("stand.Platform.seaweedFSManifest: invalid %s for SeaweedFS bootstrap", key)
-		}
-
-		placeholder := "${" + key + "}"
-		replacer := strings.NewReplacer(
-			"\""+placeholder+"\"", strconv.Quote(value),
-			"'"+placeholder+"'", strconv.Quote(value),
-			placeholder, strconv.Quote(value),
-		)
-		manifest = replacer.Replace(manifest)
-	}
-
-	return manifest, nil
 }

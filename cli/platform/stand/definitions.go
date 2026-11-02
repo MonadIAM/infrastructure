@@ -28,13 +28,6 @@ var istioComponents = []struct {
 	{Release: "ztunnel", Workload: "daemonset/ztunnel"},
 }
 
-var kafkaPartitionKeys = []string{
-	"PROJECTION_JOURNAL_PARTITIONS",
-	"REALM_PARTITIONS",
-	"POSITION_PARTITIONS",
-	"ACCOUNT_PARTITIONS",
-}
-
 var postgresqlClusters = []string{
 	"access-control-postgresql",
 	"identity-postgresql",
@@ -107,6 +100,7 @@ func (platform Platform) phases() []phaseDefinition {
 }
 
 func releaseDefinitions(environment config.Environment) map[string]helm.Release {
+	profile := "clusters/" + environment["PROFILE"]
 	releases := map[string]helm.Release{
 		"seaweedfs-main": {
 			Name:      "seaweedfs-main",
@@ -114,7 +108,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["SEAWEEDFS_CHART_VERSION"],
 			Namespace: dataNamespace,
 			Values:    "platform/seaweedfs/helm/values.yaml",
-			Arguments: []string{"--set-string", "image.tag=" + environment["SEAWEEDFS_VERSION"], "--wait", "--timeout", "600s"},
+			Arguments: []string{"--values", profile + "/seaweedfs/values.yaml", "--wait", "--timeout", "600s"},
 		},
 		"istio-base": {
 			Name:      "istio-base",
@@ -122,7 +116,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/base-values.yaml",
-			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
+			Arguments: []string{"--values", profile + "/istio/values.yaml"},
 		},
 		"istiod": {
 			Name:      "istiod",
@@ -130,7 +124,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/istiod-values.yaml",
-			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
+			Arguments: []string{"--values", profile + "/istio/values.yaml"},
 		},
 		"istio-cni": {
 			Name:      "istio-cni",
@@ -138,7 +132,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/istio-cni-values.yaml",
-			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
+			Arguments: []string{"--values", profile + "/istio/values.yaml"},
 		},
 		"ztunnel": {
 			Name:      "ztunnel",
@@ -146,7 +140,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["ISTIO_VERSION"],
 			Namespace: "istio-system",
 			Values:    "infrastructure/networking/istio/helm/ztunnel-values.yaml",
-			Arguments: []string{"--set", "global.platform=" + environment["ISTIO_PLATFORM"]},
+			Arguments: []string{"--values", profile + "/istio/values.yaml"},
 		},
 		"vault-secrets-operator": {
 			Name:      "vault-secrets-operator",
