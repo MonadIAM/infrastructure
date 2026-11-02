@@ -6,6 +6,7 @@ After=docker.service var-lib-monadiam-zot.mount
 PartOf=docker.service
 
 [Service]
+Slice=monadiam.slice
 ExecStartPre=/usr/bin/install -d -o 65534 -g 65534 /var/lib/monadiam/zot/data
 ExecStart=/usr/bin/docker compose -f /etc/monadiam/zot/compose.yaml up --no-color --exit-code-from zot
 Restart=always
