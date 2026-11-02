@@ -23,6 +23,27 @@ export TF_VAR_hashicorp_repository = $(HASHICORP_HELM_REPO)
 export TF_VAR_kv_mount = $(VAULT_KV_MOUNT)
 
 .PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
+.PHONY: zot-install zot-start zot-stop zot-status zot-logs
+
+# Zot
+zot-install: /var/lib/monadiam/zot.ext4
+	sudo install -d /etc/monadiam/zot
+	sudo install -m 644 bootstrap/zot/compose.yaml bootstrap/zot/config.json /etc/monadiam/zot/
+	sudo install -m 644 bootstrap/zot/monadiam-zot.service bootstrap/zot/var-lib-monadiam-zot.mount /etc/systemd/system/
+	sudo systemctl daemon-reload
+	sudo systemctl enable monadiam-zot.service
+	sudo systemctl restart monadiam-zot.service
+/var/lib/monadiam/zot.ext4:
+	sudo install -d /var/lib/monadiam
+	sudo mkfs.ext4 -m 0 /var/lib/monadiam/zot.ext4 32G
+zot-start:
+	sudo systemctl start monadiam-zot.service
+zot-stop:
+	sudo systemctl stop monadiam-zot.service
+zot-status:
+	systemctl status monadiam-zot.service --no-pager
+zot-logs:
+	journalctl -u monadiam-zot.service -f
 
 # Infrastructure
 env:

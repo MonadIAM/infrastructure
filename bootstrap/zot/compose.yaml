@@ -1,0 +1,34 @@
+name: monadiam-zot
+
+services:
+  zot:
+    image: ghcr.io/project-zot/zot:v2.1.21@sha256:6b69512c00dceaad05b1144e6079aac6aa7309d7fd200f9947ecb1de09cf48c8
+    user: "65534:65534"
+    cpus: 1
+    mem_limit: 512m
+    memswap_limit: 512m
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "127.0.0.1:5002:5000"
+    volumes:
+      - type: bind
+        source: /var/lib/monadiam/zot/data
+        target: /var/lib/registry
+        bind:
+          create_host_path: false
+    configs:
+      - source: zot
+        target: /etc/zot/config.json
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+configs:
+  zot:
+    file: config.json
