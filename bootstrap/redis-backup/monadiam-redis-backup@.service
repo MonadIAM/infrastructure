@@ -1,0 +1,16 @@
+[Unit]
+Description=MonadIAM Redis backups (%i)
+BindsTo=var-lib-monadiam-backups-redis.mount
+After=var-lib-monadiam-backups-redis.mount network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=KUBECONFIG=/etc/monadiam/redis-backup/%i.kubeconfig
+Environment=BACKUP_DIRECTORY=/var/lib/monadiam/backups/redis/%i
+ExecStart=/etc/monadiam/redis-backup/backup.sh
+TimeoutStartSec=5min
+CPUQuota=50%
+MemoryMax=256M
+MemorySwapMax=0
+UMask=0077

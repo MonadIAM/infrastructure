@@ -1,0 +1,17 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: notification-postgresql
+  namespace: monadiam-data
+spec:
+  storage:
+    size: 16Gi
+  walStorage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: "1"
+      memory: 1Gi
+    limits:
+      cpu: "1"
+      memory: 1Gi

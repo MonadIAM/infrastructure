@@ -17,14 +17,10 @@ patches:
         instances: 1
         storage:
           storageClass: local-path-retain
-          size: 16Gi
         walStorage:
           storageClass: local-path-retain
-          size: 1Gi
-        resources:
-          requests:
-            cpu: "1"
-            memory: 1Gi
-          limits:
-            cpu: "1"
-            memory: 1Gi
+  - path: access-control.yaml
+  - path: identity.yaml
+  - path: notification.yaml
+  - path: organization.yaml
+  - path: hr.yaml

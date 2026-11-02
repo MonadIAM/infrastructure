@@ -24,6 +24,7 @@ export TF_VAR_kv_mount = $(VAULT_KV_MOUNT)
 
 .PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
 .PHONY: zot-install zot-start zot-stop zot-status zot-logs
+.PHONY: redis-backup-install redis-backup redis-backup-status redis-backup-logs
 
 # Zot
 zot-install: /var/lib/monadiam/zot.ext4
@@ -44,6 +45,28 @@ zot-status:
 	systemctl status monadiam-zot.service --no-pager
 zot-logs:
 	journalctl -u monadiam-zot.service -f
+
+# Redis backups
+redis-backup-install: /var/lib/monadiam/redis-backups.ext4
+	sudo install -d -m 700 /etc/monadiam/redis-backup
+	sudo install -m 755 bootstrap/redis-backup/backup.sh /etc/monadiam/redis-backup/
+	sudo install -m 644 bootstrap/redis-backup/*.service bootstrap/redis-backup/*.timer bootstrap/redis-backup/*.mount /etc/systemd/system/
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		configuration=$$(mktemp); trap 'rm -f "$$configuration"' EXIT; \
+		kubectl --kubeconfig "$${KUBECONFIG:?}" --context "$${KUBE_CONTEXT:?}" config view --minify --flatten --raw > "$$configuration" && \
+		sudo install -m 600 "$$configuration" "/etc/monadiam/redis-backup/$(PROFILE).kubeconfig"
+	sudo systemctl daemon-reload
+	sudo systemctl enable --now monadiam-redis-backup@$(PROFILE).timer
+/var/lib/monadiam/redis-backups.ext4:
+	sudo install -d /var/lib/monadiam
+	sudo mkfs.ext4 -m 0 /var/lib/monadiam/redis-backups.ext4 8G
+redis-backup:
+	sudo systemctl start monadiam-redis-backup@$(PROFILE).service
+redis-backup-status:
+	systemctl status monadiam-redis-backup@$(PROFILE).timer --no-pager
+	systemctl show monadiam-redis-backup@$(PROFILE).service -p Result -p ExecMainStatus -p MemoryPeak
+redis-backup-logs:
+	journalctl -u monadiam-redis-backup@$(PROFILE).service -f
 
 # Infrastructure
 env:

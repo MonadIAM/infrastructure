@@ -1,0 +1,8 @@
+[Unit]
+Description=MonadIAM Redis backup storage
+
+[Mount]
+What=/var/lib/monadiam/redis-backups.ext4
+Where=/var/lib/monadiam/backups/redis
+Type=ext4
+Options=loop,nodev,nosuid,noexec

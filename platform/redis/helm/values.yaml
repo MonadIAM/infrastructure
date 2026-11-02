@@ -4,18 +4,18 @@ commonLabels:
 architecture: replication
 
 image:
-  registry: registry-1.docker.io
+  registry: docker.io
   repository: bitnami/redis
   tag: latest
   digest: sha256:d75bda00b778ad5e03a639ec36e00f6665a5d7e0f35a6250be5b103fb2117275
 
 commonConfiguration: |-
   appendonly yes
+  appendfsync always
+  no-appendfsync-on-rewrite no
+  aof-load-truncated no
   save ""
-  maxmemory 256mb
   maxmemory-policy noeviction
-  min-replicas-to-write 1
-  min-replicas-max-lag 10
 
 auth:
   enabled: true
@@ -32,46 +32,27 @@ tls:
   certCAFilename: ca.crt
 
 replica:
-  replicaCount: 3
-  podAntiAffinityPreset: hard
-  pdb:
-    create: true
-    minAvailable: 2
-    maxUnavailable: ""
   resourcesPreset: none
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      memory: 512Mi
   persistence:
     enabled: true
-    storageClass: local-path-retain
-    size: 1Gi
 
 sentinel:
   enabled: true
   image:
-    registry: registry-1.docker.io
+    registry: docker.io
     repository: bitnami/redis-sentinel
     tag: latest
     digest: sha256:fcfca07d8b56cea8e990e51c09c0d03102bde09a2147bd6a669e024a56893a8c
-  quorum: 2
   downAfterMilliseconds: 10000
   failoverTimeout: 180000
   parallelSyncs: 1
   persistence:
     enabled: true
-    storageClass: local-path-retain
-    size: 100Mi
   resourcesPreset: none
-  resources:
-    requests:
-      cpu: 25m
-      memory: 64Mi
-    limits:
-      memory: 128Mi
+  persistentVolumeClaimRetentionPolicy:
+    enabled: true
+    whenScaled: Retain
+    whenDeleted: Retain
   service:
     type: ClusterIP
     ports:
@@ -84,17 +65,11 @@ sentinel:
 metrics:
   enabled: true
   image:
-    registry: registry-1.docker.io
+    registry: docker.io
     repository: bitnami/redis-exporter
     tag: latest
     digest: sha256:09233726b19097ccbeb7a90347a7a0975c015de9efafaf2ac90d62dae241ca67
   resourcesPreset: none
-  resources:
-    requests:
-      cpu: 25m
-      memory: 64Mi
-    limits:
-      memory: 128Mi
   extraArgs:
     redis.addr: rediss://localhost:6379
     redis.password-file: /secrets/redis-password

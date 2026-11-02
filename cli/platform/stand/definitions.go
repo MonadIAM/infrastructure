@@ -213,6 +213,8 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Values:    "platform/redis/helm/values.yaml",
 			Arguments: []string{
 				"--values", "platform/redis/helm/services/" + strings.TrimSuffix(cluster, "-redis") + ".yaml",
+				"--values", profile + "/redis/values.yaml",
+				"--values", profile + "/redis/" + strings.TrimSuffix(cluster, "-redis") + ".yaml",
 				"--wait", "--timeout", "600s", "--hide-notes",
 			},
 		}
