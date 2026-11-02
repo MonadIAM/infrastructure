@@ -26,28 +26,32 @@ locals {
 }
 
 resource "vault_mount" "kv" {
-  path    = var.kv_mount
-  type    = "kv"
-  options = { version = "2" }
+  depends_on = [vault_audit.file]
+  path       = var.kv_mount
+  type       = "kv"
+  options    = { version = "2" }
   lifecycle { prevent_destroy = true }
 }
 
 resource "vault_mount" "transit" {
-  path = "transit"
-  type = "transit"
+  depends_on = [vault_audit.file]
+  path       = "transit"
+  type       = "transit"
   lifecycle { prevent_destroy = true }
 }
 
 resource "vault_auth_backend" "app" {
-  path = var.auth_mount
-  type = "kubernetes"
+  depends_on = [vault_audit.file]
+  path       = var.auth_mount
+  type       = "kubernetes"
   lifecycle { prevent_destroy = true }
 }
 
 resource "vault_policy" "app" {
-  for_each = local.policies
-  name     = each.key
-  policy   = each.value
+  depends_on = [vault_audit.file]
+  for_each   = local.policies
+  name       = each.key
+  policy     = each.value
   lifecycle {
     prevent_destroy = true
     precondition {

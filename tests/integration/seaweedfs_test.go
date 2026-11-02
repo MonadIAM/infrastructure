@@ -46,7 +46,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS", Label("integration", "seaweedfs
 			Expect(deleteErrors).To(HaveEach(HaveOccurred()))
 			Expect(createErr).To(HaveOccurred())
 			Expect(preservedErr).NotTo(HaveOccurred())
-		}, SpecTimeout(3*time.Minute))
+		}, NodeTimeout(3*time.Minute))
 	})
 
 })

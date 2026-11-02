@@ -31,6 +31,6 @@ var _ = Describe("[Infrastructure] - Stand bootstrap", Label("integration", "boo
 			Expect(state.Volumes).To(HaveKey("monadiam-data/data-seaweedfs-main-volume-0"))
 			Expect(state.Volumes).To(HaveKey("monadiam-data/data-filer-seaweedfs-main-filer-0"))
 			Expect(state.Credentials).To(HaveLen(26))
-		}, SpecTimeout(35*time.Minute))
+		}, NodeTimeout(35*time.Minute))
 	})
 })

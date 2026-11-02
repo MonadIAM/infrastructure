@@ -36,7 +36,7 @@ var _ = Describe("[Infrastructure] - Redis", Label("integration", "redis"), func
 					Expect(writeErr).NotTo(HaveOccurred())
 					Eventually(func() error { return client.topology(ctx) }).WithContext(ctx).WithTimeout(time.Minute).Should(Succeed())
 					Expect(client.replicated(ctx, marker)).To(Succeed())
-				}, SpecTimeout(3*time.Minute))
+				}, NodeTimeout(3*time.Minute))
 
 				It("[case] - rejects foreign credentials, plaintext and missing client certificates", func(ctx SpecContext) {
 					// Arrange
@@ -74,10 +74,10 @@ var _ = Describe("[Infrastructure] - Redis", Label("integration", "redis"), func
 					Expect(authenticationErrors).To(HaveEach(MatchError(ContainSubstring("WRONGPASS"))))
 					Expect(plaintextErrors).To(HaveEach(MatchError(MatchRegexp("EOF|connection reset by peer"))))
 					Expect(certificateErrors).To(HaveEach(MatchError(MatchRegexp("certificate required|bad certificate|EOF|connection reset by peer"))))
-				}, SpecTimeout(3*time.Minute))
+				}, NodeTimeout(3*time.Minute))
 			})
 
-			Describe("[Behavior] - recovery", Label("failover"), func() {
+			Describe("[Behavior] - recovery", Label("failover", "slow"), func() {
 				DescribeTable("[Behavior] - restores quorum, reconnects and preserves replicated values", func(ctx SpecContext, primaryFailure bool) {
 					// Arrange
 					client := fixture.redis(ctx, service)
@@ -129,8 +129,8 @@ var _ = Describe("[Infrastructure] - Redis", Label("integration", "redis"), func
 					Eventually(func() error { return recovered.topology(ctx) }).WithContext(ctx).WithTimeout(3 * time.Minute).Should(Succeed())
 					Eventually(func() error { return recovered.replicated(ctx, marker+"/recovered") }).WithContext(ctx).WithTimeout(time.Minute).Should(Succeed())
 				},
-					Entry("[case] - primary failure", SpecTimeout(10*time.Minute), true),
-					Entry("[case] - replica failure", SpecTimeout(10*time.Minute), false),
+					Entry("[case] - primary failure", NodeTimeout(10*time.Minute), true),
+					Entry("[case] - replica failure", NodeTimeout(10*time.Minute), false),
 				)
 			})
 		})

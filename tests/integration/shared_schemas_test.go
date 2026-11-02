@@ -16,10 +16,6 @@ var _ = Describe("[Infrastructure] - Shared schemas", Ordered, Label("integratio
 
 	BeforeAll(func(ctx SpecContext) {
 		// Arrange
-		output, err := fixture.run(ctx, "make", "-f", "terraform/Makefile", "ROOT=gitops", "apply")
-		Expect(err).NotTo(HaveOccurred(), output)
-		output, err = fixture.kubectl(ctx, "apply", "--server-side", "-f", "clusters/dev/gitops/projects.yaml")
-		Expect(err).NotTo(HaveOccurred(), output)
 		manifestPath, err := filepath.Abs("testdata/shared-schemas/application.yaml")
 		Expect(err).NotTo(HaveOccurred())
 		DeferCleanup(func(ctx SpecContext) {
@@ -27,9 +23,9 @@ var _ = Describe("[Infrastructure] - Shared schemas", Ordered, Label("integratio
 			output, err := fixture.kubectl(ctx, "delete", "-f", manifestPath, "--ignore-not-found")
 			Expect(err).NotTo(HaveOccurred(), output)
 		}, NodeTimeout(time.Minute))
-		output, err = fixture.kubectl(ctx, "apply", "-f", manifestPath)
+		output, err := fixture.kubectl(ctx, "apply", "-f", manifestPath)
 		Expect(err).NotTo(HaveOccurred(), output)
-	}, NodeTimeout(15*time.Minute))
+	}, NodeTimeout(time.Minute))
 
 	BeforeEach(func(ctx SpecContext) {
 		// Arrange
@@ -67,7 +63,7 @@ var _ = Describe("[Infrastructure] - Shared schemas", Ordered, Label("integratio
 				Expect(output).To(ContainSubstring("[SchemaRegistry]: applied - monadiam.grpc/access-control"))
 				Expect(output).To(ContainSubstring("[SchemaRegistry]: applied - account-value"))
 				Expect(output).To(ContainSubstring("[SchemaRegistry]: applied - realm-value"))
-			}, SpecTimeout(10*time.Minute))
+			}, NodeTimeout(10*time.Minute))
 		})
 
 		Describe("[Behavior] - repeated publication", func() {
@@ -92,7 +88,7 @@ var _ = Describe("[Infrastructure] - Shared schemas", Ordered, Label("integratio
 				output, err = fixture.kubectl(ctx, "wait", application, "-n", "argocd",
 					"--for=jsonpath={.status.operationState.phase}=Succeeded", "--timeout=180s")
 				Expect(err).NotTo(HaveOccurred(), output)
-			}, SpecTimeout(10*time.Minute))
+			}, NodeTimeout(10*time.Minute))
 		})
 	})
 })
