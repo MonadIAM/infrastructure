@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  registry.server: |
+    monadiam-registry:53 {
+      hosts {
+        172.30.0.2 monadiam-registry
+      }
+    }

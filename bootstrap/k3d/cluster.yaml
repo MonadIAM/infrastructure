@@ -5,6 +5,7 @@ metadata:
 servers: 1
 agents: 2
 image: rancher/k3s:v1.35.5-k3s1
+network: monadiam-zot
 kubeAPI:
   host: "127.0.0.1"
   hostIP: "127.0.0.1"
@@ -32,15 +33,7 @@ ports:
     nodeFilters:
       - loadbalancer
 registries:
-  create:
-    name: monadiam-registry
-    host: "127.0.0.1"
-    hostPort: "5001"
-  config: |
-    mirrors:
-      "monadiam-registry:5000":
-        endpoint:
-          - http://monadiam-registry:5000
+  config: bootstrap/registries.yaml
 options:
   k3d:
     wait: true
@@ -49,6 +42,10 @@ options:
     disableImageVolume: false
   k3s:
     extraArgs:
+      - arg: "--disable-default-registry-endpoint"
+        nodeFilters:
+          - server:*
+          - agent:*
       - arg: "--disable=traefik"
         nodeFilters:
           - server:*

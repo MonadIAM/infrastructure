@@ -1,0 +1,37 @@
+mirrors:
+  "monadiam-registry:5000":
+    endpoint:
+      - http://172.30.0.2:5000
+  "docker.io":
+    endpoint:
+      - http://172.30.0.2:5000
+    rewrite:
+      "^(.+)$": "docker.io/$1"
+  "ghcr.io":
+    endpoint:
+      - http://172.30.0.2:5000
+    rewrite:
+      "^(.+)$": "ghcr.io/$1"
+  "quay.io":
+    endpoint:
+      - http://172.30.0.2:5000
+    rewrite:
+      "^(.+)$": "quay.io/$1"
+  "registry.k8s.io":
+    endpoint:
+      - http://172.30.0.2:5000
+    rewrite:
+      "^(.+)$": "registry.k8s.io/$1"
+  "registry.istio.io":
+    endpoint:
+      - http://172.30.0.2:5000
+    rewrite:
+      "^(.+)$": "registry.istio.io/$1"
+  "ecr-public.aws.com":
+    endpoint:
+      - http://172.30.0.2:5000
+    rewrite:
+      "^(.+)$": "ecr-public.aws.com/$1"
+  "*":
+    endpoint:
+      - http://172.30.0.2:5000
