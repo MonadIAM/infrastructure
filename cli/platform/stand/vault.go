@@ -68,17 +68,7 @@ func (platform Platform) installVaultOperator(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/security/vault-secrets-operator/resources")
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Run(ctx, "rollout", "restart", vaultOperatorDeployment, "-n", vaultOperatorNamespace)
-	if err != nil {
-		return err
-	}
-
-	return platform.Kubernetes.Rollout(ctx, vaultOperatorNamespace, vaultOperatorDeployment, "180s")
+	return platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/security/vault-secrets-operator/resources")
 }
 
 func (platform Platform) waitVaultSecrets(ctx context.Context) error {

@@ -19,13 +19,13 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 	BeforeEach(func() {
 		expected = []string{
 			"wait --for=condition=Ready kafka.kafka.strimzi.io/kafka-main --timeout=900s -n monadiam-messaging",
-			"apply -k platform/apicurio/kafka",
+			"apply -k clusters/dev/apicurio/kafka",
 			"wait --for=condition=Ready kafkatopic.kafka.strimzi.io/kafkasql-journal --timeout=300s -n monadiam-messaging",
 			"wait --for=condition=Ready kafkatopic.kafka.strimzi.io/kafkasql-snapshots --timeout=300s -n monadiam-messaging",
 			"wait --for=condition=Ready kafkatopic.kafka.strimzi.io/registry-events --timeout=300s -n monadiam-messaging",
 			"wait --for=condition=Ready kafkauser.kafka.strimzi.io/schema-registry-main --timeout=300s -n monadiam-messaging",
 			"wait --for=create secret/schema-registry-main --timeout=180s -n monadiam-messaging",
-			"apply -k platform/apicurio/resources",
+			"apply -k clusters/dev/apicurio",
 			"rollout status deployment/schema-registry-main -n monadiam-messaging --timeout=600s",
 		}
 	})
@@ -54,7 +54,7 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 
 			return command.Result{}, nil
 		})
-		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam"}, runner, io.Discard)
+		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam", "PROFILE": "dev"}, runner, io.Discard)
 
 		// Act
 		err := platform.Apicurio(context.Background())
@@ -72,7 +72,7 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 
 			return command.Result{}, nil
 		})
-		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam"}, runner, io.Discard)
+		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam", "PROFILE": "dev"}, runner, io.Discard)
 
 		// Act
 		err := platform.Status(context.Background())
@@ -94,7 +94,7 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 
 			return command.Result{}, nil
 		})
-		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam"}, runner, io.Discard)
+		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam", "PROFILE": "dev"}, runner, io.Discard)
 
 		// Act
 		err := platform.Apicurio(context.Background())

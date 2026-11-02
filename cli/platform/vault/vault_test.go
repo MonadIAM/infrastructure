@@ -95,10 +95,8 @@ var _ = Describe("[Infrastructure] - Vault", func() {
 
 	Describe("[Method] - Client.ensureSeaweedFS", func() {
 		BeforeEach(func() {
-			client.Environment["SEAWEEDFS_AUDIT_LOG_BUCKET"] = "audit-archive"
-			client.Environment["SEAWEEDFS_AUDIT_LOG_RETENTION_DAYS"] = "1095"
-			client.Environment["SEAWEEDFS_CHANGE_LOG_BUCKET"] = "change-log-archive"
-			client.Environment["SEAWEEDFS_CHANGE_LOG_RETENTION_DAYS"] = "365"
+			GinkgoT().Chdir("../../..")
+			client.Environment["PROFILE"] = "dev"
 		})
 
 		It("[case] - generates independent keys once and preserves them on reconciliation", func() {

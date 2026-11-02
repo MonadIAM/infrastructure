@@ -148,6 +148,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["VAULT_SECRETS_OPERATOR_VERSION"],
 			Namespace: vaultOperatorNamespace,
 			Values:    "infrastructure/security/vault-secrets-operator/helm/values.yaml",
+			Arguments: []string{"--values", profile + "/vault/operator.yaml"},
 		},
 		"cnpg": {
 			Name:      "cnpg",

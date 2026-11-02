@@ -25,13 +25,6 @@ server:
   httproute:
     enabled: false
 
-  resources:
-    requests:
-      cpu: 50m
-      memory: 256Mi
-    limits:
-      memory: 512Mi
-
   readinessProbe:
     enabled: true
     path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
@@ -42,13 +35,11 @@ server:
 
   dataStorage:
     enabled: true
-    size: 2Gi
     storageClass: local-path-retain
     accessMode: ReadWriteOnce
 
   auditStorage:
     enabled: true
-    size: 1Gi
     storageClass: local-path-retain
     accessMode: ReadWriteOnce
 
@@ -61,7 +52,6 @@ server:
 
   ha:
     enabled: true
-    replicas: 1
     raft:
       enabled: true
       setNodeId: true

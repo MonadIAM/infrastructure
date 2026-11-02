@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"go.yaml.in/yaml/v3"
+
 	"github.com/MonadIAM/infrastructure/cli/config"
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 	"github.com/MonadIAM/infrastructure/cli/platform/kubernetes"
@@ -345,6 +347,18 @@ func (client Client) ensureSeaweedFS(ctx context.Context) error {
 	}
 
 	environment := maps.Clone(client.Environment)
+	configuration, err := os.ReadFile(filepath.Join("clusters", environment["PROFILE"], "seaweedfs", "bootstrap.yaml"))
+	if err != nil {
+		return err
+	}
+
+	var profile bootstrapValues
+	err = yaml.Unmarshal(configuration, &profile)
+	if err != nil {
+		return err
+	}
+
+	maps.Copy(environment, profile.Environment)
 	for _, key := range keys {
 		environment[key] = data[key]
 	}

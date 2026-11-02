@@ -15,7 +15,8 @@ func (platform Platform) Apicurio(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Kubernetes.ApplyKustomize(ctx, "platform/apicurio/kafka")
+	profile := "clusters/" + platform.Environment["PROFILE"] + "/apicurio"
+	err = platform.Kubernetes.ApplyKustomize(ctx, profile+"/kafka")
 	if err != nil {
 		return err
 	}
@@ -32,7 +33,7 @@ func (platform Platform) Apicurio(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Kubernetes.ApplyKustomize(ctx, "platform/apicurio/resources")
+	err = platform.Kubernetes.ApplyKustomize(ctx, profile)
 	if err != nil {
 		return err
 	}
