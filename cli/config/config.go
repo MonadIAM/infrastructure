@@ -129,7 +129,7 @@ func Initialize(path string) error {
 		return err
 	}
 
-	source, err := os.Open(".env.example")
+	source, err := os.Open(path + ".example")
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 func (platform Platform) CertManager(ctx context.Context) error {
-	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"-f", "terraform/Makefile", "ROOT=bootstrap", "apply"}})
+	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=bootstrap", "terraform-apply"}})
 	return err
 }
 

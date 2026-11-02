@@ -3,14 +3,26 @@
 GO ?= go
 GINKGO := $(GO) run github.com/onsi/ginkgo/v2/ginkgo
 GOLANGCI_LINT := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
-ENV_FILE ?= .env
+PROFILE ?= dev
+ENV_FILE ?= .env.$(PROFILE)
 COMPONENT ?= all
 FILTER ?= bootstrap
 FOCUS ?=
 INTEGRATION_STATE_DIR ?= $(abspath build/integration)
 INTEGRATION_TEST := INTEGRATION_STATE_DIR="$(INTEGRATION_STATE_DIR)" $(GINKGO) -v --show-node-events --fail-on-empty --tags=integration --poll-progress-after=30s --poll-progress-interval=30s --output-dir=build
 
-.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui
+TERRAFORM_STATE := $(TF_STATE_DIR)/$(PROFILE)/$(KUBE_CONTEXT)/$(ROOT)
+export TF_DATA_DIR = $(TERRAFORM_STATE)/.terraform
+export TF_IN_AUTOMATION = 1
+export TF_VAR_kubeconfig = $(KUBECONFIG)
+export TF_VAR_context = $(KUBE_CONTEXT)
+export TF_VAR_cert_manager_chart = $(CERT_MANAGER_CHART)
+export TF_VAR_cert_manager_version = $(CERT_MANAGER_VERSION)
+export TF_VAR_vault_chart_version = $(VAULT_CHART_VERSION)
+export TF_VAR_hashicorp_repository = $(HASHICORP_HELM_REPO)
+export TF_VAR_kv_mount = $(VAULT_KV_MOUNT)
+
+.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
 
 # Infrastructure
 env:
@@ -44,9 +56,9 @@ reconcile:
 vault-status:
 	$(GO) run . vault status --env-file "$(ENV_FILE)"
 vault-plan:
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(GO) run . vault exec --env-file= -- make -f terraform/Makefile ROOT=vault plan
+	$(GO) run . vault exec --env-file "$(ENV_FILE)" -- make ROOT=vault terraform-plan
 vault-apply:
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(GO) run . vault exec --env-file= -- make -f terraform/Makefile ROOT=vault apply
+	$(GO) run . vault exec --env-file "$(ENV_FILE)" -- make ROOT=vault terraform-apply
 seaweedfs:
 	$(GO) run . platform reconcile --component seaweedfs --env-file "$(ENV_FILE)"
 
@@ -67,9 +79,18 @@ itest-slow:
 	INTEGRATION_ACTION=check $(INTEGRATION_TEST) --label-filter="($(FILTER)) && slow && !environment" --focus="$(FOCUS)" --timeout=2h --json-report=integration-slow-report.json ./tests/integration/...
 
 platform-plan:
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT="$(COMPONENT)" plan
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) ROOT="$(COMPONENT)" terraform-plan
 platform-apply:
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT="$(COMPONENT)" apply
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) ROOT="$(COMPONENT)" terraform-apply
+
+# Terraform
+terraform-init:
+	@umask 077; mkdir -p "$(TERRAFORM_STATE)"
+	terraform -chdir="terraform/$(ROOT)" init -input=false -no-color -lockfile=readonly -backend-config="path=$(TERRAFORM_STATE)/terraform.tfstate"
+terraform-plan: terraform-init
+	terraform -chdir="terraform/$(ROOT)" plan -input=false -no-color
+terraform-apply: terraform-init
+	terraform -chdir="terraform/$(ROOT)" apply -input=false -auto-approve -no-color
 
 gitops-credentials:
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
