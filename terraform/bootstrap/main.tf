@@ -1,3 +1,7 @@
+variable "profile" {
+  type = string
+}
+
 variable "cert_manager_chart" {
   type = string
   validation {
@@ -63,8 +67,11 @@ resource "helm_release" "cert_manager" {
   namespace = kubernetes_namespace_v1.cert_manager.metadata[0].name
   chart     = var.cert_manager_chart
   version   = var.cert_manager_version
-  values    = [file("${path.module}/../../infrastructure/security/cert-manager/helm/values.yaml")]
-  wait      = true
-  timeout   = 300
+  values = [
+    file("${path.module}/../../infrastructure/security/cert-manager/helm/values.yaml"),
+    file("${path.module}/../../clusters/${var.profile}/cert-manager/values.yaml")
+  ]
+  wait    = true
+  timeout = 300
   lifecycle { prevent_destroy = true }
 }

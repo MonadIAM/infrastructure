@@ -38,11 +38,7 @@ spec:
               mountPath: /config
               readOnly: true
           resources:
-            requests:
-              cpu: 50m
-              memory: 32Mi
-            limits:
-              memory: 128Mi
+            {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
