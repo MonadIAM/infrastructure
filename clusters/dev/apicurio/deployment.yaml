@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-registry-main
+  namespace: monadiam-messaging
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: registry
+          env:
+            - name: JAVA_OPTS_APPEND
+              value: -Xms128m -Xmx512m
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 1Gi

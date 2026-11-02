@@ -8,7 +8,6 @@ metadata:
     app.kubernetes.io/component: schema-registry
     app.kubernetes.io/part-of: monadiam
 spec:
-  replicas: 1
   revisionHistoryLimit: 2
   selector:
     matchLabels:
@@ -39,8 +38,6 @@ spec:
           env:
             - name: QUARKUS_CONFIG_LOCATIONS
               value: /etc/apicurio/application.properties
-            - name: JAVA_OPTS_APPEND
-              value: -Xms128m -Xmx512m
             - name: KAFKA_JAAS_CONFIG
               valueFrom:
                 secretKeyRef:
@@ -73,12 +70,6 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 6
-          resources:
-            requests:
-              cpu: 100m
-              memory: 512Mi
-            limits:
-              memory: 1Gi
       volumes:
         - name: configuration
           configMap:

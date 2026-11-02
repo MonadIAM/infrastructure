@@ -1,5 +1,9 @@
 package vault
 
+type bootstrapValues struct {
+	Environment map[string]string `yaml:"environment"`
+}
+
 type Status struct {
 	Initialized bool `json:"initialized"`
 	Sealed      bool `json:"sealed"`

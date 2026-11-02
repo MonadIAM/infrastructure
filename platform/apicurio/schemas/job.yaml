@@ -35,12 +35,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: shared-schemas
-          resources:
-            requests:
-              cpu: 50m
-              memory: 32Mi
-            limits:
-              memory: 128Mi
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

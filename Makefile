@@ -16,6 +16,7 @@ export TF_DATA_DIR = $(TERRAFORM_STATE)/.terraform
 export TF_IN_AUTOMATION = 1
 export TF_VAR_kubeconfig = $(KUBECONFIG)
 export TF_VAR_context = $(KUBE_CONTEXT)
+export TF_VAR_profile = $(PROFILE)
 export TF_VAR_cert_manager_chart = $(CERT_MANAGER_CHART)
 export TF_VAR_cert_manager_version = $(CERT_MANAGER_VERSION)
 export TF_VAR_vault_chart_version = $(VAULT_CHART_VERSION)

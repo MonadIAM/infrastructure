@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: shared-schemas
+  namespace: monadiam-messaging
+spec:
+  template:
+    spec:
+      containers:
+        - name: publisher
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi

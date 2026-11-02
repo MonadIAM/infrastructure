@@ -1,3 +1,7 @@
+variable "profile" {
+  type = string
+}
+
 variable "vault_chart_version" {
   type = string
   validation {
@@ -82,7 +86,10 @@ resource "helm_release" "vault" {
   repository = var.hashicorp_repository
   chart      = "vault"
   version    = var.vault_chart_version
-  values     = [file("${path.module}/../../platform/vault/helm/values.yaml")]
+  values = [
+    file("${path.module}/../../platform/vault/helm/values.yaml"),
+    file("${path.module}/../../clusters/${var.profile}/vault/values.yaml")
+  ]
   depends_on = [kubernetes_manifest.vault_tls]
   wait       = true
   timeout    = 300

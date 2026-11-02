@@ -1,0 +1,17 @@
+server:
+  ha:
+    replicas: 1
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 512Mi
+
+  dataStorage:
+    size: 2Gi
+
+  auditStorage:
+    size: 1Gi
