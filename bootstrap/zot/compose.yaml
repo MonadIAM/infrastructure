@@ -7,6 +7,7 @@ services:
     cpus: 1
     mem_limit: 512m
     memswap_limit: 512m
+    cgroup_parent: monadiam.slice
     read_only: true
     cap_drop:
       - ALL
@@ -41,6 +42,8 @@ configs:
 networks:
   default:
     name: monadiam-zot
+    driver_opts:
+      com.docker.network.bridge.trusted_host_interfaces: cni0
     ipam:
       config:
         - subnet: 172.30.0.0/24

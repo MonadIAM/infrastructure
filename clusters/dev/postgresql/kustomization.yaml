@@ -15,10 +15,11 @@ patches:
         name: postgresql
       spec:
         instances: 1
+        smartShutdownTimeout: 0
         storage:
-          storageClass: local-path-retain
+          storageClass: local-retain
         walStorage:
-          storageClass: local-path-retain
+          storageClass: local-retain
   - path: access-control.yaml
   - path: identity.yaml
   - path: notification.yaml

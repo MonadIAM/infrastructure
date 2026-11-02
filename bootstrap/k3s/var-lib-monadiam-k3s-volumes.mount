@@ -1,0 +1,10 @@
+[Unit]
+Description=MonadIAM persistent volume pool
+Requires=var-lib-monadiam-k3s.mount
+After=var-lib-monadiam-k3s.mount
+
+[Mount]
+What=/var/lib/monadiam/k3s-volumes.ext4
+Where=/var/lib/monadiam/k3s/volumes
+Type=ext4
+Options=loop,nodev,nosuid

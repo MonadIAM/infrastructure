@@ -46,22 +46,6 @@ resource "kubernetes_namespace_v1" "vault" {
   lifecycle { prevent_destroy = true }
 }
 
-resource "kubernetes_storage_class_v1" "vault" {
-  metadata {
-    name = "local-path-retain"
-    labels = {
-      "app.kubernetes.io/name"       = "local-path-retain"
-      "app.kubernetes.io/component"  = "storage"
-      "app.kubernetes.io/part-of"    = "monadiam"
-      "app.kubernetes.io/managed-by" = "terraform"
-    }
-  }
-  storage_provisioner = "rancher.io/local-path"
-  reclaim_policy      = "Retain"
-  volume_binding_mode = "WaitForFirstConsumer"
-  lifecycle { prevent_destroy = true }
-}
-
 resource "helm_release" "cert_manager" {
   name      = "cert-manager"
   namespace = kubernetes_namespace_v1.cert_manager.metadata[0].name

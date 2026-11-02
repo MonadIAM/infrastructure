@@ -12,6 +12,3 @@ server:
 
   dataStorage:
     size: 2Gi
-
-  auditStorage:
-    size: 1Gi

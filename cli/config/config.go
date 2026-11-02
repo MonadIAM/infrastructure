@@ -3,7 +3,6 @@ package config
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 	"strconv"
@@ -123,14 +122,10 @@ func Initialize(path string) error {
 		return err
 	}
 
-	source, err := os.Open(path + ".example")
+	source, err := os.ReadFile(path + ".example")
 	if err != nil {
 		return err
 	}
-
-	defer func() {
-		_ = source.Close()
-	}()
 
 	destination, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
@@ -141,7 +136,7 @@ func Initialize(path string) error {
 		_ = destination.Close()
 	}()
 
-	_, err = io.Copy(destination, source)
+	_, err = destination.WriteString(os.ExpandEnv(string(source)))
 	if err != nil {
 		return err
 	}

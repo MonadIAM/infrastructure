@@ -137,7 +137,7 @@ var _ = Describe("[Config] - Environment", func() {
 	Describe("[Method] - Environment.Validate", func() {
 		DescribeTable("[Behavior] - rejects invalid environment settings", func(key, value, message string) {
 			// Arrange
-			values, readErr := godotenv.Read("../../.env.example")
+			values, readErr := godotenv.Read("../../.env.dev.example")
 			Expect(readErr).NotTo(HaveOccurred())
 			environment := Environment(values)
 			environment[key] = value
@@ -148,7 +148,7 @@ var _ = Describe("[Config] - Environment", func() {
 			// Assert
 			Expect(err).To(MatchError(ContainSubstring(message)))
 		},
-			Entry("[case] - missing cluster name", "CLUSTER", "", "CLUSTER is required"),
+			Entry("[case] - missing cluster context", "KUBE_CONTEXT", "", "KUBE_CONTEXT is required"),
 			Entry("[case] - zero retry attempts", "HELM_RETRY_ATTEMPTS", "0", "HELM_RETRY_ATTEMPTS"),
 			Entry("[case] - malformed partition count", "PROJECTION_JOURNAL_PARTITIONS", "private-value", "PROJECTION_JOURNAL_PARTITIONS"),
 			Entry("[case] - invalid realm partitions", "REALM_PARTITIONS", "0", "REALM_PARTITIONS"),

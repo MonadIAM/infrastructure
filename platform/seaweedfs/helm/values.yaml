@@ -14,7 +14,7 @@ master:
   data:
     type: persistentVolumeClaim
     size: 1Gi
-    storageClass: local-path-retain
+    storageClass: local-retain
   logs:
     type: emptyDir
   resources:
@@ -30,7 +30,7 @@ volume:
     - name: data
       type: persistentVolumeClaim
       size: 20Gi
-      storageClass: local-path-retain
+      storageClass: local-retain
       maxVolumes: 20
   resizeHook:
     enabled: false
@@ -47,7 +47,7 @@ filer:
   data:
     type: persistentVolumeClaim
     size: 2Gi
-    storageClass: local-path-retain
+    storageClass: local-retain
   logs:
     type: emptyDir
   extraEnvironmentVars:

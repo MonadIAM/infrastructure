@@ -1,0 +1,8 @@
+[Unit]
+Description=MonadIAM resource budget
+
+[Slice]
+CPUQuota=1200%
+MemoryHigh=22000000000
+MemoryMax=24000000000
+MemorySwapMax=0

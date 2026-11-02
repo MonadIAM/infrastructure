@@ -1,0 +1,30 @@
+analytics:
+  enabled: false
+capabilities:
+  snapshots:
+    enabled: false
+  apiServer:
+    enabled: false
+crds:
+  csi:
+    volumeSnapshots:
+      enabled: false
+snapshotClasses: []
+node:
+  kubeletPath: /var/lib/monadiam/k3s/kubelet
+  metadataDirPath: /var/lib/monadiam/k3s/volume-metadata
+  storagePools:
+    default:
+      path: /var/lib/monadiam/k3s/volumes
+      reservedCapacity: "5%"
+      reservedCapacityMode: plain
+storageClasses:
+  - name: local-retain
+    enabled: true
+    isDefault: false
+    volumeBindingMode: WaitForFirstConsumer
+    allowVolumeExpansion: true
+    reclaimPolicy: Retain
+    fsType: ext4
+    thinProvision: "false"
+    copyOnWrite: "false"

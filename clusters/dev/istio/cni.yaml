@@ -1,3 +1,7 @@
+cni:
+  cniBinDir: /var/lib/monadiam/k3s/data/data/cni
+  cniConfDir: /var/lib/monadiam/k3s/data/agent/etc/cni/net.d
+
 resources:
   limits:
     cpu: 250m

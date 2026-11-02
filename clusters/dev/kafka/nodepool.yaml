@@ -16,7 +16,7 @@ spec:
     - broker
   storage:
     type: persistent-claim
-    class: local-path-retain
+    class: local-retain
     size: 5Gi
     deleteClaim: false
     kraftMetadata: shared

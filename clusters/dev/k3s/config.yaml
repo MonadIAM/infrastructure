@@ -1,0 +1,10 @@
+node-name: monadiam-dev
+data-dir: /var/lib/monadiam/k3s/data
+write-kubeconfig-mode: "0600"
+secrets-encryption: true
+disable:
+  - traefik
+  - local-storage
+disable-default-registry-endpoint: true
+kubelet-arg:
+  - root-dir=/var/lib/monadiam/k3s/kubelet

@@ -105,7 +105,7 @@ func (platform Platform) Gateway(ctx context.Context) error {
 		}
 	}
 
-	return platform.publishApplicationPorts(ctx)
+	return nil
 }
 
 func (platform Platform) metricsAvailable(ctx context.Context) (bool, error) {

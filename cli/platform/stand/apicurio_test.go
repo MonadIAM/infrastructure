@@ -49,12 +49,12 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 		var commands []string
 		runner := runnerFunc(func(_ context.Context, request command.Request) (command.Result, error) {
 			Expect(request.Name).To(Equal("kubectl"))
-			Expect(request.Args[:2]).To(Equal([]string{"--context", "k3d-monadiam"}))
+			Expect(request.Args[:2]).To(Equal([]string{"--context", "monadiam-dev"}))
 			commands = append(commands, strings.Join(request.Args[2:], " "))
 
 			return command.Result{}, nil
 		})
-		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam", "PROFILE": "dev"}, runner, io.Discard)
+		platform := New(config.Environment{"KUBE_CONTEXT": "monadiam-dev", "PROFILE": "dev"}, runner, io.Discard)
 
 		// Act
 		err := platform.Apicurio(context.Background())
@@ -72,14 +72,14 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 
 			return command.Result{}, nil
 		})
-		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam", "PROFILE": "dev"}, runner, io.Discard)
+		platform := New(config.Environment{"KUBE_CONTEXT": "monadiam-dev", "PROFILE": "dev"}, runner, io.Discard)
 
 		// Act
 		err := platform.Status(context.Background())
 
 		// Assert
 		Expect(err).To(Succeed())
-		Expect(commands).To(ContainElement("kubectl --context k3d-monadiam get deployment,pods,svc -n monadiam-messaging -l app.kubernetes.io/name=schema-registry-main"))
+		Expect(commands).To(ContainElement("kubectl --context monadiam-dev get deployment,pods,svc -n monadiam-messaging -l app.kubernetes.io/name=schema-registry-main"))
 	})
 
 	DescribeTable("[case] - stops when a deployment step fails", func(failedStep int) {
@@ -94,7 +94,7 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 
 			return command.Result{}, nil
 		})
-		platform := New(config.Environment{"KUBE_CONTEXT": "k3d-monadiam", "PROFILE": "dev"}, runner, io.Discard)
+		platform := New(config.Environment{"KUBE_CONTEXT": "monadiam-dev", "PROFILE": "dev"}, runner, io.Discard)
 
 		// Act
 		err := platform.Apicurio(context.Background())

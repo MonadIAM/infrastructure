@@ -21,11 +21,6 @@ type application struct {
 var commands = map[string]commandHandler{
 	"config init":         (*application).initializeConfiguration,
 	"config validate":     (*application).validateConfiguration,
-	"cluster start":       (*application).startCluster,
-	"cluster resume":      (*application).resumeCluster,
-	"cluster stop":        (*application).stopCluster,
-	"cluster restart":     (*application).restartCluster,
-	"cluster recreate":    (*application).recreateCluster,
 	"cluster status":      (*application).clusterStatus,
 	"platform reconcile":  (*application).reconcilePlatform,
 	"vault exec":          (*application).executeVault,
@@ -73,26 +68,6 @@ func (app *application) newPlatform() stand.Platform {
 	}
 
 	return stand.New(app.environment, runner, app.output)
-}
-
-func (app *application) startCluster(ctx context.Context) error {
-	return app.newPlatform().Start(ctx, false)
-}
-
-func (app *application) resumeCluster(ctx context.Context) error {
-	return app.newPlatform().Start(ctx, true)
-}
-
-func (app *application) stopCluster(ctx context.Context) error {
-	return app.newPlatform().Stop(ctx)
-}
-
-func (app *application) restartCluster(ctx context.Context) error {
-	return app.newPlatform().Restart(ctx)
-}
-
-func (app *application) recreateCluster(ctx context.Context) error {
-	return app.newPlatform().Recreate(ctx, app.options.confirmDelete)
 }
 
 func (app *application) clusterStatus(ctx context.Context) error {

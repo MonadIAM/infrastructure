@@ -77,7 +77,7 @@ func (platform Platform) seaweedFSImage(ctx context.Context) (string, error) {
 		return "", errors.New("invalid CLI image digest")
 	}
 
-	image := "monadiam/stand-cli:" + digest
+	image := "localhost:5002/monadiam/stand-cli:" + digest
 	_, err = platform.Runner.Run(ctx, command.Request{
 		Name: "docker",
 		Args: []string{"image", "tag", tag, image},
@@ -87,11 +87,11 @@ func (platform Platform) seaweedFSImage(ctx context.Context) (string, error) {
 	}
 
 	_, err = platform.Runner.Run(ctx, command.Request{
-		Name: "k3d",
-		Args: []string{"image", "import", image, "--cluster", platform.Environment["CLUSTER"]},
+		Name: "docker",
+		Args: []string{"image", "push", image},
 	})
 
-	return image, err
+	return "monadiam-registry:5000/monadiam/stand-cli:" + digest, err
 }
 
 func (platform Platform) configureSeaweedFS(ctx context.Context, image string) error {

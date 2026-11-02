@@ -12,12 +12,11 @@ import (
 )
 
 type commandOptions struct {
-	arguments     []string
-	envFile       string
-	timeout       string
-	component     string
-	confirmDelete bool
-	overrides     map[string]string
+	arguments []string
+	envFile   string
+	timeout   string
+	component string
+	overrides map[string]string
 }
 
 func (options *commandOptions) applyExplicitFlags(flags *flag.FlagSet) {
@@ -94,10 +93,6 @@ func parseOptions(name string, args []string, output io.Writer) (commandOptions,
 
 	if name == "platform reconcile" {
 		flags.StringVar(&options.component, "component", "all", "platform component to reconcile")
-	}
-
-	if name == "cluster recreate" {
-		flags.BoolVar(&options.confirmDelete, "confirm-delete", false, "allow deletion and recreation of the cluster")
 	}
 
 	err := flags.Parse(args)

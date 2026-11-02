@@ -6,6 +6,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+Slice=monadiam.slice
 Environment=KUBECONFIG=/etc/monadiam/redis-backup/%i.kubeconfig
 Environment=BACKUP_DIRECTORY=/var/lib/monadiam/backups/redis/%i
 ExecStart=/etc/monadiam/redis-backup/backup.sh

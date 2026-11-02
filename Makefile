@@ -23,13 +23,54 @@ export TF_VAR_vault_chart_version = $(VAULT_CHART_VERSION)
 export TF_VAR_hashicorp_repository = $(HASHICORP_HELM_REPO)
 export TF_VAR_kv_mount = $(VAULT_KV_MOUNT)
 
-.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
+.PHONY: env start resume stop restart status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
 .PHONY: zot-install zot-start zot-stop zot-status zot-logs
 .PHONY: redis-backup-install redis-backup redis-backup-status redis-backup-logs
+.PHONY: k3s-install k3s-start k3s-status
+
+# K3s
+k3s-install: env build/k3s-install.sh /var/lib/monadiam/k3s.ext4 /var/lib/monadiam/k3s-volumes.ext4 zot-install
+	sudo install -d /etc/rancher/k3s /etc/systemd/system/k3s.service.d
+	sudo install -m 644 bootstrap/k3s/*.mount /etc/systemd/system/
+	sudo install -m 644 bootstrap/k3s/resources.conf /etc/systemd/system/k3s.service.d/resources.conf
+	sudo install -m 644 bootstrap/k3s/journald.conf /etc/systemd/journald@monadiam.conf
+	sudo install -m 600 clusters/$(PROFILE)/k3s/config.yaml /etc/rancher/k3s/config.yaml
+	sudo install -m 600 bootstrap/registries.yaml /etc/rancher/k3s/registries.yaml
+	sudo systemctl daemon-reload
+	sudo systemctl start var-lib-monadiam-k3s-volumes.mount
+	sudo install -d /var/lib/monadiam/k3s/data/agent/etc/kubelet.conf.d
+	sudo install -m 644 clusters/$(PROFILE)/k3s/kubelet.conf /var/lib/monadiam/k3s/data/agent/etc/kubelet.conf.d/10-monadiam.conf
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		sudo env INSTALL_K3S_VERSION="$${K3S_VERSION:?}" INSTALL_K3S_SKIP_START=true INSTALL_K3S_SKIP_ENABLE=true sh build/k3s-install.sh
+build/k3s-install.sh: $(ENV_FILE)
+	mkdir -p build
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		curl --fail --location "https://raw.githubusercontent.com/k3s-io/k3s/$${K3S_VERSION:?}/install.sh" --output "$@"
+/var/lib/monadiam/k3s.ext4:
+	sudo install -d /var/lib/monadiam
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		sudo mkfs.ext4 -m 0 "$@" "$${K3S_STATE_SIZE:?}"
+/var/lib/monadiam/k3s-volumes.ext4:
+	sudo install -d /var/lib/monadiam
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		sudo mkfs.ext4 -m 0 "$@" "$${K3S_VOLUMES_SIZE:?}"
+k3s-start:
+	sudo systemctl start k3s
+	sudo k3s kubectl wait --for=create node/monadiam-$(PROFILE) --timeout=180s
+	sudo k3s kubectl wait --for=condition=Ready node --all --timeout=180s
+	mkdir -p "$(HOME)/.kube"
+	sudo install -m 600 -o "$$(id -u)" -g "$$(id -g)" /etc/rancher/k3s/k3s.yaml "$(HOME)/.kube/monadiam-$(PROFILE).yaml"
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-$(PROFILE).yaml" config rename-context default monadiam-$(PROFILE)
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-$(PROFILE).yaml" apply --server-side --field-manager=resource-budget \
+		-f clusters/$(PROFILE)/system/limits.yaml -f clusters/$(PROFILE)/system/coredns.yaml -f clusters/$(PROFILE)/system/metrics-server.yaml
+k3s-status:
+	systemctl status k3s --no-pager
+	systemctl show monadiam.slice -p CPUQuotaPerSecUSec -p MemoryHigh -p MemoryMax -p MemoryCurrent
 
 # Zot
 zot-install: /var/lib/monadiam/zot.ext4
 	sudo install -d /etc/monadiam/zot
+	sudo install -m 644 clusters/$(PROFILE)/k3s/monadiam.slice /etc/systemd/system/
 	sudo install -m 644 bootstrap/zot/compose.yaml bootstrap/zot/config.json /etc/monadiam/zot/
 	sudo install -m 644 bootstrap/zot/monadiam-zot.service bootstrap/zot/var-lib-monadiam-zot.mount /etc/systemd/system/
 	sudo systemctl daemon-reload
@@ -50,6 +91,7 @@ zot-logs:
 # Redis backups
 redis-backup-install: /var/lib/monadiam/redis-backups.ext4
 	sudo install -d -m 700 /etc/monadiam/redis-backup
+	sudo install -m 644 clusters/$(PROFILE)/k3s/monadiam.slice /etc/systemd/system/
 	sudo install -m 755 bootstrap/redis-backup/backup.sh /etc/monadiam/redis-backup/
 	sudo install -m 644 bootstrap/redis-backup/*.service bootstrap/redis-backup/*.timer bootstrap/redis-backup/*.mount /etc/systemd/system/
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
@@ -72,16 +114,15 @@ redis-backup-logs:
 # Infrastructure
 env:
 	$(GO) run . config init --env-file "$(ENV_FILE)"
-start: env zot-start
-	$(GO) run . cluster start --env-file "$(ENV_FILE)"
-resume: env zot-start
-	$(GO) run . cluster resume --env-file "$(ENV_FILE)"
+start: env k3s-start
+	$(MAKE) COMPONENT=storage platform-apply
+	$(MAKE) COMPONENT=all reconcile
+resume: start
 stop:
-	$(GO) run . cluster stop --env-file "$(ENV_FILE)"
-restart: env zot-start
-	$(GO) run . cluster restart --env-file "$(ENV_FILE)"
-recreate: env zot-start
-	$(GO) run . cluster recreate --confirm-delete --env-file "$(ENV_FILE)"
+	sudo /usr/local/bin/k3s-killall.sh
+restart:
+	$(MAKE) stop
+	$(MAKE) start
 status:
 	$(GO) run . cluster status --env-file "$(ENV_FILE)"
 

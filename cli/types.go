@@ -9,11 +9,6 @@ type commandHandler func(*application, context.Context) error
 const usage = `Usage:
   infra config init [--env-file=.env.dev]
   infra config validate [options]
-  infra cluster start [options]
-  infra cluster resume [options]
-  infra cluster stop [options]
-  infra cluster restart [options]
-  infra cluster recreate --confirm-delete [options]
   infra cluster status [options]
   infra platform reconcile [--component=all] [options]
   infra vault initialize [options]

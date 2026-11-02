@@ -1,0 +1,8 @@
+[Unit]
+Description=MonadIAM K3s state and image storage
+
+[Mount]
+What=/var/lib/monadiam/k3s.ext4
+Where=/var/lib/monadiam/k3s
+Type=ext4
+Options=loop,nodev,nosuid
