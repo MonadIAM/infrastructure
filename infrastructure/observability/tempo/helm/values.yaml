@@ -40,7 +40,7 @@ serviceMonitor:
 
 persistence:
   enabled: true
-  storageClassName: local-path-retain
+  storageClassName: local-retain
   accessModes:
     - ReadWriteOnce
   size: 2Gi

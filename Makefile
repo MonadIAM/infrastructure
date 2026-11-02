@@ -23,7 +23,7 @@ export TF_VAR_vault_chart_version = $(VAULT_CHART_VERSION)
 export TF_VAR_hashicorp_repository = $(HASHICORP_HELM_REPO)
 export TF_VAR_kv_mount = $(VAULT_KV_MOUNT)
 
-.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
+.PHONY: env start resume stop restart status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
 .PHONY: zot-install zot-start zot-stop zot-status zot-logs
 .PHONY: redis-backup-install redis-backup redis-backup-status redis-backup-logs
 .PHONY: k3s-install k3s-start k3s-status
@@ -114,16 +114,15 @@ redis-backup-logs:
 # Infrastructure
 env:
 	$(GO) run . config init --env-file "$(ENV_FILE)"
-start: env zot-start
-	$(GO) run . cluster start --env-file "$(ENV_FILE)"
-resume: env zot-start
-	$(GO) run . cluster resume --env-file "$(ENV_FILE)"
+start: env k3s-start
+	$(MAKE) COMPONENT=storage platform-apply
+	$(MAKE) COMPONENT=all reconcile
+resume: start
 stop:
-	$(GO) run . cluster stop --env-file "$(ENV_FILE)"
-restart: env zot-start
-	$(GO) run . cluster restart --env-file "$(ENV_FILE)"
-recreate: env zot-start
-	$(GO) run . cluster recreate --confirm-delete --env-file "$(ENV_FILE)"
+	sudo /usr/local/bin/k3s-killall.sh
+restart:
+	$(MAKE) stop
+	$(MAKE) start
 status:
 	$(GO) run . cluster status --env-file "$(ENV_FILE)"
 

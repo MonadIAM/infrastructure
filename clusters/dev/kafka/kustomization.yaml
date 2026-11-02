@@ -9,6 +9,12 @@ patches:
   - path: kafka.yaml
   - path: connect.yaml
   - target:
+      kind: KafkaConnector
+    patch: |-
+      - op: replace
+        path: /spec/config/snapshot.mode
+        value: when_needed
+  - target:
       kind: KafkaTopic
     patch: |-
       - op: add

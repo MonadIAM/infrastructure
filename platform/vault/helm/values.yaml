@@ -35,13 +35,11 @@ server:
 
   dataStorage:
     enabled: true
-    storageClass: local-path-retain
+    storageClass: local-retain
     accessMode: ReadWriteOnce
 
   auditStorage:
-    enabled: true
-    storageClass: local-path-retain
-    accessMode: ReadWriteOnce
+    enabled: false
 
   persistentVolumeClaimRetentionPolicy:
     whenDeleted: Retain

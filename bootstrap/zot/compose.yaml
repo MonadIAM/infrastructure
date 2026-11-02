@@ -42,6 +42,8 @@ configs:
 networks:
   default:
     name: monadiam-zot
+    driver_opts:
+      com.docker.network.bridge.trusted_host_interfaces: cni0
     ipam:
       config:
         - subnet: 172.30.0.0/24

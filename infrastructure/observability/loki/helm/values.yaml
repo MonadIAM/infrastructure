@@ -51,7 +51,7 @@ singleBinary:
       memory: 768Mi
   persistence:
     enabled: true
-    storageClass: local-path-retain
+    storageClass: local-retain
     accessModes:
       - ReadWriteOnce
     size: 2Gi

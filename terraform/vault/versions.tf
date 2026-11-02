@@ -11,6 +11,7 @@ terraform {
 
 provider "vault" {}
 
+variable "profile" { type = string }
 variable "kv_mount" { type = string }
 variable "auth_mount" { type = string }
 variable "audience" { type = string }

@@ -6,10 +6,10 @@ replica:
     minAvailable: ""
     maxUnavailable: 1
   persistence:
-    storageClass: local-path-retain
+    storageClass: local-retain
 
 sentinel:
   quorum: 1
   redisShutdownWaitFailover: false
   persistence:
-    storageClass: local-path-retain
+    storageClass: local-retain

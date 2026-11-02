@@ -81,10 +81,10 @@ resource "vault_kubernetes_auth_backend_role" "app" {
 }
 
 resource "vault_audit" "file" {
+  count   = var.profile == "dev" ? 0 : 1
   type    = "file"
   path    = "file"
-  options = { file_path = "/vault/audit/audit.log" }
-  lifecycle { prevent_destroy = true }
+  options = { file_path = "stdout" }
 }
 
 resource "vault_transit_secret_backend_key" "app" {

@@ -23,7 +23,7 @@ spec:
       containers:
         - name: bootstrap
           image: {{ .Values.image | quote }}
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           args:
             - seaweedfs
             - reconcile

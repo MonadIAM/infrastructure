@@ -1,2 +1,2 @@
 global:
-  platform: k3d
+  platform: k3s

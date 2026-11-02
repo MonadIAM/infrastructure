@@ -14,7 +14,7 @@ alertmanager:
     storage:
       volumeClaimTemplate:
         spec:
-          storageClassName: local-path-retain
+          storageClassName: local-retain
           accessModes:
             - ReadWriteOnce
           resources:
@@ -51,7 +51,7 @@ grafana:
   defaultDashboardsEnabled: true
   persistence:
     enabled: true
-    storageClassName: local-path-retain
+    storageClassName: local-retain
     accessModes:
       - ReadWriteOnce
     size: 1Gi
@@ -109,7 +109,7 @@ prometheus:
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: local-path-retain
+          storageClassName: local-retain
           accessModes:
             - ReadWriteOnce
           resources:
