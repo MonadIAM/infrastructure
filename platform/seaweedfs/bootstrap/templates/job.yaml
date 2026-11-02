@@ -2,6 +2,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: seaweedfs-main-bootstrap
+  namespace: {{ .Release.Namespace }}
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 180
@@ -21,7 +22,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: bootstrap
-          image: "${SEAWEEDFS_BOOTSTRAP_IMAGE}"
+          image: {{ .Values.image | quote }}
           imagePullPolicy: Never
           args:
             - seaweedfs

@@ -2,29 +2,11 @@ package stand
 
 import (
 	"context"
-	"strings"
 	"time"
 )
 
 func (platform Platform) KafkaResources(ctx context.Context) error {
-	for _, key := range kafkaPartitionKeys {
-		_, err := platform.Environment.PositiveInt(key)
-		if err != nil {
-			return err
-		}
-	}
-
-	data, err := platform.Kubernetes.Capture(ctx, "kustomize", "platform/kafka/resources")
-	if err != nil {
-		return err
-	}
-
-	rendered := string(data)
-	for _, key := range kafkaPartitionKeys {
-		rendered = strings.ReplaceAll(rendered, "${"+key+"}", platform.Environment[key])
-	}
-
-	return platform.Kubernetes.Apply(ctx, []byte(rendered), false)
+	return platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/kafka")
 }
 
 func (platform Platform) Clusters(ctx context.Context) error {

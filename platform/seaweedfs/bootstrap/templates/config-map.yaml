@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seaweedfs-main-bootstrap
+  namespace: {{ .Release.Namespace }}
+data:
+{{ .Values.environment | toYaml | indent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: seaweedfs-main-buckets
+  namespace: {{ .Release.Namespace }}
+data:
+{{ (.Files.Glob "files/*.json").AsConfig | indent 2 }}

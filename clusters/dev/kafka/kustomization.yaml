@@ -1,0 +1,61 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../platform/kafka/resources
+
+patches:
+  - target:
+      kind: KafkaTopic
+      name: realm|position|projection-journal
+    patch: |-
+      - op: replace
+        path: /spec/partitions
+        value: 4
+
+replacements:
+  - source:
+      kind: KafkaTopic
+      name: projection-journal
+      fieldPath: spec.partitions
+    targets:
+      - select:
+          kind: KafkaConnector
+        fieldPaths:
+          - spec.config.[transforms.partition.partition.topic.num]
+        options:
+          create: true
+  - source:
+      kind: KafkaTopic
+      name: realm
+      fieldPath: spec.partitions
+    targets:
+      - select:
+          kind: KafkaConnector
+        fieldPaths:
+          - spec.config.[transforms.realmPartition.partition.topic.num]
+        options:
+          create: true
+  - source:
+      kind: KafkaTopic
+      name: position
+      fieldPath: spec.partitions
+    targets:
+      - select:
+          kind: KafkaConnector
+        fieldPaths:
+          - spec.config.[transforms.positionPartition.partition.topic.num]
+        options:
+          create: true
+  - source:
+      kind: KafkaTopic
+      name: account
+      fieldPath: spec.partitions
+    targets:
+      - select:
+          kind: KafkaConnector
+          name: identity-postgresql-outbox
+        fieldPaths:
+          - spec.config.[transforms.accountPartition.partition.topic.num]
+        options:
+          create: true
