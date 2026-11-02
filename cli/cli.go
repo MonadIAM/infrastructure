@@ -87,7 +87,7 @@ func parseOptions(name string, args []string, output io.Writer) (commandOptions,
 	flags.SetOutput(io.Discard)
 	flags.Usage = func() {}
 
-	flags.StringVar(&options.envFile, "env-file", ".env", "dotenv path; empty disables file loading")
+	flags.StringVar(&options.envFile, "env-file", ".env.dev", "dotenv path; empty disables file loading")
 	if name != "config init" {
 		flags.StringVar(&options.timeout, "timeout", "", "total execution timeout, e.g. 60m")
 	}

@@ -37,7 +37,7 @@ func (platform Platform) Vault(ctx context.Context) error {
 }
 
 func (platform Platform) installVault(ctx context.Context) error {
-	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"-f", "terraform/Makefile", "ROOT=vault-server", "apply"}})
+	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=vault-server", "terraform-apply"}})
 	if err != nil {
 		return err
 	}

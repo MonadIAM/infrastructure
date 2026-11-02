@@ -7,7 +7,7 @@ import (
 type commandHandler func(*application, context.Context) error
 
 const usage = `Usage:
-  infra config init [--env-file=.env]
+  infra config init [--env-file=.env.dev]
   infra config validate [options]
   infra cluster start [options]
   infra cluster resume [options]
@@ -21,7 +21,7 @@ const usage = `Usage:
   infra vault exec [options] -- command [arguments]
   infra seaweedfs reconcile [options]
 
-Options: --env-file=.env, --timeout=60m
+Options: --env-file=.env.dev, --timeout=60m
 Components: all, cert-manager, metrics-server, istio, gateway, vault,
             operators, clusters, seaweedfs, observability
 Run from the stand repository root. Use --env-file= for environment-only configuration.
