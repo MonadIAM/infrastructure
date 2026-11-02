@@ -29,7 +29,7 @@ var _ = Describe("[Infrastructure] - Istio", func() {
 		runner := runnerFunc(func(_ context.Context, request command.Request) (command.Result, error) {
 			if request.Name == "helm" && request.Args[0] == "upgrade" {
 				operations = append(operations, "install "+request.Args[2])
-				Expect(request.Args).To(ContainElement("global.platform=k3d"))
+				Expect(request.Args).To(ContainElement("clusters/dev/istio/values.yaml"))
 				Expect(request.Args).To(ContainElement(environment["ISTIO_VERSION"]))
 			}
 

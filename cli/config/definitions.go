@@ -1,9 +1,7 @@
 package config
 
 var required = []string{
-	"CLUSTER",
 	"KUBE_CONTEXT",
-	"K3D_CONFIG",
 	"GODEBUG",
 	"CERT_MANAGER_VERSION",
 	"CERT_MANAGER_CHART",

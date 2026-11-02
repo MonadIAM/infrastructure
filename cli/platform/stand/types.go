@@ -28,15 +28,6 @@ type secretCondition struct {
 	Status string `json:"status"`
 }
 
-type clusterSummary struct {
-	Name string `json:"name"`
-}
-
-type portBinding struct {
-	HostIP   string `json:"HostIp"`
-	HostPort string `json:"HostPort"`
-}
-
 type staticSecret struct {
 	Metadata struct {
 		Generation int64 `json:"generation"`

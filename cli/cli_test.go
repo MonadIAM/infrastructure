@@ -50,7 +50,7 @@ var _ = Describe("[CLI] - Commands", func() {
 				Expect(output.String()).To(ContainSubstring("Usage:"))
 			},
 			Entry("[case] - root help", []string{"--help"}),
-			Entry("[case] - cluster help", []string{"cluster", "start", "--help"}),
+			Entry("[case] - cluster help", []string{"cluster", "status", "--help"}),
 			Entry("[case] - platform help", []string{"platform", "reconcile", "--help"}),
 		)
 
@@ -68,14 +68,14 @@ var _ = Describe("[CLI] - Commands", func() {
 				Expect(output.String()).NotTo(ContainSubstring("private-value"))
 			},
 			Entry("[case] - unknown command", []string{"private-value", "start"}),
-			Entry("[case] - unknown flag", []string{"cluster", "start", "--private-value"}),
-			Entry("[case] - positional argument", []string{"cluster", "stop", "private-value"}),
+			Entry("[case] - unknown flag", []string{"cluster", "status", "--private-value"}),
+			Entry("[case] - positional argument", []string{"cluster", "status", "private-value"}),
 		)
 
 		Context("[Behavior] - validates input before execution", func() {
 			It("[case] - validates the example without external tools", func() {
 				// Arrange
-				environment, readErr := godotenv.Read("../.env.example")
+				environment, readErr := godotenv.Read("../.env.dev.example")
 				Expect(readErr).To(Succeed())
 
 				for key, value := range environment {
@@ -86,23 +86,11 @@ var _ = Describe("[CLI] - Commands", func() {
 				var output bytes.Buffer
 
 				// Act
-				err := Run(context.Background(), []string{"config", "validate", "--env-file=../.env.example"}, &output)
+				err := Run(context.Background(), []string{"config", "validate", "--env-file=../.env.dev.example"}, &output)
 
 				// Assert
 				Expect(err).To(Succeed())
 				Expect(output.String()).To(Equal("Stand configuration is valid.\n"))
-			})
-
-			It("[case] - rejects unconfirmed recreation before launching tools", func() {
-				// Arrange
-				var output bytes.Buffer
-
-				// Act
-				err := Run(context.Background(), []string{"cluster", "recreate", "--env-file="}, &output)
-
-				// Assert
-				Expect(err).To(MatchError(ContainSubstring("--confirm-delete")))
-				Expect(output.String()).To(BeEmpty())
 			})
 
 			It("[case] - an explicitly empty timeout overrides the environment and fails", func() {
@@ -111,7 +99,7 @@ var _ = Describe("[CLI] - Commands", func() {
 				var output bytes.Buffer
 
 				// Act
-				err := Run(context.Background(), []string{"cluster", "stop", "--env-file=", "--timeout="}, &output)
+				err := Run(context.Background(), []string{"cluster", "status", "--env-file=", "--timeout="}, &output)
 
 				// Assert
 				Expect(err).To(MatchError("config.Environment.Duration: INFRA_TIMEOUT must be a positive duration"))

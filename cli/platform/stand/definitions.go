@@ -44,17 +44,6 @@ var redisClusters = []string{
 	"hr-redis",
 }
 
-var applications = []struct {
-	Name string
-	Port string
-}{
-	{Name: "access-control", Port: "4001"},
-	{Name: "identity", Port: "4002"},
-	{Name: "notification", Port: "4003"},
-	{Name: "organization", Port: "4004"},
-	{Name: "hr", Port: "4005"},
-}
-
 func (platform Platform) phases() []phaseDefinition {
 	phases := []phaseDefinition{
 		{
