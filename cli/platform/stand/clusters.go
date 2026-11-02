@@ -130,17 +130,5 @@ func (platform Platform) waitKafka(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Kubernetes.Wait(ctx, messagingNamespace, "kafkaconnect.kafka.strimzi.io/kafka-connect", "condition=Ready", "900s")
-	if err != nil {
-		return err
-	}
-
-	for _, cluster := range postgresqlClusters {
-		err = platform.Kubernetes.Wait(ctx, messagingNamespace, "kafkaconnector.kafka.strimzi.io/"+cluster+"-outbox", "condition=Ready", "300s")
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return platform.Kubernetes.Wait(ctx, messagingNamespace, "kafkaconnect.kafka.strimzi.io/kafka-connect", "condition=Ready", "900s")
 }

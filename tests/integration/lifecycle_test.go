@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("[Infrastructure] - Stand lifecycle", Label("integration", "lifecycle"), func() {
+var _ = Describe("[Infrastructure] - Stand lifecycle", Label("integration", "lifecycle", "slow"), func() {
 	Describe("[Behavior] - repeated reconciliation", func() {
 		It("[case] - preserves volumes, credentials, PostgreSQL rows, Redis values and archive objects", func(ctx SpecContext) {
 			// Arrange
@@ -45,7 +45,7 @@ var _ = Describe("[Infrastructure] - Stand lifecycle", Label("integration", "lif
 			Expect(redisValues).To(HaveEach(Equal(fixture.name)))
 			Expect(storageErr).NotTo(HaveOccurred())
 			Expect(archiveErr).NotTo(HaveOccurred())
-		}, SpecTimeout(35*time.Minute))
+		}, NodeTimeout(35*time.Minute))
 	})
 
 	Describe("[Behavior] - cluster deletion protection", func() {
@@ -73,7 +73,7 @@ var _ = Describe("[Infrastructure] - Stand lifecycle", Label("integration", "lif
 			Expect(redisErr).NotTo(HaveOccurred())
 			Expect(redisValues).To(HaveLen(len(services)))
 			Expect(redisValues).To(HaveEach(Equal(fixture.name)))
-		}, SpecTimeout(3*time.Minute))
+		}, NodeTimeout(3*time.Minute))
 	})
 
 	Describe("[Behavior] - cluster restart", func() {
@@ -115,6 +115,6 @@ var _ = Describe("[Infrastructure] - Stand lifecycle", Label("integration", "lif
 			Expect(redisErr).NotTo(HaveOccurred())
 			Expect(redisValues).To(HaveLen(len(services)))
 			Expect(redisValues).To(HaveEach(Equal(fixture.name)))
-		}, SpecTimeout(35*time.Minute))
+		}, NodeTimeout(35*time.Minute))
 	})
 })

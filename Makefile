@@ -5,9 +5,12 @@ GINKGO := $(GO) run github.com/onsi/ginkgo/v2/ginkgo
 GOLANGCI_LINT := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 ENV_FILE ?= .env
 COMPONENT ?= all
-FILTER ?=
+FILTER ?= bootstrap
+FOCUS ?=
+INTEGRATION_STATE_DIR ?= $(abspath build/integration)
+INTEGRATION_TEST := INTEGRATION_STATE_DIR="$(INTEGRATION_STATE_DIR)" $(GINKGO) -v --show-node-events --fail-on-empty --tags=integration --poll-progress-after=30s --poll-progress-interval=30s --output-dir=build
 
-.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest gitops-credentials gitops-ui
+.PHONY: env start resume stop restart recreate status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui
 
 # Infrastructure
 env:
@@ -52,7 +55,16 @@ utest:
 	$(GINKGO) --fd --succinct=false --keep-going --race ./cli/...
 itest:
 	mkdir -p build
-	$(GINKGO) --fd --succinct=false --keep-going --tags=integration --label-filter="$(FILTER)" --timeout=2h --output-dir=build --json-report=integration-report.json ./tests/integration/...
+	INTEGRATION_ACTION=check $(INTEGRATION_TEST) --label-filter="($(FILTER)) && !slow && !environment" --focus="$(FOCUS)" --timeout=15m --json-report=integration-report.json ./tests/integration/...
+itest-prepare:
+	mkdir -p build
+	INTEGRATION_ACTION=prepare $(INTEGRATION_TEST) --label-filter=environment-prepare --timeout=65m --json-report=integration-prepare-report.json ./tests/integration/...
+itest-cleanup:
+	mkdir -p build
+	INTEGRATION_ACTION=cleanup $(INTEGRATION_TEST) --label-filter=environment-cleanup --timeout=6m --json-report=integration-cleanup-report.json ./tests/integration/...
+itest-slow:
+	mkdir -p build
+	INTEGRATION_ACTION=check $(INTEGRATION_TEST) --label-filter="($(FILTER)) && slow && !environment" --focus="$(FOCUS)" --timeout=2h --json-report=integration-slow-report.json ./tests/integration/...
 
 platform-plan:
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT="$(COMPONENT)" plan

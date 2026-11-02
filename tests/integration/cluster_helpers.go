@@ -4,6 +4,7 @@ package integration
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -27,6 +29,7 @@ type clusterFixture struct {
 
 func (fixture *clusterFixture) prepare(ctx context.Context) {
 	ginkgo.GinkgoHelper()
+	ginkgo.By("Checking tools and copying integration configuration")
 
 	programs := []string{"go", "docker", "k3d", "kubectl", "helm", "terraform", "make"}
 
@@ -41,6 +44,7 @@ func (fixture *clusterFixture) prepare(ctx context.Context) {
 	directories := []string{"applications", "clusters", "infrastructure", "platform", "cli"}
 
 	for _, directory := range directories {
+		gomega.Expect(os.RemoveAll(filepath.Join(fixture.directory, directory))).To(gomega.Succeed())
 		err := os.CopyFS(filepath.Join(fixture.directory, directory), os.DirFS(filepath.Join(source, directory)))
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	}
@@ -63,13 +67,11 @@ func (fixture *clusterFixture) prepare(ctx context.Context) {
 		gomega.Expect(os.WriteFile(filepath.Join(fixture.directory, file), data, 0600)).To(gomega.Succeed())
 	}
 
-	fixture.prepareEnvironment(source)
 	fixture.prepareManifests()
 
-	command := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(fixture.directory, "infra"), ".")
-	command.Dir = source
-	output, err := command.CombinedOutput()
-	gomega.Expect(err).NotTo(gomega.HaveOccurred(), string(output))
+	ginkgo.By("Building the infrastructure CLI")
+	output, err := fixture.runLogged(ctx, "go", "build", "-o", filepath.Join(fixture.directory, "infra"), ".")
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), output)
 }
 
 func (fixture *clusterFixture) prepareEnvironment(source string) {
@@ -94,11 +96,9 @@ func (fixture *clusterFixture) prepareEnvironment(source string) {
 	values["HELM_REGISTRY_CONFIG"] = filepath.Join(fixture.directory, "helm", "config", "registry.json")
 	values["INTEGRATION_REGISTRY"] = fixture.registry()
 
-	fixture.environment = os.Environ()
-
-	for key, value := range values {
-		fixture.environment = append(fixture.environment, key+"="+value)
-	}
+	data, err := godotenv.Marshal(values)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred())
+	gomega.Expect(os.WriteFile(filepath.Join(fixture.directory, "fixture.env"), []byte(data), 0600)).To(gomega.Succeed())
 }
 
 func (fixture *clusterFixture) prepareManifests() {
@@ -124,23 +124,49 @@ func (fixture *clusterFixture) registry() string {
 }
 
 func (fixture *clusterFixture) run(ctx context.Context, name string, args ...string) (string, error) {
+	return fixture.execute(ctx, io.Discard, name, args...)
+}
+
+func (fixture *clusterFixture) runLogged(ctx context.Context, name string, args ...string) (string, error) {
+	ginkgo.GinkgoHelper()
+	ginkgo.By(fmt.Sprintf("%s %q", filepath.Base(name), args))
+	return fixture.execute(ctx, ginkgo.GinkgoWriter, name, args...)
+}
+
+func (fixture *clusterFixture) execute(ctx context.Context, output io.Writer, name string, args ...string) (string, error) {
 	command := exec.CommandContext(ctx, name, args...)
 	command.Dir = fixture.directory
 	command.Env = fixture.environment
 	command.WaitDelay = 5 * time.Second
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error {
+		err := syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+		if err == syscall.ESRCH {
+			return os.ErrProcessDone
+		}
 
-	output, err := command.CombinedOutput()
+		return err
+	}
+	var captured bytes.Buffer
+	command.Stdout = io.MultiWriter(&captured, output)
+	command.Stderr = command.Stdout
 
-	return string(output), err
+	err := command.Run()
+
+	return captured.String(), err
 }
 
 func (fixture *clusterFixture) cli(ctx context.Context, args ...string) (string, error) {
-	return fixture.run(ctx, filepath.Join(fixture.directory, "infra"), append(args, "--env-file=")...)
+	return fixture.runLogged(ctx, filepath.Join(fixture.directory, "infra"), append(args, "--env-file=")...)
 }
 
 func (fixture *clusterFixture) kubectl(ctx context.Context, args ...string) (string, error) {
 	options := []string{"--context", "k3d-" + fixture.name, "--request-timeout=30s"}
+	return fixture.runLogged(ctx, "kubectl", append(options, args...)...)
+}
 
+func (fixture *clusterFixture) kubectlSensitive(ctx context.Context, args ...string) (string, error) {
+	options := []string{"--context", "k3d-" + fixture.name, "--request-timeout=30s"}
 	return fixture.run(ctx, "kubectl", append(options, args...)...)
 }
 
@@ -149,12 +175,14 @@ func (fixture *clusterFixture) diagnostics(ctx context.Context) {
 		{"get", "pods", "-A", "-o", "wide"},
 		{"get", "pvc", "-A"},
 		{"get", "events", "-A", "--field-selector=type=Warning"},
+		{"logs", "-n", "vault", "vault-0", "--tail=100"},
+		{"get", "kafkaconnectors.kafka.strimzi.io", "-n", "monadiam-messaging", "-o", `jsonpath={range .items[*]}{.metadata.name}{"\n"}{.status.conditions}{"\n"}{.status.connectorStatus}{"\n"}{end}`},
+		{"logs", "-n", "monadiam-messaging", "-l", "strimzi.io/name=kafka-connect-connect", "--all-containers=true", "--tail=100", "--prefix=true"},
 	}
 
 	for _, args := range commands {
-		output, err := fixture.kubectl(ctx, args...)
+		_, err := fixture.kubectl(ctx, args...)
 		_, _ = fmt.Fprintln(ginkgo.GinkgoWriter, strings.Join(args, " "), err)
-		_, _ = io.WriteString(ginkgo.GinkgoWriter, output)
 	}
 
 	output, err := fixture.run(ctx, "docker", "logs", "--tail", "30", "k3d-"+fixture.name+"-server-0")
@@ -165,7 +193,7 @@ func (fixture *clusterFixture) diagnostics(ctx context.Context) {
 func (fixture *clusterFixture) cleanup(ctx context.Context) {
 	ginkgo.GinkgoHelper()
 
-	clusterOutput, clusterErr := fixture.run(ctx, "k3d", "cluster", "delete", fixture.name)
+	clusterOutput, clusterErr := fixture.runLogged(ctx, "k3d", "cluster", "delete", fixture.name)
 	registryOutput, registryErr := fixture.removeRegistry(ctx)
 	containers, containersErr := fixture.run(ctx, "docker", "ps", "-a", "--filter", "name=k3d-"+fixture.name, "--format", "{{.Names}}")
 	volumes, volumesErr := fixture.run(ctx, "docker", "volume", "ls", "--filter", "name=k3d-"+fixture.name, "--format", "{{.Name}}")
@@ -190,7 +218,7 @@ func (fixture *clusterFixture) removeRegistry(ctx context.Context) (string, erro
 	if strings.TrimSpace(output) == "" {
 		return "", nil
 	} else {
-		return fixture.run(ctx, "k3d", "registry", "delete", fixture.registry())
+		return fixture.runLogged(ctx, "k3d", "registry", "delete", fixture.registry())
 	}
 }
 
@@ -212,6 +240,7 @@ func (fixture *clusterFixture) forward(ctx context.Context, target, remotePort s
 	ctx, cancel := context.WithCancel(ctx)
 	command := exec.CommandContext(ctx, "kubectl", "--context", "k3d-"+fixture.name,
 		"port-forward", "--address=127.0.0.1", "-n", "monadiam-data", target, ":"+remotePort)
+	ginkgo.By("Opening port-forward to " + target + ":" + remotePort)
 	command.Env = fixture.environment
 	command.Stderr = ginkgo.GinkgoWriter
 	command.WaitDelay = 5 * time.Second
@@ -255,7 +284,7 @@ func (fixture *clusterFixture) forward(ctx context.Context, target, remotePort s
 
 func (fixture *clusterFixture) secret(ctx context.Context, name string) map[string][]byte {
 	ginkgo.GinkgoHelper()
-	output, err := fixture.kubectl(ctx, "get", "secret", name, "-n", "monadiam-data", "-o", "json")
+	output, err := fixture.kubectlSensitive(ctx, "get", "secret", name, "-n", "monadiam-data", "-o", "json")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "read secret "+name)
 	var secret resource
 	gomega.Expect(json.Unmarshal([]byte(output), &secret)).To(gomega.Succeed())

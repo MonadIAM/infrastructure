@@ -12,11 +12,6 @@ import (
 )
 
 var _ = Describe("[Infrastructure] - GitOps", Ordered, Label("integration", "gitops"), func() {
-	BeforeAll(func(ctx SpecContext) {
-		output, err := fixture.run(ctx, "make", "-f", "terraform/Makefile", "ROOT=gitops", "apply")
-		Expect(err).NotTo(HaveOccurred(), output)
-	}, NodeTimeout(15*time.Minute))
-
 	Describe("[Behavior] - controller deployment", func() {
 		DescribeTable("[case] - starts the workload", func(ctx SpecContext, workload string) {
 			// Arrange
@@ -28,10 +23,10 @@ var _ = Describe("[Infrastructure] - GitOps", Ordered, Label("integration", "git
 			// Assert
 			Expect(err).NotTo(HaveOccurred(), output)
 		},
-			Entry("application controller", "statefulset/argocd-application-controller", SpecTimeout(3*time.Minute)),
-			Entry("repository server", "deployment/argocd-repo-server", SpecTimeout(3*time.Minute)),
-			Entry("API server", "deployment/argocd-server", SpecTimeout(3*time.Minute)),
-			Entry("image updater", "deployment/argocd-image-updater-controller", SpecTimeout(3*time.Minute)),
+			Entry("application controller", "statefulset/argocd-application-controller", NodeTimeout(3*time.Minute)),
+			Entry("repository server", "deployment/argocd-repo-server", NodeTimeout(3*time.Minute)),
+			Entry("API server", "deployment/argocd-server", NodeTimeout(3*time.Minute)),
+			Entry("image updater", "deployment/argocd-image-updater-controller", NodeTimeout(3*time.Minute)),
 		)
 	})
 
@@ -45,7 +40,7 @@ var _ = Describe("[Infrastructure] - GitOps", Ordered, Label("integration", "git
 
 			// Assert
 			Expect(err).NotTo(HaveOccurred(), output)
-		}, SpecTimeout(5*time.Minute))
+		}, NodeTimeout(5*time.Minute))
 	})
 
 	Describe("[Behavior] - repository access", func() {
@@ -74,6 +69,6 @@ var _ = Describe("[Infrastructure] - GitOps", Ordered, Label("integration", "git
 			}
 
 			Expect(application.Status.Resources).NotTo(BeEmpty(), output)
-		}, SpecTimeout(4*time.Minute))
+		}, NodeTimeout(4*time.Minute))
 	})
 })

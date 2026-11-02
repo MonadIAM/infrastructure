@@ -3,7 +3,7 @@
 package integration
 
 import (
-	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -21,19 +21,20 @@ var fixture clusterFixture
 var _ = BeforeSuite(func(ctx SpecContext) {
 	configuration, _ := GinkgoConfiguration()
 	Expect(configuration.ParallelTotal).To(Equal(1), "integration tests share one stand; run without -p")
-	fixture = clusterFixture{name: fmt.Sprintf("infra-test-%d", time.Now().UnixNano()), directory: GinkgoT().TempDir()}
-	DeferCleanup(func(ctx SpecContext) { fixture.cleanup(ctx) }, NodeTimeout(5*time.Minute))
-	fixture.prepare(ctx)
-	output, err := fixture.cli(ctx, "cluster", "start")
-	if err != nil {
-		fixture.diagnostics(ctx)
+	action := os.Getenv("INTEGRATION_ACTION")
+	Expect(action).To(BeElementOf("prepare", "check", "cleanup"), "use make itest-prepare, itest, itest-slow or itest-cleanup")
+	By("Opening the saved integration environment: " + action)
+	fixture.open(action)
+	if action == "check" {
+		By("Verifying the identity of the prepared test cluster")
+		fixture.attach(ctx)
+		fixture.prepare(ctx)
 	}
-
-	Expect(err).NotTo(HaveOccurred(), output)
-}, NodeTimeout(35*time.Minute))
+}, NodeTimeout(2*time.Minute))
 
 var _ = AfterEach(func(ctx SpecContext) {
 	if CurrentSpecReport().Failed() {
+		By("Collecting diagnostics after failure")
 		fixture.diagnostics(ctx)
 	}
 }, NodeTimeout(2*time.Minute))

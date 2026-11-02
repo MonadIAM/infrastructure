@@ -48,7 +48,7 @@ var _ = Describe("[Infrastructure] - PostgreSQL", Label("integration", "postgres
 					Expect(state.Volumes).NotTo(HaveKey("monadiam-data/postgresql-main-1"))
 					Expect(writeErr).NotTo(HaveOccurred())
 					Eventually(func() (string, error) { return replica.read(ctx) }).WithContext(ctx).WithTimeout(time.Minute).WithPolling(time.Second).Should(Equal(marker))
-				}, SpecTimeout(3*time.Minute))
+				}, NodeTimeout(3*time.Minute))
 
 				It("[case] - enforces application privileges, service credentials and TLS", func(ctx SpecContext) {
 					// Arrange
@@ -89,11 +89,11 @@ var _ = Describe("[Infrastructure] - PostgreSQL", Label("integration", "postgres
 					Expect(authenticationError.Code).To(Equal("28000"))
 					Expect(errors.As(standbyErr, &authenticationError)).To(BeTrue())
 					Expect(authenticationError.Code).To(Equal("25006"))
-				}, SpecTimeout(3*time.Minute))
+				}, NodeTimeout(3*time.Minute))
 
 			})
 
-			Describe("[Behavior] - recovery", Label("failover"), func() {
+			Describe("[Behavior] - recovery", Label("failover", "slow"), func() {
 				DescribeTable("[Behavior] - restores the topology and preserves replicated rows", func(ctx SpecContext, primaryFailure bool) {
 					// Arrange
 					cluster := service + "-postgresql"
@@ -145,8 +145,8 @@ var _ = Describe("[Infrastructure] - PostgreSQL", Label("integration", "postgres
 
 					Eventually(func() (string, error) { return rejoined.read(ctx) }).WithContext(ctx).WithTimeout(time.Minute).WithPolling(time.Second).Should(Equal(marker + "/recovered"))
 				},
-					Entry("[case] - primary failure", SpecTimeout(10*time.Minute), true),
-					Entry("[case] - replica failure", SpecTimeout(10*time.Minute), false),
+					Entry("[case] - primary failure", NodeTimeout(10*time.Minute), true),
+					Entry("[case] - replica failure", NodeTimeout(10*time.Minute), false),
 				)
 			})
 		})

@@ -105,7 +105,7 @@ func (fixture *clusterFixture) credentials(ctx context.Context) (map[string]stri
 }
 
 func (fixture *clusterFixture) credentialDigest(ctx context.Context, namespace, name string) (string, error) {
-	output, err := fixture.kubectl(ctx, "get", "secret", name, "-n", namespace, "-o", "json")
+	output, err := fixture.kubectlSensitive(ctx, "get", "secret", name, "-n", namespace, "-o", "json")
 	if err != nil {
 		return "", fmt.Errorf("integration.clusterFixture.credentialDigest: read secret %s/%s: %w", namespace, name, err)
 	}

@@ -21,7 +21,7 @@ func (fixture *clusterFixture) storage(ctx context.Context) seaweedfs.Settings {
 
 	secrets := []string{"seaweedfs-main-admin", "seaweedfs-main-archiver"}
 	for _, name := range secrets {
-		output, err := fixture.kubectl(ctx, "get", "secret", name, "-n", "monadiam-data", "-o", "json")
+		output, err := fixture.kubectlSensitive(ctx, "get", "secret", name, "-n", "monadiam-data", "-o", "json")
 		gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
 		var secret resource
