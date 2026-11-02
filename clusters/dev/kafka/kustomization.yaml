@@ -3,8 +3,17 @@ kind: Kustomization
 
 resources:
   - ../../../platform/kafka/resources
+  - nodepool.yaml
 
 patches:
+  - path: kafka.yaml
+  - path: connect.yaml
+  - target:
+      kind: KafkaTopic
+    patch: |-
+      - op: add
+        path: /spec/replicas
+        value: 1
   - target:
       kind: KafkaTopic
       name: realm|position|projection-journal

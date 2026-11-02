@@ -162,6 +162,7 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Version:   environment["STRIMZI_CHART_VERSION"],
 			Namespace: "strimzi-system",
 			Values:    "infrastructure/operators/strimzi/helm/values.yaml",
+			Arguments: []string{"--values", profile + "/kafka/operator.yaml"},
 		},
 		"clickhouse-operator": {
 			Name:      "clickhouse-operator",
