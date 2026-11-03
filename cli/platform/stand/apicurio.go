@@ -15,7 +15,7 @@ func (platform Platform) Apicurio(ctx context.Context) error {
 		return err
 	}
 
-	profile := "clusters/" + platform.Environment["PROFILE"] + "/apicurio"
+	profile := "clusters/" + platform.Environment["PROFILE"] + "/infrastructure/apicurio"
 	err = platform.Kubernetes.ApplyKustomize(ctx, profile+"/kafka")
 	if err != nil {
 		return err

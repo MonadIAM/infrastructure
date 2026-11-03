@@ -41,7 +41,7 @@ func (fixture *clusterFixture) prepare(ctx context.Context) {
 	source, err := filepath.Abs("../..")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 
-	directories := []string{"applications", "clusters", "infrastructure", "platform", "cli"}
+	directories := []string{"applications", "clusters", "infrastructure", "cli"}
 
 	for _, directory := range directories {
 		gomega.Expect(os.RemoveAll(filepath.Join(fixture.directory, directory))).To(gomega.Succeed())
@@ -108,8 +108,8 @@ func (fixture *clusterFixture) prepareManifests() {
 	gomega.Expect(err).NotTo(gomega.HaveOccurred())
 	gomega.Expect(os.WriteFile(filepath.Join(fixture.directory, "cluster.yaml"), configuration, 0600)).To(gomega.Succeed())
 
-	resources := filepath.Join(fixture.directory, "platform", "kafka", "resources")
-	base := filepath.Join(fixture.directory, "platform", "kafka", "base")
+	resources := filepath.Join(fixture.directory, "infrastructure", "kafka", "base")
+	base := filepath.Join(fixture.directory, "infrastructure", "kafka", "integration-base")
 	gomega.Expect(os.Rename(resources, base)).To(gomega.Succeed())
 	gomega.Expect(os.Mkdir(resources, 0700)).To(gomega.Succeed())
 

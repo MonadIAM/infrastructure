@@ -13,7 +13,7 @@ func (platform Platform) CertManager(ctx context.Context) error {
 }
 
 func (platform Platform) MetricsServer(ctx context.Context) error {
-	err := platform.Kubernetes.Run(ctx, "apply", "--server-side", "--field-manager=resource-budget", "-k", "clusters/"+platform.Environment["PROFILE"]+"/system")
+	err := platform.Kubernetes.Run(ctx, "apply", "--server-side", "--field-manager=resource-budget", "-k", "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/system")
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (platform Platform) Istio(ctx context.Context) error {
 		}
 	}
 
-	return platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/networking/istio/resources")
+	return platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/istio/base")
 }
 
 func (platform Platform) Gateway(ctx context.Context) error {
@@ -75,7 +75,7 @@ func (platform Platform) Gateway(ctx context.Context) error {
 		return err
 	}
 
-	data, err := platform.Helm.Execute(ctx, true, "template", "gateway", "infrastructure/networking/gateway-api",
+	data, err := platform.Helm.Execute(ctx, true, "template", "gateway", "infrastructure/gateway-api/chart",
 		"--set-string", "applicationsIP="+platform.Environment["APPLICATIONS_IP"])
 	if err != nil {
 		return err
@@ -120,7 +120,7 @@ func (platform Platform) metricsAvailable(ctx context.Context) (bool, error) {
 }
 
 func (platform Platform) installGatewayAPI(ctx context.Context) error {
-	err := platform.Kubernetes.ApplyKustomize(ctx, "clusters/local")
+	err := platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/namespaces")
 	if err != nil {
 		return err
 	}

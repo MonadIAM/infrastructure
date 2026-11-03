@@ -1,24 +1,5 @@
-variable "profile" {
-  type = string
-}
-
-variable "vault_chart_version" {
-  type = string
-  validation {
-    condition     = trimspace(var.vault_chart_version) != ""
-    error_message = "vault_chart_version is required."
-  }
-}
-variable "hashicorp_repository" {
-  type = string
-  validation {
-    condition     = trimspace(var.hashicorp_repository) != ""
-    error_message = "hashicorp_repository is required."
-  }
-}
-
 locals {
-  issuers = [for document in split("\n---\n", trimspace(file("${path.module}/../../infrastructure/security/cert-manager/resources/issuers.yaml"))) : yamldecode(document)]
+  issuers = [for document in split("\n---\n", trimspace(file("${path.module}/../../infrastructure/cert-manager/base/issuers.yaml"))) : yamldecode(document)]
 }
 
 resource "kubernetes_manifest" "selfsigned" {
@@ -66,7 +47,7 @@ resource "kubernetes_manifest" "ca" {
   lifecycle { prevent_destroy = true }
 }
 resource "kubernetes_manifest" "vault_tls" {
-  manifest   = yamldecode(file("${path.module}/../../platform/vault/resources/certificate.yaml"))
+  manifest   = yamldecode(file("${path.module}/../../infrastructure/vault/base/certificate.yaml"))
   depends_on = [kubernetes_manifest.ca]
   wait {
     condition {
@@ -87,8 +68,8 @@ resource "helm_release" "vault" {
   chart      = "vault"
   version    = var.vault_chart_version
   values = [
-    file("${path.module}/../../platform/vault/helm/values.yaml"),
-    file("${path.module}/../../clusters/${var.profile}/vault/values.yaml")
+    file("${path.module}/../../infrastructure/vault/values.yaml"),
+    file("${path.module}/../../clusters/${var.profile}/infrastructure/vault/values.yaml")
   ]
   depends_on = [kubernetes_manifest.vault_tls]
   wait       = true

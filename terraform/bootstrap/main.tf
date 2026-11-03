@@ -1,22 +1,3 @@
-variable "profile" {
-  type = string
-}
-
-variable "cert_manager_chart" {
-  type = string
-  validation {
-    condition     = trimspace(var.cert_manager_chart) != ""
-    error_message = "cert_manager_chart is required."
-  }
-}
-variable "cert_manager_version" {
-  type = string
-  validation {
-    condition     = trimspace(var.cert_manager_version) != ""
-    error_message = "cert_manager_version is required."
-  }
-}
-
 resource "kubernetes_namespace_v1" "cert_manager" {
   metadata {
     name = "cert-manager"
@@ -52,8 +33,8 @@ resource "helm_release" "cert_manager" {
   chart     = var.cert_manager_chart
   version   = var.cert_manager_version
   values = [
-    file("${path.module}/../../infrastructure/security/cert-manager/helm/values.yaml"),
-    file("${path.module}/../../clusters/${var.profile}/cert-manager/values.yaml")
+    file("${path.module}/../../infrastructure/cert-manager/values.yaml"),
+    file("${path.module}/../../clusters/${var.profile}/infrastructure/cert-manager/values.yaml")
   ]
   wait    = true
   timeout = 300

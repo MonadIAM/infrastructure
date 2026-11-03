@@ -91,7 +91,7 @@ func testSettings() Settings {
 		AdminSecret:    "admin-secret",
 		ArchiverKey:    "archiver",
 		ArchiverSecret: "archiver-secret",
-		ConfigDir:      "../../../platform/seaweedfs/config",
+		ConfigDir:      "../../../infrastructure/seaweedfs/config",
 		Timeout:        time.Second,
 		Buckets: []Bucket{
 			{Name: "audit-archive", Days: 1095},

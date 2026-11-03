@@ -79,7 +79,7 @@ var _ = Describe("[Infrastructure] - Redis", func() {
 				Expect(release.Name).To(Equal("helm"))
 				Expect(release.Args[:4]).To(Equal([]string{"upgrade", "--install", cluster, environment["REDIS_CHART"]}))
 				Expect(strings.Join(release.Args, " ")).To(ContainSubstring("--version " + environment["REDIS_CHART_VERSION"]))
-				Expect(release.Args).To(ContainElement("platform/redis/helm/services/" + strings.TrimSuffix(cluster, "-redis") + ".yaml"))
+				Expect(release.Args).To(ContainElement("infrastructure/redis/services/" + strings.TrimSuffix(cluster, "-redis") + ".yaml"))
 			}
 		})
 	})

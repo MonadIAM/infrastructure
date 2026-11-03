@@ -236,7 +236,7 @@ func Load(environment config.Environment) (Settings, error) {
 		AdminSecret:    environment["SEAWEEDFS_ADMIN_SECRET_KEY"],
 		ArchiverKey:    environment["SEAWEEDFS_ARCHIVER_ACCESS_KEY"],
 		ArchiverSecret: environment["SEAWEEDFS_ARCHIVER_SECRET_KEY"],
-		ConfigDir:      environment.Get("SEAWEEDFS_CONFIG_DIR", "platform/seaweedfs/bootstrap/files"),
+		ConfigDir:      environment.Get("SEAWEEDFS_CONFIG_DIR", "infrastructure/seaweedfs/chart/files"),
 	}
 	var err error
 	settings.Timeout, err = environment.Duration("INFRA_TIMEOUT", "2m")

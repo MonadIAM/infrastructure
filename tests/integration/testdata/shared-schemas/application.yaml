@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/MonadIAM/infrastructure.git
     targetRevision: dev
-    path: platform/apicurio/schemas
+    path: applications/shared-schemas/base
   destination:
     server: https://kubernetes.default.svc
     namespace: monadiam-messaging

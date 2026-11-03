@@ -109,9 +109,9 @@ func (fixture *clusterFixture) prepareGitOps(ctx context.Context) {
 
 	ginkgo.By("Preparing External Secrets and Reloader through Argo CD")
 	output, err = fixture.kubectl(ctx, "apply", "--server-side",
-		"-f", "clusters/dev/gitops/projects.yaml",
-		"-f", "clusters/dev/gitops/external-secrets.yaml",
-		"-f", "clusters/dev/gitops/reloader.yaml")
+		"-f", "clusters/dev/argocd/projects.yaml",
+		"-f", "clusters/dev/argocd/external-secrets.yaml",
+		"-f", "clusters/dev/argocd/reloader.yaml")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), output)
 	for _, application := range []string{"monadiam-external-secrets", "monadiam-reloader"} {
 		output, err = fixture.kubectl(ctx, "wait", "application/"+application, "-n", "argocd",
@@ -119,7 +119,7 @@ func (fixture *clusterFixture) prepareGitOps(ctx context.Context) {
 		gomega.Expect(err).NotTo(gomega.HaveOccurred(), output)
 	}
 
-	output, err = fixture.kubectl(ctx, "apply", "--server-side", "-k", "infrastructure/security/application-secrets")
+	output, err = fixture.kubectl(ctx, "apply", "--server-side", "-k", "infrastructure/application-secrets/base")
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), output)
 	output, err = fixture.kubectl(ctx, "wait", "secretstore/kubernetes-data", "-n", "monadiam-apps",
 		"--for=condition=Ready", "--timeout=60s")

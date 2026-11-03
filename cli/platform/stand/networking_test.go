@@ -29,7 +29,7 @@ var _ = Describe("[Infrastructure] - Istio", func() {
 		runner := runnerFunc(func(_ context.Context, request command.Request) (command.Result, error) {
 			if request.Name == "helm" && request.Args[0] == "upgrade" {
 				operations = append(operations, "install "+request.Args[2])
-				Expect(request.Args).To(ContainElement("clusters/dev/istio/values.yaml"))
+				Expect(request.Args).To(ContainElement("clusters/dev/infrastructure/istio/values.yaml"))
 				Expect(request.Args).To(ContainElement(environment["ISTIO_VERSION"]))
 			}
 
@@ -37,7 +37,7 @@ var _ = Describe("[Infrastructure] - Istio", func() {
 				operations = append(operations, "ready "+request.Args[4])
 			}
 
-			if strings.Contains(strings.Join(request.Args, " "), "infrastructure/networking/istio/resources") {
+			if strings.Contains(strings.Join(request.Args, " "), "infrastructure/istio/base") {
 				operations = append(operations, "policies")
 			}
 
@@ -78,7 +78,7 @@ var _ = Describe("[Infrastructure] - Istio", func() {
 		err := platform.Istio(context.Background())
 
 		Expect(err).To(MatchError("workload unavailable"))
-		Expect(strings.Join(commands, "\n")).NotTo(ContainSubstring("infrastructure/networking/istio/resources"))
+		Expect(strings.Join(commands, "\n")).NotTo(ContainSubstring("infrastructure/istio/base"))
 	},
 		Entry("istiod", "deployment/istiod"),
 		Entry("CNI", "daemonset/istio-cni-node"),

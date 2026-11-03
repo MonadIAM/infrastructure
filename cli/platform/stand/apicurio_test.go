@@ -19,13 +19,13 @@ var _ = Describe("[Infrastructure] - Apicurio", func() {
 	BeforeEach(func() {
 		expected = []string{
 			"wait --for=condition=Ready kafka.kafka.strimzi.io/kafka-main --timeout=900s -n monadiam-messaging",
-			"apply -k clusters/dev/apicurio/kafka",
+			"apply -k clusters/dev/infrastructure/apicurio/kafka",
 			"wait --for=condition=Ready kafkatopic.kafka.strimzi.io/kafkasql-journal --timeout=300s -n monadiam-messaging",
 			"wait --for=condition=Ready kafkatopic.kafka.strimzi.io/kafkasql-snapshots --timeout=300s -n monadiam-messaging",
 			"wait --for=condition=Ready kafkatopic.kafka.strimzi.io/registry-events --timeout=300s -n monadiam-messaging",
 			"wait --for=condition=Ready kafkauser.kafka.strimzi.io/schema-registry-main --timeout=300s -n monadiam-messaging",
 			"wait --for=create secret/schema-registry-main --timeout=180s -n monadiam-messaging",
-			"apply -k clusters/dev/apicurio",
+			"apply -k clusters/dev/infrastructure/apicurio",
 			"rollout status deployment/schema-registry-main -n monadiam-messaging --timeout=600s",
 		}
 	})
