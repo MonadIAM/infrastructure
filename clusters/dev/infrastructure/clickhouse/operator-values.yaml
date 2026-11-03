@@ -12,7 +12,7 @@ metrics:
       cpu: 10m
       memory: 64Mi
     limits:
-      cpu: 100m
+      cpu: 200m
       memory: 128Mi
 crdHook:
   resources:

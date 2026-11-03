@@ -18,7 +18,7 @@ sentinel:
       cpu: 25m
       memory: 32Mi
     limits:
-      cpu: 100m
+      cpu: 200m
       memory: 64Mi
   persistence:
     size: 100Mi
@@ -29,5 +29,5 @@ metrics:
       cpu: 25m
       memory: 64Mi
     limits:
-      cpu: 100m
+      cpu: 200m
       memory: 128Mi
