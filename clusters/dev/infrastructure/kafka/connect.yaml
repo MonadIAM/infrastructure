@@ -17,7 +17,7 @@ spec:
   build:
     output:
       type: docker
-      image: monadiam-registry:5000/monadiam/kafka-connect:3.6.1-final
+      image: monadiam-registry:5000/monadiam/kafka-connect:3.7.0-final
       additionalPushOptions:
         - "--tls-verify=false"
     resources:

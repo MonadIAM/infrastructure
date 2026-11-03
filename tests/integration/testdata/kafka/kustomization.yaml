@@ -11,4 +11,4 @@ patches:
     patch: |-
       - op: replace
         path: /spec/build/output/image
-        value: ${INTEGRATION_REGISTRY}:5000/monadiam/kafka-connect:3.6.1-final
+        value: ${INTEGRATION_REGISTRY}:5000/monadiam/kafka-connect:3.7.0-final

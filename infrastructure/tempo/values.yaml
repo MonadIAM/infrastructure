@@ -8,6 +8,7 @@ global:
 replicas: 1
 
 tempo:
+  memBallastSizeMbs: 0
   resources:
     requests:
       cpu: 50m

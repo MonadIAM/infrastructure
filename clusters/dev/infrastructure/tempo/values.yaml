@@ -1,4 +1,8 @@
 tempo:
+  extraEnv:
+    - name: GOMEMLIMIT
+      value: 1200MiB
   resources:
     limits:
       cpu: 500m
+      memory: 1536Mi
