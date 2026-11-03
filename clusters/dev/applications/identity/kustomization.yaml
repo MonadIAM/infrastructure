@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../../../applications/identity/resources
+  - ../../../../applications/identity/base
 images:
   - name: ghcr.io/monadiam/identity-service
     newName: monadiam-registry:5000/monadiam/identity-service

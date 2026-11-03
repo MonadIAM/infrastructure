@@ -5,7 +5,7 @@ import (
 )
 
 func (platform Platform) Operators(ctx context.Context) error {
-	err := platform.Kubernetes.ApplyKustomize(ctx, "clusters/local")
+	err := platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/namespaces")
 	if err != nil {
 		return err
 	}

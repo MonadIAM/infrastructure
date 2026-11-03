@@ -68,7 +68,7 @@ func (platform Platform) installVaultOperator(ctx context.Context) error {
 		return err
 	}
 
-	return platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/security/vault-secrets-operator/resources")
+	return platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/vault-secrets-operator/base")
 }
 
 func (platform Platform) waitVaultSecrets(ctx context.Context) error {

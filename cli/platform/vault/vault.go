@@ -347,7 +347,7 @@ func (client Client) ensureSeaweedFS(ctx context.Context) error {
 	}
 
 	environment := maps.Clone(client.Environment)
-	configuration, err := os.ReadFile(filepath.Join("clusters", environment["PROFILE"], "seaweedfs", "bootstrap.yaml"))
+	configuration, err := os.ReadFile(filepath.Join("clusters", environment["PROFILE"], "infrastructure", "seaweedfs", "bootstrap-values.yaml"))
 	if err != nil {
 		return err
 	}

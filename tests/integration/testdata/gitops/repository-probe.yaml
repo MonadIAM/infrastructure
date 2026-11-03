@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/MonadIAM/infrastructure.git
     targetRevision: dev
-    path: clusters/local
+    path: clusters/dev/infrastructure/namespaces
   destination:
     server: https://kubernetes.default.svc
     namespace: default

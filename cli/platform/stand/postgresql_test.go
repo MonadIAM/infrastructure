@@ -44,7 +44,7 @@ var _ = Describe("[Infrastructure] - PostgreSQL", func() {
 			err := platform.applyClusterResources(context.Background())
 			joined := strings.Join(commands, "\n")
 			monitor := strings.Index(joined, "crd/podmonitors.monitoring.coreos.com")
-			postgres := strings.Index(joined, "apply -k platform/postgresql/resources")
+			postgres := strings.Index(joined, "apply -k infrastructure/postgresql/base")
 
 			// Assert
 			Expect(err).To(Succeed())

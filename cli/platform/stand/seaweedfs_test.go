@@ -77,7 +77,7 @@ var _ = Describe("[Infrastructure] - SeaweedFS deployment", func() {
 			Entry("[case] - failed chart install", "upgrade --install seaweedfs-main", "build --file"),
 			Entry("[case] - failed image build", "build --file", "image import"),
 			Entry("[case] - failed image import", "image import", "delete job"),
-			Entry("[case] - failed render", "kustomize platform/seaweedfs/bootstrap", "delete job"),
+			Entry("[case] - failed render", "kustomize infrastructure/seaweedfs/chart", "delete job"),
 			Entry("[case] - failed previous job deletion", "delete job", "--for=condition=Complete"),
 		)
 	})

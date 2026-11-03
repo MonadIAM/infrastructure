@@ -6,7 +6,7 @@ import (
 )
 
 func (platform Platform) KafkaResources(ctx context.Context) error {
-	return platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/kafka")
+	return platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/kafka")
 }
 
 func (platform Platform) Clusters(ctx context.Context) error {
@@ -42,9 +42,9 @@ func (platform Platform) applyClusterResources(ctx context.Context) error {
 	}
 
 	directories := []string{
-		"clusters/" + platform.Environment["PROFILE"] + "/postgresql",
-		"platform/redis/resources",
-		"clusters/" + platform.Environment["PROFILE"] + "/clickhouse",
+		"clusters/" + platform.Environment["PROFILE"] + "/infrastructure/postgresql",
+		"infrastructure/redis/base",
+		"clusters/" + platform.Environment["PROFILE"] + "/infrastructure/clickhouse",
 	}
 
 	for _, directory := range directories {

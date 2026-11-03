@@ -34,12 +34,12 @@ k3s-install: env build/k3s-install.sh /var/lib/monadiam/k3s.ext4 /var/lib/monadi
 	sudo install -m 644 bootstrap/k3s/*.mount /etc/systemd/system/
 	sudo install -m 644 bootstrap/k3s/resources.conf /etc/systemd/system/k3s.service.d/resources.conf
 	sudo install -m 644 bootstrap/k3s/journald.conf /etc/systemd/journald@monadiam.conf
-	sudo install -m 600 clusters/$(PROFILE)/k3s/config.yaml /etc/rancher/k3s/config.yaml
-	sudo install -m 600 bootstrap/registries.yaml /etc/rancher/k3s/registries.yaml
+	sudo install -m 600 clusters/$(PROFILE)/host/config.yaml /etc/rancher/k3s/config.yaml
+	sudo install -m 600 clusters/$(PROFILE)/host/registries.yaml /etc/rancher/k3s/registries.yaml
 	sudo systemctl daemon-reload
 	sudo systemctl start var-lib-monadiam-k3s-volumes.mount
 	sudo install -d /var/lib/monadiam/k3s/data/agent/etc/kubelet.conf.d
-	sudo install -m 644 clusters/$(PROFILE)/k3s/kubelet.conf /var/lib/monadiam/k3s/data/agent/etc/kubelet.conf.d/10-monadiam.conf
+	sudo install -m 644 clusters/$(PROFILE)/host/kubelet.conf /var/lib/monadiam/k3s/data/agent/etc/kubelet.conf.d/10-monadiam.conf
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
 		sudo env INSTALL_K3S_VERSION="$${K3S_VERSION:?}" INSTALL_K3S_SKIP_START=true INSTALL_K3S_SKIP_ENABLE=true sh build/k3s-install.sh
 build/k3s-install.sh: $(ENV_FILE)
@@ -62,7 +62,7 @@ k3s-start:
 	sudo install -m 600 -o "$$(id -u)" -g "$$(id -g)" /etc/rancher/k3s/k3s.yaml "$(HOME)/.kube/monadiam-$(PROFILE).yaml"
 	kubectl --kubeconfig "$(HOME)/.kube/monadiam-$(PROFILE).yaml" config rename-context default monadiam-$(PROFILE)
 	kubectl --kubeconfig "$(HOME)/.kube/monadiam-$(PROFILE).yaml" apply --server-side --field-manager=resource-budget \
-		-f clusters/$(PROFILE)/system/limits.yaml -f clusters/$(PROFILE)/system/coredns.yaml -f clusters/$(PROFILE)/system/metrics-server.yaml
+		-f clusters/$(PROFILE)/infrastructure/system/limits.yaml -f clusters/$(PROFILE)/infrastructure/system/coredns.yaml -f clusters/$(PROFILE)/infrastructure/system/metrics-server.yaml
 k3s-status:
 	systemctl status k3s --no-pager
 	systemctl show monadiam.slice -p CPUQuotaPerSecUSec -p MemoryHigh -p MemoryMax -p MemoryCurrent
@@ -70,7 +70,7 @@ k3s-status:
 # Zot
 zot-install: /var/lib/monadiam/zot.ext4
 	sudo install -d /etc/monadiam/zot
-	sudo install -m 644 clusters/$(PROFILE)/k3s/monadiam.slice /etc/systemd/system/
+	sudo install -m 644 clusters/$(PROFILE)/host/monadiam.slice /etc/systemd/system/
 	sudo install -m 644 bootstrap/zot/compose.yaml bootstrap/zot/config.json /etc/monadiam/zot/
 	sudo install -m 644 bootstrap/zot/monadiam-zot.service bootstrap/zot/var-lib-monadiam-zot.mount /etc/systemd/system/
 	sudo systemctl daemon-reload
@@ -91,7 +91,7 @@ zot-logs:
 # Redis backups
 redis-backup-install: /var/lib/monadiam/redis-backups.ext4
 	sudo install -d -m 700 /etc/monadiam/redis-backup
-	sudo install -m 644 clusters/$(PROFILE)/k3s/monadiam.slice /etc/systemd/system/
+	sudo install -m 644 clusters/$(PROFILE)/host/monadiam.slice /etc/systemd/system/
 	sudo install -m 755 bootstrap/redis-backup/backup.sh /etc/monadiam/redis-backup/
 	sudo install -m 644 bootstrap/redis-backup/*.service bootstrap/redis-backup/*.timer bootstrap/redis-backup/*.mount /etc/systemd/system/
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
