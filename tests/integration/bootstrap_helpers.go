@@ -23,7 +23,7 @@ func (fixture composeFixture) initialize(ctx context.Context) error {
 	commands := [][]string{
 		{"kafka", "reconcile"},
 		{"vault", "initialize"},
-		{"vault", "exec", "--", "make", "-f", "terraform/Makefile", "ROOT=vault", "apply"},
+		{"vault", "exec", "--", "make", "terraform-apply"},
 		{"vault", "bootstrap"},
 		{"seaweedfs", "reconcile"},
 		{"clickhouse", "reconcile"},

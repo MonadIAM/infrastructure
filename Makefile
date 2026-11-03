@@ -6,29 +6,29 @@ GOLANGCI_LINT := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lin
 ENV_FILE ?= .env
 AWS_FILE ?= aws.csv
 
-.PHONY: env aws build up down restart stop start lint lint-fix env-check kafka-init debezium-init vault-init vault-bootstrap vault-plan vault-server-plan vault-server-apply clickhouse-init seaweedfs-init archive-run utest itest
+export TF_VAR_policies_dir = $(abspath $(VAULT_POLICIES_DIR))
+export TF_IN_AUTOMATION = 1
+export TF_DATA_DIR = $(abspath $(VAULT_INIT_DIR)/terraform)/.terraform
+
+.PHONY: env aws build up down restart stop start lint lint-fix env-check kafka-init debezium-init vault-init vault-bootstrap vault-plan terraform-init terraform-plan terraform-apply clickhouse-init seaweedfs-init archive-run utest itest
 
 # Infrastructure
 env:
-	[ -f .env.example ] && cp -f .env.example .env || echo '.env.example not found'
+	cp .env.example "$(ENV_FILE)"
 aws:
 	$(GO) run . aws import --csv "$(AWS_FILE)" --env-file "$(ENV_FILE)"
 build:
 	docker compose build
-up: vault-server-apply
-	$(MAKE) vault-init
+up:
 	docker compose up -d
 down:
 	docker compose down
-	docker stop vault
 restart:
 	$(MAKE) down
 	$(MAKE) up
 stop:
 	docker compose stop
-	docker stop vault
-start: vault-server-apply
-	$(MAKE) vault-init
+start:
 	docker compose start
 
 # Development
@@ -49,11 +49,20 @@ vault-init:
 vault-bootstrap:
 	docker compose run --rm --no-deps vault-bootstrap
 vault-plan:
-	docker compose run --rm --no-deps --entrypoint infra vault-bootstrap vault exec --env-file= -- make -f terraform/Makefile ROOT=vault plan
+	docker compose run --rm --no-deps --entrypoint infra vault-bootstrap vault exec --env-file= -- make terraform-plan
 clickhouse-init:
 	docker compose run --rm --no-deps clickhouse-init
 seaweedfs-init:
 	docker compose run --rm --no-deps seaweedfs-init
+
+# Terraform
+terraform-init:
+	@umask 077; mkdir -p "$(abspath $(VAULT_INIT_DIR)/terraform)"
+	terraform -chdir=terraform/vault init -input=false -no-color -lockfile=readonly -backend-config="path=$(abspath $(VAULT_INIT_DIR)/terraform)/terraform.tfstate"
+terraform-plan: terraform-init
+	terraform -chdir=terraform/vault plan -input=false -no-color
+terraform-apply: terraform-init
+	terraform -chdir=terraform/vault apply -input=false -auto-approve -no-color
 
 # Archive
 archive-run:
@@ -64,8 +73,3 @@ utest:
 	$(GINKGO) --fd --succinct=false --keep-going --race ./cli/...
 itest:
 	$(GINKGO) --fd --succinct=false --keep-going --tags=integration --timeout=15m ./tests/integration/...
-
-vault-server-plan:
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT=vault-server plan
-vault-server-apply:
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) -f terraform/Makefile ROOT=vault-server apply

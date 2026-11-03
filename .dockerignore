@@ -3,10 +3,10 @@
 !go.sum
 !main.go
 !Dockerfile
+!Makefile
 !cli/
 !cli/**
 !terraform/
 !terraform/vault/
 !terraform/vault/*.tf
 !terraform/vault/.terraform.lock.hcl
-!terraform/Makefile

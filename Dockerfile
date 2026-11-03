@@ -21,7 +21,7 @@ ENTRYPOINT ["/usr/local/bin/infra"]
 FROM hashicorp/terraform:1.17.1 AS cli
 RUN apk add --no-cache make
 WORKDIR /infra
-COPY terraform/Makefile ./terraform/Makefile
+COPY Makefile ./Makefile
 COPY terraform/vault/*.tf terraform/vault/.terraform.lock.hcl ./terraform/vault/
 COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=build /out/infra /usr/local/bin/infra
