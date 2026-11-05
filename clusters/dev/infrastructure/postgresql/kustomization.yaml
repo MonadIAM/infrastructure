@@ -19,7 +19,7 @@ patches:
         storage:
           storageClass: local-retain
         walStorage:
-          storageClass: local-retain
+          storageClass: local-wal-retain
   - path: access-control.yaml
   - path: identity.yaml
   - path: notification.yaml

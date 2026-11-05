@@ -11,7 +11,7 @@ image:
 
 commonConfiguration: |-
   appendonly yes
-  appendfsync always
+  appendfsync everysec
   no-appendfsync-on-rewrite no
   aof-load-truncated no
   save ""
