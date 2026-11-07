@@ -78,3 +78,15 @@ path "transit/hmac/identity-pairwise-sub" {
   capabilities = ["update"]
 }
 
+
+path "transit/keys/identity-id-token-rs256" {
+  capabilities = ["read"]
+}
+
+path "transit/sign/identity-id-token-rs256" {
+  capabilities = ["update"]
+}
+
+path "transit/verify/identity-id-token-rs256" {
+  capabilities = ["update"]
+}
