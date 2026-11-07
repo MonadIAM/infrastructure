@@ -16,11 +16,12 @@ locals {
     { for name in local.services : "${name}-audit-mask-hmac" => { type = "hmac" } },
     { for name in local.services : "${name}-audit-log-sig" => { type = "ed25519" } },
     {
-      identity-access-token  = { type = "ecdsa-p256" }
-      identity-refresh-token = { type = "ecdsa-p256" }
-      identity-id-token      = { type = "ecdsa-p256" }
-      identity-totp-secret   = { type = "aes256-gcm96" }
-      identity-pairwise-sub  = { type = "hmac" }
+      identity-access-token   = { type = "ecdsa-p256" }
+      identity-refresh-token  = { type = "ecdsa-p256" }
+      identity-id-token       = { type = "ecdsa-p256" }
+      identity-id-token-rs256 = { type = "rsa-2048" }
+      identity-totp-secret    = { type = "aes256-gcm96" }
+      identity-pairwise-sub   = { type = "hmac" }
     }
   )
 }
