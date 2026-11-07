@@ -8,11 +8,12 @@ locals {
     { for name in local.services : "${name}-audit-mask-hmac" => { type = "hmac", signing = false } },
     { for name in local.services : "${name}-audit-log-sig" => { type = "ed25519", signing = true } },
     {
-      identity-access-token  = { type = "ecdsa-p256", signing = true }
-      identity-refresh-token = { type = "ecdsa-p256", signing = true }
-      identity-id-token      = { type = "ecdsa-p256", signing = true }
-      identity-totp-secret   = { type = "aes256-gcm96", signing = false }
-      identity-pairwise-sub  = { type = "hmac", signing = false }
+      identity-access-token   = { type = "ecdsa-p256", signing = true }
+      identity-refresh-token  = { type = "ecdsa-p256", signing = true }
+      identity-id-token       = { type = "ecdsa-p256", signing = true }
+      identity-id-token-rs256 = { type = "rsa-2048", signing = true }
+      identity-totp-secret    = { type = "aes256-gcm96", signing = false }
+      identity-pairwise-sub   = { type = "hmac", signing = false }
     }
   )
 }

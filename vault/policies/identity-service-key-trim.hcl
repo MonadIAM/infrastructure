@@ -33,3 +33,15 @@ path "transit/keys/identity-id-token/config" {
 path "transit/keys/identity-id-token/trim" {
   capabilities = ["update"]
 }
+
+path "transit/keys/identity-id-token-rs256" {
+  capabilities = ["read", "update"]
+}
+
+path "transit/keys/identity-id-token-rs256/config" {
+  capabilities = ["update"]
+}
+
+path "transit/keys/identity-id-token-rs256/trim" {
+  capabilities = ["update"]
+}
