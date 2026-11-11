@@ -5,3 +5,4 @@ resources:
   - peer-authentication.yaml
   - admission-webhooks.yaml
   - network-policy.yaml
+  - ingress-errors.yaml

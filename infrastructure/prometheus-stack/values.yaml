@@ -121,3 +121,30 @@ prometheus:
         memory: 512Mi
       limits:
         memory: 1Gi
+
+extraManifests:
+  - apiVersion: monitoring.coreos.com/v1
+    kind: PodMonitor
+    metadata:
+      name: vault
+      namespace: vault
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: vault
+          component: server
+      podMetricsEndpoints:
+        - port: https
+          path: /v1/sys/metrics
+          scheme: https
+          params:
+            format:
+              - prometheus
+          interval: 5s
+          scrapeTimeout: 4s
+          tlsConfig:
+            serverName: vault.vault.svc.cluster.local
+            ca:
+              secret:
+                name: vault-server-tls
+                key: ca.crt
