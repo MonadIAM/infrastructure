@@ -32,7 +32,7 @@ services:
       POSTGRES_PASSWORD: ${IDENTITY_POSTGRES_PASSWORD:?}
       POSTGRES_USER: ${IDENTITY_POSTGRES_USER:?}
       POSTGRES_DB: ${IDENTITY_POSTGRES_DB:?}
-    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_connections=256", "-c", "superuser_reserved_connections=3", "-c", "max_replication_slots=10", "-c", "max_wal_senders=10"]
     ports:
       - "127.0.0.1:${IDENTITY_POSTGRES_PUBLISHED_PORT:?}:5432"
     volumes:
