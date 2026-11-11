@@ -84,14 +84,14 @@ spec:
           - Write
       - resource:
           type: topic
-          name: access-cache
+          name: projection-journal
           patternType: literal
         operations:
           - Describe
           - Read
       - resource:
           type: topic
-          name: access-cache-dead
+          name: projection-journal-dead
           patternType: literal
         operations:
           - Describe
