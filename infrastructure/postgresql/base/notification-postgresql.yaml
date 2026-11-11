@@ -21,6 +21,8 @@ spec:
   postgresql:
     parameters:
       wal_level: logical
+      max_connections: "256"
+      superuser_reserved_connections: "3"
     pg_hba:
       - hostnossl all all all reject
   managed:
