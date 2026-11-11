@@ -20,3 +20,11 @@ spec:
             ports:
               - "4001"
               - "50051"
+    - from:
+        - source:
+            namespaces:
+              - monadiam-observability
+      to:
+        - operation:
+            ports:
+              - "8202"

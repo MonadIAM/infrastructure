@@ -24,3 +24,14 @@ listener "unix" {
     socket_mode = "0660"
     tls_disable = true
 }
+
+telemetry {
+    prometheus_retention_time = "1m"
+    disable_hostname = true
+}
+
+listener "tcp" {
+    address = "0.0.0.0:8202"
+    role = "metrics_only"
+    tls_disable = true
+}

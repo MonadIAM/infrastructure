@@ -56,6 +56,11 @@ server:
       config: |
         ui = true
 
+        telemetry {
+          prometheus_retention_time = "1m"
+          disable_hostname = true
+        }
+
         listener "tcp" {
           address = "[::]:8200"
           cluster_address = "[::]:8201"
@@ -64,6 +69,9 @@ server:
           tls_cert_file = "/vault/userconfig/vault-server-tls/tls.crt"
           tls_key_file = "/vault/userconfig/vault-server-tls/tls.key"
           tls_client_ca_file = "/vault/userconfig/vault-server-tls/ca.crt"
+          telemetry {
+            unauthenticated_metrics_access = true
+          }
         }
 
         storage "raft" {

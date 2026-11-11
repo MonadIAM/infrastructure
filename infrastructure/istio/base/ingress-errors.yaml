@@ -1,0 +1,14 @@
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: ingress-errors
+  namespace: istio-ingress
+spec:
+  selector:
+    matchLabels:
+      gateway.networking.k8s.io/gateway-name: public
+  accessLogging:
+    - providers:
+        - name: envoy
+      filter:
+        expression: response.code >= 500
