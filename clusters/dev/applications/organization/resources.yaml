@@ -4,6 +4,7 @@ metadata:
   name: organization-service
   namespace: monadiam-apps
 spec:
+  replicas: 1
   template:
     spec:
       initContainers:
@@ -15,4 +16,8 @@ spec:
         - name: service
           resources:
             limits:
-              cpu: "2"
+              cpu: "1"
+              memory: 1536Mi
+            requests:
+              cpu: "1"
+              memory: 1536Mi

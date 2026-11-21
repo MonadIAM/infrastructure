@@ -14,6 +14,11 @@ configMapGenerator:
     namespace: monadiam-apps
     behavior: merge
     literals:
+      - POSTGRES_WRITE_POOL_MAX=96
+      - POSTGRES_READ_POOL_MAX=96
+      - THROTTLE_LIMIT=1000000
+      - THROTTLE_ACCOUNT_LIMIT=1000000
+      - THROTTLE_PASSWORD_LIMIT=1000000
       - POSTGRES_READ_HOST=identity-postgresql-rw.monadiam-data.svc.cluster.local
       - DOCS_OAUTH_REDIRECT_URIS=["https://192.168.1.143:4001/docs/","https://192.168.1.143:4002/docs/","https://192.168.1.143:4003/docs/","https://192.168.1.143:4004/docs/","https://192.168.1.143:4005/docs/"]
 patches:

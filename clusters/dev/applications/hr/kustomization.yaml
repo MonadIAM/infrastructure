@@ -14,6 +14,9 @@ configMapGenerator:
     namespace: monadiam-apps
     behavior: merge
     literals:
+      - THROTTLE_LIMIT=1000000
+      - POSTGRES_WRITE_POOL_MAX=32
+      - POSTGRES_READ_POOL_MAX=32
       - POSTGRES_READ_HOST=hr-postgresql-rw.monadiam-data.svc.cluster.local
 patches:
   - path: resources.yaml

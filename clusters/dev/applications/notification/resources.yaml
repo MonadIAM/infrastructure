@@ -15,4 +15,8 @@ spec:
         - name: service
           resources:
             limits:
-              cpu: "2"
+              cpu: "1"
+              memory: 1536Mi
+            requests:
+              cpu: "1"
+              memory: 1536Mi
