@@ -4,4 +4,3 @@
 !main.go
 !cli
 !cli/**
-cli/**/*_test.go

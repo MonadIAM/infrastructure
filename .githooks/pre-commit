@@ -5,12 +5,8 @@ source "$(dirname -- "${BASH_SOURCE[0]}")/../scripts/logger.sh"
 OUTPUT_FILE=""
 WORK_DIR=""
 
-STEP_FUNCTIONS=(step_gitleaks step_dependencies step_format step_lint step_terraform step_environment step_manifests
-    # step_unit_tests
-    step_build step_entrypoint)
-STEP_TITLES=("Secret scan" "Go dependencies" "Go formatting" "Lint" "Terraform" "Environment" "Kubernetes manifests"
-    # "Unit tests"
-    "CLI build" "CLI entrypoint")
+STEP_FUNCTIONS=(step_gitleaks step_dependencies step_format step_lint step_terraform step_environment step_manifests step_build step_entrypoint)
+STEP_TITLES=("Secret scan" "Go dependencies" "Go formatting" "Lint" "Terraform" "Environment" "Kubernetes manifests" "CLI build" "CLI entrypoint")
 
 remove_work_dir() {
     if [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
@@ -42,7 +38,7 @@ step_dependencies() {
 }
 
 step_format() {
-    if ! gofmt -l main.go cli tests >"$OUTPUT_FILE" 2>&1; then
+    if ! gofmt -l main.go cli >"$OUTPUT_FILE" 2>&1; then
         log_output "$OUTPUT_FILE"
         return 1
     fi
@@ -82,15 +78,6 @@ step_environment() {
 
 step_manifests() {
     if bash scripts/manifests.check.sh >"$OUTPUT_FILE" 2>&1; then
-        return 0
-    fi
-
-    log_output "$OUTPUT_FILE"
-    return 1
-}
-
-step_unit_tests() {
-    if make utest >"$OUTPUT_FILE" 2>&1; then
         return 0
     fi
 

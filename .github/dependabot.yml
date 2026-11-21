@@ -79,7 +79,7 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
   - package-ecosystem: docker-compose
-    directories: ["/", "/services/*", "/messaging", "/vault", "/audit-archive", "/observability", "/tests/integration/testdata"]
+    directories: ["/", "/services/*", "/messaging", "/vault", "/audit-archive", "/observability"]
     target-branch: local
     schedule:
       interval: weekly

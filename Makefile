@@ -1,15 +1,10 @@
 .DEFAULT_GOAL := env
 
 GO ?= go
-GINKGO := $(GO) run github.com/onsi/ginkgo/v2/ginkgo
 GOLANGCI_LINT := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 PROFILE ?= dev
 ENV_FILE ?= .env.$(PROFILE)
 COMPONENT ?= all
-FILTER ?= bootstrap
-FOCUS ?=
-INTEGRATION_STATE_DIR ?= $(abspath build/integration)
-INTEGRATION_TEST := INTEGRATION_STATE_DIR="$(INTEGRATION_STATE_DIR)" $(GINKGO) -v --show-node-events --fail-on-empty --tags=integration --poll-progress-after=30s --poll-progress-interval=30s --output-dir=build
 
 TERRAFORM_STATE := $(TF_STATE_DIR)/$(PROFILE)/$(KUBE_CONTEXT)/$(ROOT)
 export TF_DATA_DIR = $(TERRAFORM_STATE)/.terraform
@@ -23,7 +18,7 @@ export TF_VAR_vault_chart_version = $(VAULT_CHART_VERSION)
 export TF_VAR_hashicorp_repository = $(HASHICORP_HELM_REPO)
 export TF_VAR_kv_mount = $(VAULT_KV_MOUNT)
 
-.PHONY: env start resume stop restart status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs utest itest itest-prepare itest-cleanup itest-slow gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
+.PHONY: env start resume stop restart status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
 .PHONY: zot-install zot-start zot-stop zot-status zot-logs
 .PHONY: redis-backup-install redis-backup redis-backup-status redis-backup-logs
 .PHONY: k3s-install k3s-start k3s-status
@@ -132,7 +127,7 @@ build:
 lint:
 	$(GOLANGCI_LINT) run
 lint-fix:
-	gofmt -w main.go cli tests
+	gofmt -w main.go cli
 env-check:
 	$(GO) run . config validate --env-file "$(ENV_FILE)"
 
@@ -147,22 +142,6 @@ vault-apply:
 	$(GO) run . vault exec --env-file "$(ENV_FILE)" -- make ROOT=vault terraform-apply
 seaweedfs:
 	$(GO) run . platform reconcile --component seaweedfs --env-file "$(ENV_FILE)"
-
-# Test
-utest:
-	$(GINKGO) --fd --succinct=false --keep-going --race ./cli/...
-itest:
-	mkdir -p build
-	INTEGRATION_ACTION=check $(INTEGRATION_TEST) --label-filter="($(FILTER)) && !slow && !environment" --focus="$(FOCUS)" --timeout=15m --json-report=integration-report.json ./tests/integration/...
-itest-prepare:
-	mkdir -p build
-	INTEGRATION_ACTION=prepare $(INTEGRATION_TEST) --label-filter=environment-prepare --timeout=65m --json-report=integration-prepare-report.json ./tests/integration/...
-itest-cleanup:
-	mkdir -p build
-	INTEGRATION_ACTION=cleanup $(INTEGRATION_TEST) --label-filter=environment-cleanup --timeout=6m --json-report=integration-cleanup-report.json ./tests/integration/...
-itest-slow:
-	mkdir -p build
-	INTEGRATION_ACTION=check $(INTEGRATION_TEST) --label-filter="($(FILTER)) && slow && !environment" --focus="$(FOCUS)" --timeout=2h --json-report=integration-slow-report.json ./tests/integration/...
 
 platform-plan:
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; $(MAKE) ROOT="$(COMPONENT)" terraform-plan

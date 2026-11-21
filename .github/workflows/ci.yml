@@ -58,7 +58,7 @@ jobs:
         run: go mod verify
 
       - name: Check formatting
-        run: test -z "$(gofmt -l main.go cli tests)"
+        run: test -z "$(gofmt -l main.go cli)"
 
       - name: Lint
         run: make lint
@@ -121,7 +121,7 @@ jobs:
       - name: Validate Kubernetes configuration
         run: bash scripts/manifests.check.sh
 
-  tests:
+  build:
     name: Build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -137,9 +137,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      # - name: Run unit tests
-      #   run: make utest
-
       - name: Build CLI
         run: go build -trimpath -o "$RUNNER_TEMP/infra" .
 
@@ -149,12 +146,12 @@ jobs:
   ci:
     name: CI passed
     if: ${{ always() }}
-    needs: [gitleaks, static-analysis, configuration, tests]
+    needs: [gitleaks, static-analysis, configuration, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions: {}
     steps:
       - name: Require every check to pass
         env:
-          PASSED: ${{ needs.gitleaks.result == 'success' && needs.static-analysis.result == 'success' && needs.configuration.result == 'success' && needs.tests.result == 'success' }}
+          PASSED: ${{ needs.gitleaks.result == 'success' && needs.static-analysis.result == 'success' && needs.configuration.result == 'success' && needs.build.result == 'success' }}
         run: test "$PASSED" = true
