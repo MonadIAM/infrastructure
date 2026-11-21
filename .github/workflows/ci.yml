@@ -1,0 +1,157 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, local]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  GOFLAGS: -mod=readonly
+
+jobs:
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Scan current files for secrets
+        run: |
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.29.0 \
+            dir /repo --config /repo/.gitleaks.toml --redact
+
+  static-analysis:
+    name: Static analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l main.go cli)"
+
+      - name: Lint
+        run: make lint
+
+      - name: Check vulnerabilities
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+
+      - name: Check workflows
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
+  configuration:
+    name: Infrastructure configuration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: 1.17.1
+          terraform_wrapper: false
+
+      - name: Cache Terraform providers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/terraform-providers
+          key: terraform-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('terraform/**/.terraform.lock.hcl') }}
+
+      - name: Validate Terraform
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/terraform-providers
+        run: bash scripts/terraform.check.sh
+
+      - name: Set up Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4
+        with:
+          version: v4.2.1
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@c0c8b32d33a5244f1e5947304550403b63930415
+        with:
+          version: v1.35.5
+
+      - name: Install kubeconform
+        run: go install github.com/yannh/kubeconform/cmd/kubeconform@v0.8.0
+
+      - name: Validate environment configuration
+        run: make env-check ENV_FILE=.env.dev.example
+
+      - name: Validate Kubernetes configuration
+        run: bash scripts/manifests.check.sh
+
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build CLI
+        run: go build -trimpath -o "$RUNNER_TEMP/infra" .
+
+      - name: Check CLI entrypoint
+        run: '"$RUNNER_TEMP/infra" --help'
+
+  ci:
+    name: CI passed
+    if: ${{ always() }}
+    needs: [gitleaks, static-analysis, configuration, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require every check to pass
+        env:
+          PASSED: ${{ needs.gitleaks.result == 'success' && needs.static-analysis.result == 'success' && needs.configuration.result == 'success' && needs.build.result == 'success' }}
+        run: test "$PASSED" = true

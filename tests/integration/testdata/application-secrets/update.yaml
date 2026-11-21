@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Secret
-metadata:
-  name: application-secret-probe-source
-  namespace: monadiam-data
-stringData:
-  selected: rotated
-  excluded: must-stay-in-source

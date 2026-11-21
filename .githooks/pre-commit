@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+
+source "$(dirname -- "${BASH_SOURCE[0]}")/../scripts/logger.sh"
+
+OUTPUT_FILE=""
+WORK_DIR=""
+
+STEP_FUNCTIONS=(step_gitleaks step_dependencies step_format step_lint step_terraform step_environment step_manifests step_build step_entrypoint)
+STEP_TITLES=("Secret scan" "Go dependencies" "Go formatting" "Lint" "Terraform" "Environment" "Kubernetes manifests" "CLI build" "CLI entrypoint")
+
+remove_work_dir() {
+    if [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
+        rm -rf "$WORK_DIR"
+    fi
+}
+
+step_gitleaks() {
+    if ! command -v gitleaks >/dev/null 2>&1; then
+        log_finding "gitleaks is not installed"
+        return 1
+    fi
+
+    if gitleaks protect --staged --config .gitleaks.toml --redact >"$OUTPUT_FILE" 2>&1; then
+        return 0
+    fi
+
+    log_output "$OUTPUT_FILE"
+    return 1
+}
+
+step_dependencies() {
+    if go mod verify >"$OUTPUT_FILE" 2>&1; then
+        return 0
+    fi
+
+    log_output "$OUTPUT_FILE"
+    return 1
+}
+
+step_format() {
+    if ! gofmt -l main.go cli >"$OUTPUT_FILE" 2>&1; then
+        log_output "$OUTPUT_FILE"
+        return 1
+    fi
+
+    if [ -s "$OUTPUT_FILE" ]; then
+        log_output "$OUTPUT_FILE"
+        return 1
+    fi
+}
+
+step_lint() {
+    if make lint >"$OUTPUT_FILE" 2>&1; then
+        return 0
+    fi
+
+    log_output "$OUTPUT_FILE"
+    return 1
+}
+
+step_terraform() {
+    if bash scripts/terraform.check.sh >"$OUTPUT_FILE" 2>&1; then
+        return 0
+    fi
+
+    log_output "$OUTPUT_FILE"
+    return 1
+}
+
+step_environment() {
+    if make env-check ENV_FILE=.env.dev.example >"$OUTPUT_FILE" 2>&1; then
+        return 0
+    fi
+
+    log_output "$OUTPUT_FILE"
+    return 1
+}
+
+step_manifests() {
+    if bash scripts/manifests.check.sh >"$OUTPUT_FILE" 2>&1; then
+        return 0
+    fi
+
+    log_output "$OUTPUT_FILE"
+    return 1
+}
+
+step_build() {
+    if go build -trimpath -o "$WORK_DIR/infra" . >"$OUTPUT_FILE" 2>&1; then
+        return 0
+    fi
+
+    log_output "$OUTPUT_FILE"
+    return 1
+}
+
+step_entrypoint() {
+    if "$WORK_DIR/infra" --help >"$OUTPUT_FILE" 2>&1; then
+        return 0
+    fi
+
+    log_output "$OUTPUT_FILE"
+    return 1
+}
+
+run_step() {
+    local number="$1" title="$2" step="$3" started status
+
+    log_step "$number. $title"
+    started="$(now_ms)"
+
+    if "$step"; then
+        status="passed"
+    else
+        status="failed"
+    fi
+
+    log_result "$status" "$(($(now_ms) - started))"
+
+    [ "$status" = "passed" ]
+}
+
+main() {
+    local index number failed=""
+
+    cd "$(git rev-parse --show-toplevel)" || exit 1
+    export GOFLAGS=-mod=readonly
+    WORK_DIR="$(mktemp -d)" || exit 1
+    OUTPUT_FILE="$WORK_DIR/output"
+    trap remove_work_dir EXIT
+
+    for index in "${!STEP_TITLES[@]}"; do
+        number=$((index + 1))
+
+        if [ -n "$failed" ]; then
+            log_step "$number. ${STEP_TITLES[$index]}"
+            log_result "skipped"
+            continue
+        fi
+
+        if ! run_step "$number" "${STEP_TITLES[$index]}" "${STEP_FUNCTIONS[$index]}"; then
+            failed="${STEP_TITLES[$index]}"
+        fi
+    done
+
+    if [ -n "$failed" ]; then
+        log_verdict "failed" "COMMIT FAILED:" "$failed"
+        exit 1
+    fi
+
+    log_verdict "passed" "COMMIT SUCCEEDED:" "${#STEP_TITLES[@]} of ${#STEP_TITLES[@]} steps passed"
+}
+
+main

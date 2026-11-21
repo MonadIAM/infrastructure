@@ -1,0 +1,89 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: local
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      go:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: gomod
+    directory: /
+    target-branch: local
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      go:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: terraform
+    directories: ["/terraform/*"]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      terraform:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: terraform
+    directories: ["/terraform/*"]
+    target-branch: local
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      terraform:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directory: /infrastructure/seaweedfs
+    schedule:
+      interval: weekly
+    groups:
+      docker:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directory: /
+    target-branch: local
+    schedule:
+      interval: weekly
+    groups:
+      docker:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: docker-compose
+    directory: /bootstrap/zot
+    schedule:
+      interval: weekly
+    groups:
+      compose:
+        patterns: ["*"]
+        update-types: [minor, patch]
+  - package-ecosystem: docker-compose
+    directories: ["/", "/services/*", "/messaging", "/vault", "/audit-archive", "/observability"]
+    target-branch: local
+    schedule:
+      interval: weekly
+    groups:
+      compose:
+        patterns: ["*"]
+        update-types: [minor, patch]

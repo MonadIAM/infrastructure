@@ -2,8 +2,6 @@ version: "2"
 
 run:
   timeout: 5m
-  build-tags:
-    - integration
 
 linters:
   default: standard
@@ -40,12 +38,6 @@ linters:
       default: none
       enable:
         - after-block
-  exclusions:
-    rules:
-      - path: _test\.go$
-        linters:
-          - decorder
-
 formatters:
   enable:
     - gofmt
