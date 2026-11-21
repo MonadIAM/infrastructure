@@ -17,7 +17,6 @@ controller:
 node:
   storagePools:
     wal:
-      # Host filesystem, outside both k3s.ext4 and k3s-volumes.ext4.
       path: /var/lib/monadiam/postgresql-wal
       reservedCapacity: "5%"
       reservedCapacityMode: plain
@@ -38,7 +37,6 @@ node:
         cpu: 100m
         memory: 128Mi
 
-# Helm replaces lists: preserve the existing data class as well as adding WAL.
 storageClasses:
   - name: local-retain
     enabled: true

@@ -1,0 +1,26 @@
+version: 0.1.0
+addons:
+  - name: dns
+  - name: metrics-server
+extraKubeletArgs:
+  --hostname-override: monadiam-dev
+  --node-ip: 192.168.1.143
+extraKubeAPIServerArgs:
+  --encryption-provider-config: "$SNAP_DATA/args/encryption-config.yaml"
+extraConfigFiles:
+  encryption-config.yaml: |
+    apiVersion: apiserver.config.k8s.io/v1
+    kind: EncryptionConfiguration
+    resources:
+      - resources: [secrets]
+        providers:
+          - aescbc:
+              keys:
+                - name: key1
+                  secret: @ENCRYPTION_KEY@
+          - identity: {}
+containerdRegistryConfigs:
+  "monadiam-registry:5000": |
+    server = "http://127.0.0.1:5000"
+    [host."http://127.0.0.1:5000"]
+      capabilities = ["pull", "resolve", "push"]

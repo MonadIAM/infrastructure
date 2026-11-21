@@ -11,11 +11,11 @@ crds:
       enabled: false
 snapshotClasses: []
 node:
-  kubeletPath: /var/lib/monadiam/k3s/kubelet
-  metadataDirPath: /var/lib/monadiam/k3s/volume-metadata
+  kubeletPath: /var/snap/microk8s/common/var/lib/kubelet
+  metadataDirPath: /var/lib/monadiam/microk8s/volume-metadata
   storagePools:
     default:
-      path: /var/lib/monadiam/k3s/volumes
+      path: /var/lib/monadiam/microk8s/volumes
       reservedCapacity: "5%"
       reservedCapacityMode: plain
 storageClasses:

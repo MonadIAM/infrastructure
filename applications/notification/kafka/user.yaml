@@ -35,6 +35,20 @@ spec:
           - Read
       - resource:
           type: topic
+          name: access-cache
+          patternType: literal
+        operations:
+          - Describe
+          - Read
+      - resource:
+          type: topic
+          name: access-cache-dead
+          patternType: literal
+        operations:
+          - Describe
+          - Write
+      - resource:
+          type: topic
           name: account-dead
           patternType: literal
         operations:
