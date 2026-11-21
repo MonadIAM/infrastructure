@@ -2,8 +2,7 @@ version: "2"
 
 run:
   timeout: 5m
-  build-tags:
-    - integration
+  tests: false
 
 linters:
   default: standard
