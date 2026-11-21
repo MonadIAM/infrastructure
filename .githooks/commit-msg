@@ -1,33 +1,36 @@
 #!/usr/bin/env bash
 
-ESC=$(printf "\033")
-RED="${ESC}[31m"
-BG_RED="${ESC}[41m"
-RESET="${ESC}[0m"
+source "$(dirname -- "${BASH_SOURCE[0]}")/../scripts/logger.sh"
 
 PREFIXES="feat|fix|docs|refactor|perf|test|build|ci|chore|revert"
+PATTERN="^($PREFIXES)(\([a-zA-Z0-9-]+\))?(!)?: .+$"
 MAX_LENGTH=70
 
-PATTERN="^($PREFIXES)(\([a-zA-Z0-9-]+\))?(!)?: .+$"
+main() {
+    local header failure=""
 
-COMMIT_MESSAGE=$(cat "$1")
-HEADER=$(echo "$COMMIT_MESSAGE" | head -n1)
-HEADER_LEN=${#HEADER}
+    header="$(head -n1 "$1")"
 
-if [ -z "$HEADER" ]; then
-    printf "\n${BG_RED}COMMIT FAILED:${RESET}${RED} Commit message cannot be empty!${RESET}\n"
-    exit 1
-fi
+    log_context "Commit message: $header"
 
-if ! echo "$HEADER" | grep -qE "$PATTERN"; then
-    printf "\n${BG_RED}COMMIT FAILED:${RESET}${RED} Invalid commit message format!${RESET}\n"
-    exit 1
-fi
+    if [ -z "$header" ]; then
+        log_finding "message cannot be empty"
+        failure="empty message"
+    elif ! echo "$header" | grep -qE "$PATTERN"; then
+        log_finding "expected <type>(<scope>)?(!)?: <subject>"
+        log_finding "allowed types: ${PREFIXES//|/, }"
+        failure="invalid format"
+    elif [ "${#header}" -gt "$MAX_LENGTH" ]; then
+        log_finding "header is ${#header} characters, maximum is $MAX_LENGTH"
+        failure="header is too long"
+    fi
 
-if [ "$HEADER_LEN" -gt "$MAX_LENGTH" ]; then
-    printf "\n${BG_RED}COMMIT FAILED:${RESET}${RED} Commit header is too long!${RESET}\n"
-    printf "Current length: ${HEADER_LEN} characters (max: ${MAX_LENGTH})\n"
-    exit 1
-fi
+    if [ -n "$failure" ]; then
+        log_verdict "failed" "COMMIT FAILED:" "$failure"
+        exit 1
+    fi
 
-exit 0
+    log_verdict "passed" "COMMIT MESSAGE ACCEPTED:" "format and length are valid"
+}
+
+main "$@"

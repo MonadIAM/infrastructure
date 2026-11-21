@@ -1,0 +1,12 @@
+title = "project gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Allow synthetic Vault initialization material in the unit test"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)cli/platform/vault/vault_test\.go$''']
+regexTarget = "line"
+regexes = ['''root_token":"new-token","unseal_keys_b64":\["new-key"\]''']
