@@ -2,7 +2,7 @@ name: monadiam-zot
 
 services:
   zot:
-    image: ghcr.io/project-zot/zot:v2.1.21@sha256:6b69512c00dceaad05b1144e6079aac6aa7309d7fd200f9947ecb1de09cf48c8
+    image: ghcr.io/project-zot/zot:v2.1.23@sha256:9d3de83ac2099e6f4843045b4c9b65b7e8baf40f92d28f54906dee9d4d390fd7
     user: "65534:65534"
     cpus: 1
     mem_limit: 512m
