@@ -1,7 +1,7 @@
 ARG KAFKA_IMAGE=apache/kafka:3.9.0
 ARG SEAWEEDFS_IMAGE=chrislusf/seaweedfs:4.48
 
-FROM golang:1.27.2-alpine AS build
+FROM golang:1.27.4-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -18,7 +18,7 @@ FROM ${SEAWEEDFS_IMAGE} AS seaweedfs-runtime
 COPY --from=build /out/infra /usr/local/bin/infra
 ENTRYPOINT ["/usr/local/bin/infra"]
 
-FROM hashicorp/terraform:1.17.1 AS cli
+FROM hashicorp/terraform:1.17.2 AS cli
 RUN apk add --no-cache make
 WORKDIR /infra
 COPY Makefile ./Makefile
