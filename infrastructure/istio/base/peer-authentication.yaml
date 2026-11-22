@@ -78,3 +78,21 @@ metadata:
 spec:
   mtls:
     mode: STRICT
+---
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: kafka-internal-listeners
+  namespace: monadiam-messaging
+spec:
+  selector:
+    matchLabels:
+      strimzi.io/cluster: kafka-main
+      strimzi.io/name: kafka-main-kafka
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    "9090":
+      mode: PERMISSIVE
+    "9091":
+      mode: PERMISSIVE

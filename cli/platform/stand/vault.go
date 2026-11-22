@@ -63,6 +63,11 @@ func (platform Platform) installVaultOperator(ctx context.Context) error {
 		return err
 	}
 
+	err = platform.Kubernetes.Run(ctx, "rollout", "restart", vaultOperatorDeployment, "-n", vaultOperatorNamespace)
+	if err != nil {
+		return err
+	}
+
 	err = platform.Kubernetes.Rollout(ctx, vaultOperatorNamespace, vaultOperatorDeployment, "180s")
 	if err != nil {
 		return err
