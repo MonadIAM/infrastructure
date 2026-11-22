@@ -1,6 +1,9 @@
 cni:
   cniBinDir: /var/snap/microk8s/current/opt/cni/bin
   cniConfDir: /var/snap/microk8s/current/args/cni-network
+  ambient:
+    dnsCapture: false
+    ipv6: false
 
 resources:
   limits:

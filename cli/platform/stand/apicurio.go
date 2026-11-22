@@ -38,5 +38,10 @@ func (platform Platform) Apicurio(ctx context.Context) error {
 		return err
 	}
 
+	err = platform.Kubernetes.Run(ctx, "rollout", "restart", "deployment/schema-registry-main", "-n", messagingNamespace)
+	if err != nil {
+		return err
+	}
+
 	return platform.Kubernetes.Rollout(ctx, messagingNamespace, "deployment/schema-registry-main", "600s")
 }
