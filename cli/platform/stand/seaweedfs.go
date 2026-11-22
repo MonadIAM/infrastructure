@@ -28,12 +28,7 @@ func (platform Platform) SeaweedFS(ctx context.Context) error {
 		}
 	}
 
-	err = platform.Helm.Repo(ctx, "seaweedfs", platform.Environment["SEAWEEDFS_HELM_REPO"])
-	if err != nil {
-		return err
-	}
-
-	err = platform.install(ctx, "seaweedfs-main")
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=seaweedfs", "terraform-apply"}})
 	if err != nil {
 		return err
 	}

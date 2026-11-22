@@ -74,15 +74,6 @@ func (platform Platform) VaultClient() vault.Client {
 	return vault.New(platform.Environment, platform.Kubernetes, platform.Output)
 }
 
-func (platform Platform) install(ctx context.Context, name string) error {
-	release, exists := releaseDefinitions(platform.Environment)[name]
-	if !exists {
-		return fmt.Errorf("stand.Platform.install: unknown Helm release %s", name)
-	}
-
-	return platform.Helm.Install(ctx, release)
-}
-
 func findPhase(phases []phaseDefinition, name string) (phaseDefinition, bool) {
 	for _, phase := range phases {
 		if phase.Name == name {

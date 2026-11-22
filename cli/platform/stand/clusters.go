@@ -3,6 +3,8 @@ package stand
 import (
 	"context"
 	"time"
+
+	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
 
 func (platform Platform) KafkaResources(ctx context.Context) error {
@@ -15,16 +17,14 @@ func (platform Platform) Clusters(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.installRedis(ctx)
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=redis", "terraform-apply"}})
 	if err != nil {
 		return err
 	}
 
-	for _, cluster := range postgresqlClusters {
-		err = platform.Kubernetes.Wait(ctx, dataNamespace, "cluster.postgresql.cnpg.io/"+cluster, "condition=Ready", "600s")
-		if err != nil {
-			return err
-		}
+	err = platform.Kubernetes.Run(ctx, "wait", "--for=condition=Ready", "cluster.postgresql.cnpg.io", "-l", "app.kubernetes.io/part-of=monadiam,app.kubernetes.io/component=database", "-n", dataNamespace, "--timeout=600s")
+	if err != nil {
+		return err
 	}
 
 	err = platform.waitKafka(ctx)
@@ -55,27 +55,6 @@ func (platform Platform) applyClusterResources(ctx context.Context) error {
 	}
 
 	return platform.KafkaResources(ctx)
-}
-
-func (platform Platform) installRedis(ctx context.Context) error {
-	for _, cluster := range redisClusters {
-		err := platform.Kubernetes.Wait(ctx, dataNamespace, "certificate/"+cluster+"-tls", "condition=Ready", "180s")
-		if err != nil {
-			return err
-		}
-
-		err = platform.Kubernetes.Wait(ctx, dataNamespace, "secret/"+cluster+"-auth", "create", "180s")
-		if err != nil {
-			return err
-		}
-
-		err = platform.install(ctx, cluster)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (platform Platform) waitKafka(ctx context.Context) error {
