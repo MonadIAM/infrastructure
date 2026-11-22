@@ -1,6 +1,6 @@
 cni:
-  cniBinDir: /var/lib/monadiam/k3s/data/data/cni
-  cniConfDir: /var/lib/monadiam/k3s/data/agent/etc/cni/net.d
+  cniBinDir: /var/snap/microk8s/current/opt/cni/bin
+  cniConfDir: /var/snap/microk8s/current/args/cni-network
 
 resources:
   limits:

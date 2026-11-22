@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ../../../../infrastructure/kafka/base
   - nodepool.yaml
+  - registry-alias.yaml
 
 patches:
   - path: kafka.yaml

@@ -11,6 +11,10 @@ metadata:
 spec:
   gatewayClassName: istio
   infrastructure:
+    parametersRef:
+      group: ""
+      kind: ConfigMap
+      name: public-gateway-options
     labels:
       app.kubernetes.io/name: public
       app.kubernetes.io/component: ingress

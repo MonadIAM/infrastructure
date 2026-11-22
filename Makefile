@@ -18,86 +18,45 @@ export TF_VAR_vault_chart_version = $(VAULT_CHART_VERSION)
 export TF_VAR_hashicorp_repository = $(HASHICORP_HELM_REPO)
 export TF_VAR_kv_mount = $(VAULT_KV_MOUNT)
 
-.PHONY: env start resume stop restart status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
-.PHONY: zot-install zot-start zot-stop zot-status zot-logs
-.PHONY: redis-backup-install redis-backup redis-backup-status redis-backup-logs
-.PHONY: k3s-install k3s-start k3s-status
+.PHONY: env start resume stop restart status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs applications-ready gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
+.PHONY: zot-start zot-status zot-logs
+.PHONY: redis-backup redis-backup-status redis-backup-logs
+.PHONY: microk8s-start microk8s-status
 
-# K3s
-k3s-install: env build/k3s-install.sh /var/lib/monadiam/k3s.ext4 /var/lib/monadiam/k3s-volumes.ext4 zot-install
-	sudo install -d /etc/rancher/k3s /etc/systemd/system/k3s.service.d
-	sudo install -m 644 bootstrap/k3s/*.mount /etc/systemd/system/
-	sudo install -m 644 bootstrap/k3s/resources.conf /etc/systemd/system/k3s.service.d/resources.conf
-	sudo install -m 644 bootstrap/k3s/journald.conf /etc/systemd/journald@monadiam.conf
-	sudo install -m 600 clusters/$(PROFILE)/host/config.yaml /etc/rancher/k3s/config.yaml
-	sudo install -m 600 clusters/$(PROFILE)/host/registries.yaml /etc/rancher/k3s/registries.yaml
-	sudo systemctl daemon-reload
-	sudo systemctl start var-lib-monadiam-k3s-volumes.mount
-	sudo install -d /var/lib/monadiam/k3s/data/agent/etc/kubelet.conf.d
-	sudo install -m 644 clusters/$(PROFILE)/host/kubelet.conf /var/lib/monadiam/k3s/data/agent/etc/kubelet.conf.d/10-monadiam.conf
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
-		sudo env INSTALL_K3S_VERSION="$${K3S_VERSION:?}" INSTALL_K3S_SKIP_START=true INSTALL_K3S_SKIP_ENABLE=true sh build/k3s-install.sh
-build/k3s-install.sh: $(ENV_FILE)
-	mkdir -p build
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
-		curl --fail --location "https://raw.githubusercontent.com/k3s-io/k3s/$${K3S_VERSION:?}/install.sh" --output "$@"
-/var/lib/monadiam/k3s.ext4:
-	sudo install -d /var/lib/monadiam
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
-		sudo mkfs.ext4 -m 0 "$@" "$${K3S_STATE_SIZE:?}"
-/var/lib/monadiam/k3s-volumes.ext4:
-	sudo install -d /var/lib/monadiam
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
-		sudo mkfs.ext4 -m 0 "$@" "$${K3S_VOLUMES_SIZE:?}"
-k3s-start:
-	sudo systemctl start k3s
-	sudo k3s kubectl wait --for=create node/monadiam-$(PROFILE) --timeout=180s
-	sudo k3s kubectl wait --for=condition=Ready node --all --timeout=180s
+# MicroK8s
+microk8s-start:
+	sudo microk8s start
+	sudo microk8s status --wait-ready
+	sudo microk8s kubectl wait --for=condition=Ready node/monadiam-$(PROFILE) --timeout=180s
 	mkdir -p "$(HOME)/.kube"
-	sudo install -m 600 -o "$$(id -u)" -g "$$(id -g)" /etc/rancher/k3s/k3s.yaml "$(HOME)/.kube/monadiam-$(PROFILE).yaml"
-	kubectl --kubeconfig "$(HOME)/.kube/monadiam-$(PROFILE).yaml" config rename-context default monadiam-$(PROFILE)
-	kubectl --kubeconfig "$(HOME)/.kube/monadiam-$(PROFILE).yaml" apply --server-side --field-manager=resource-budget \
-		-f clusters/$(PROFILE)/infrastructure/system/limits.yaml -f clusters/$(PROFILE)/infrastructure/system/coredns.yaml -f clusters/$(PROFILE)/infrastructure/system/metrics-server.yaml
-k3s-status:
-	systemctl status k3s --no-pager
-	systemctl show monadiam.slice -p CPUQuotaPerSecUSec -p MemoryHigh -p MemoryMax -p MemoryCurrent
+	sudo microk8s config > "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml"
+	chmod 600 "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml"
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" config rename-context microk8s monadiam-microk8s-$(PROFILE)
+	@node_ip=$$(sudo microk8s kubectl get node monadiam-$(PROFILE) -o jsonpath='{.status.addresses[?(@.type=="InternalIP")].address}'); \
+		kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" config set-cluster microk8s-cluster --server="https://$$node_ip:16443"
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" apply -f clusters/$(PROFILE)/infrastructure/system/limits.yaml
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" -n kube-system patch deployment coredns --type=strategic \
+		--patch-file clusters/$(PROFILE)/infrastructure/system/coredns.yaml
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" -n kube-system patch deployment metrics-server --type=strategic \
+		--patch-file clusters/$(PROFILE)/infrastructure/system/metrics-server.yaml
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" -n kube-system rollout status deployment/coredns --timeout=180s
+microk8s-status:
+	microk8s status
 
 # Zot
-zot-install: /var/lib/monadiam/zot.ext4
-	sudo install -d /etc/monadiam/zot
-	sudo install -m 644 clusters/$(PROFILE)/host/monadiam.slice /etc/systemd/system/
-	sudo install -m 644 bootstrap/zot/compose.yaml bootstrap/zot/config.json /etc/monadiam/zot/
-	sudo install -m 644 bootstrap/zot/monadiam-zot.service bootstrap/zot/var-lib-monadiam-zot.mount /etc/systemd/system/
-	sudo systemctl daemon-reload
-	sudo systemctl enable monadiam-zot.service
-	sudo systemctl restart monadiam-zot.service
-/var/lib/monadiam/zot.ext4:
-	sudo install -d /var/lib/monadiam
-	sudo mkfs.ext4 -m 0 /var/lib/monadiam/zot.ext4 32G
 zot-start:
-	sudo systemctl start monadiam-zot.service
-zot-stop:
-	sudo systemctl stop monadiam-zot.service
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		kubectl --kubeconfig "$${KUBECONFIG:?}" --context "$${KUBE_CONTEXT:?}" apply -k infrastructure/namespaces/base && \
+		kubectl --kubeconfig "$$KUBECONFIG" --context "$$KUBE_CONTEXT" apply -k infrastructure/zot/base && \
+		kubectl --kubeconfig "$$KUBECONFIG" --context "$$KUBE_CONTEXT" -n monadiam-data rollout status deployment/monadiam-registry --timeout=300s
 zot-status:
-	systemctl status monadiam-zot.service --no-pager
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		kubectl --kubeconfig "$${KUBECONFIG:?}" --context "$${KUBE_CONTEXT:?}" -n monadiam-data get deployment,pod,service -l app.kubernetes.io/name=monadiam-registry
 zot-logs:
-	journalctl -u monadiam-zot.service -f
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		kubectl --kubeconfig "$${KUBECONFIG:?}" --context "$${KUBE_CONTEXT:?}" -n monadiam-data logs -f deployment/monadiam-registry
 
 # Redis backups
-redis-backup-install: /var/lib/monadiam/redis-backups.ext4
-	sudo install -d -m 700 /etc/monadiam/redis-backup
-	sudo install -m 644 clusters/$(PROFILE)/host/monadiam.slice /etc/systemd/system/
-	sudo install -m 755 bootstrap/redis-backup/backup.sh /etc/monadiam/redis-backup/
-	sudo install -m 644 bootstrap/redis-backup/*.service bootstrap/redis-backup/*.timer bootstrap/redis-backup/*.mount /etc/systemd/system/
-	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
-		configuration=$$(mktemp); trap 'rm -f "$$configuration"' EXIT; \
-		kubectl --kubeconfig "$${KUBECONFIG:?}" --context "$${KUBE_CONTEXT:?}" config view --minify --flatten --raw > "$$configuration" && \
-		sudo install -m 600 "$$configuration" "/etc/monadiam/redis-backup/$(PROFILE).kubeconfig"
-	sudo systemctl daemon-reload
-	sudo systemctl enable --now monadiam-redis-backup@$(PROFILE).timer
-/var/lib/monadiam/redis-backups.ext4:
-	sudo install -d /var/lib/monadiam
-	sudo mkfs.ext4 -m 0 /var/lib/monadiam/redis-backups.ext4 8G
 redis-backup:
 	sudo systemctl start monadiam-redis-backup@$(PROFILE).service
 redis-backup-status:
@@ -109,12 +68,26 @@ redis-backup-logs:
 # Infrastructure
 env:
 	$(GO) run . config init --env-file "$(ENV_FILE)"
-start: env k3s-start
+start: env microk8s-start
+	$(MAKE) zot-start
 	$(MAKE) COMPONENT=storage platform-apply
 	$(MAKE) COMPONENT=all reconcile
+	$(MAKE) COMPONENT=gitops platform-apply
+	$(MAKE) COMPONENT=gitops-apps platform-apply
+	$(MAKE) applications-ready
+applications-ready:
+	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
+		for service in access-control identity notification organization hr; do \
+			kubectl --kubeconfig "$${KUBECONFIG:?}" --context "$${KUBE_CONTEXT:?}" -n monadiam-apps rollout status \
+				"deployment/$$service-service" --timeout=900s || exit; \
+		done; \
+		for port in 4001 4002 4003 4004 4005; do \
+			curl --insecure --fail --silent --show-error --location --retry-all-errors --retry 10 --retry-delay 2 \
+				"https://$${APPLICATIONS_IP:?}:$$port/docs/" --output /dev/null || exit; \
+		done
 resume: start
 stop:
-	sudo /usr/local/bin/k3s-killall.sh
+	sudo microk8s stop
 restart:
 	$(MAKE) stop
 	$(MAKE) start

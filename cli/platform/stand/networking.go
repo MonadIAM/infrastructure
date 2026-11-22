@@ -13,7 +13,18 @@ func (platform Platform) CertManager(ctx context.Context) error {
 }
 
 func (platform Platform) MetricsServer(ctx context.Context) error {
-	err := platform.Kubernetes.Run(ctx, "apply", "--server-side", "--field-manager=resource-budget", "-k", "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/system")
+	profile := "clusters/" + platform.Environment["PROFILE"] + "/infrastructure/system/"
+	err := platform.Kubernetes.Run(ctx, "apply", "-f", profile+"limits.yaml")
+	if err != nil {
+		return err
+	}
+
+	err = platform.Kubernetes.Run(ctx, "-n", "kube-system", "patch", "deployment", "coredns", "--type=strategic", "--patch-file", profile+"coredns.yaml")
+	if err != nil {
+		return err
+	}
+
+	err = platform.Kubernetes.Run(ctx, "-n", "kube-system", "patch", "deployment", "metrics-server", "--type=strategic", "--patch-file", profile+"metrics-server.yaml")
 	if err != nil {
 		return err
 	}
@@ -82,6 +93,11 @@ func (platform Platform) Gateway(ctx context.Context) error {
 	}
 
 	err = platform.Kubernetes.Apply(ctx, data, false)
+	if err != nil {
+		return err
+	}
+
+	err = platform.Kubernetes.Wait(ctx, "istio-ingress", "deployment/public-istio", "condition=Available", "180s")
 	if err != nil {
 		return err
 	}

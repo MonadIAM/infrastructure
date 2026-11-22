@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monadiam-registry
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: monadiam-registry
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: monadiam-registry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: monadiam-registry
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/hostname: monadiam-dev
+      securityContext:
+        runAsUser: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: zot
+          image: ghcr.io/project-zot/zot:v2.1.23@sha256:9d3de83ac2099e6f4843045b4c9b65b7e8baf40f92d28f54906dee9d4d390fd7
+          ports:
+            - name: registry
+              containerPort: 5000
+              hostPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /v2/
+              port: registry
+            initialDelaySeconds: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: storage
+              mountPath: /var/lib/registry
+            - name: config
+              mountPath: /etc/zot/config.json
+              subPath: config.json
+              readOnly: true
+      volumes:
+        - name: storage
+          hostPath:
+            path: /var/lib/monadiam/zot/data
+            type: Directory
+        - name: config
+          configMap:
+            name: monadiam-registry-config

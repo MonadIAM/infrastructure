@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: monadiam-registry
+  namespace: monadiam-data
+  labels:
+    app.kubernetes.io/name: monadiam-registry
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: monadiam-registry
+  ports:
+    - name: registry
+      port: 5000
+      targetPort: registry

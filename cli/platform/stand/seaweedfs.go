@@ -77,7 +77,7 @@ func (platform Platform) seaweedFSImage(ctx context.Context) (string, error) {
 		return "", errors.New("invalid CLI image digest")
 	}
 
-	image := "localhost:5002/monadiam/stand-cli:" + digest
+	image := "localhost:5000/monadiam/stand-cli:" + digest
 	_, err = platform.Runner.Run(ctx, command.Request{
 		Name: "docker",
 		Args: []string{"image", "tag", tag, image},
