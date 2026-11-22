@@ -55,12 +55,7 @@ func (platform Platform) installVault(ctx context.Context) error {
 }
 
 func (platform Platform) installVaultOperator(ctx context.Context) error {
-	err := platform.Helm.Repo(ctx, "hashicorp", platform.Environment["HASHICORP_HELM_REPO"])
-	if err != nil {
-		return err
-	}
-
-	err = platform.install(ctx, "vault-secrets-operator")
+	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=vault-operator", "terraform-apply"}})
 	if err != nil {
 		return err
 	}

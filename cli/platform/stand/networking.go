@@ -32,22 +32,15 @@ func (platform Platform) Istio(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Helm.Repo(ctx, "istio", platform.Environment["ISTIO_HELM_REPO"])
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=istio", "terraform-apply"}})
 	if err != nil {
 		return err
 	}
 
-	for _, component := range istioComponents {
-		err := platform.install(ctx, component.Release)
+	for _, workload := range []string{"deployment/istiod", "daemonset/istio-cni-node", "daemonset/ztunnel"} {
+		err = platform.Kubernetes.Rollout(ctx, "istio-system", workload, "300s")
 		if err != nil {
 			return err
-		}
-
-		if component.Workload != "" {
-			err = platform.Kubernetes.Rollout(ctx, "istio-system", component.Workload, "300s")
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -60,13 +53,7 @@ func (platform Platform) Gateway(ctx context.Context) error {
 		return err
 	}
 
-	data, err := platform.Helm.Execute(ctx, true, "template", "gateway", "infrastructure/gateway-api/chart",
-		"--set-string", "applicationsIP="+platform.Environment["APPLICATIONS_IP"])
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Apply(ctx, data, false)
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=gateway", "terraform-apply"}})
 	if err != nil {
 		return err
 	}

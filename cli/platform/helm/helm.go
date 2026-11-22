@@ -12,7 +12,6 @@ import (
 )
 
 type Client struct {
-	Context  string
 	Runner   command.Runner
 	Output   io.Writer
 	Attempts int
@@ -37,7 +36,6 @@ func New(environment config.Environment, runner command.Runner, output io.Writer
 	}
 
 	return Client{
-		Context:  environment["KUBE_CONTEXT"],
 		Runner:   runner,
 		Output:   output,
 		Attempts: attempts,
@@ -88,26 +86,6 @@ func (client Client) Execute(ctx context.Context, capture bool, args ...string) 
 
 func (client Client) Repo(ctx context.Context, name, address string) error {
 	_, err := client.Execute(ctx, false, "repo", "add", name, address, "--force-update")
-
-	return err
-}
-
-func (client Client) Install(ctx context.Context, release Release) error {
-	args := []string{
-		"upgrade", "--install", release.Name, release.Chart,
-		"--namespace", release.Namespace,
-		"--create-namespace",
-		"--kube-context", client.Context,
-		"--values", release.Values,
-	}
-
-	if release.Version != "" {
-		args = append(args, "--version", release.Version)
-	}
-
-	args = append(args, release.Arguments...)
-
-	_, err := client.Execute(ctx, false, args...)
 
 	return err
 }
