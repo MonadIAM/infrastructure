@@ -1,0 +1,14 @@
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: notification-http
+  namespace: monadiam-apps
+spec:
+  host: notification-service.monadiam-apps.svc.cluster.local
+  trafficPolicy:
+    portLevelSettings:
+      - port:
+          number: 4003
+        connectionPool:
+          http:
+            idleTimeout: 60s
