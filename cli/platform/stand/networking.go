@@ -13,23 +13,7 @@ func (platform Platform) CertManager(ctx context.Context) error {
 }
 
 func (platform Platform) MetricsServer(ctx context.Context) error {
-	profile := "clusters/" + platform.Environment["PROFILE"] + "/infrastructure/system/"
-	err := platform.Kubernetes.Run(ctx, "apply", "-f", profile+"limits.yaml")
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Run(ctx, "-n", "kube-system", "patch", "deployment", "coredns", "--type=strategic", "--patch-file", profile+"coredns.yaml")
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Run(ctx, "-n", "kube-system", "patch", "deployment", "metrics-server", "--type=strategic", "--patch-file", profile+"metrics-server.yaml")
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Rollout(ctx, "kube-system", "deployment/metrics-server", "180s")
+	err := platform.Kubernetes.Rollout(ctx, "kube-system", "deployment/metrics-server", "180s")
 	if err != nil {
 		return err
 	}
@@ -39,17 +23,7 @@ func (platform Platform) MetricsServer(ctx context.Context) error {
 		return err
 	}
 
-	err = command.Poll(ctx, 180*time.Second, 5*time.Second, platform.metricsAvailable)
-	if err != nil {
-		return err
-	}
-
-	err = platform.Kubernetes.Run(ctx, "top", "nodes")
-	if err != nil {
-		return err
-	}
-
-	return platform.Kubernetes.Run(ctx, "top", "pods", "-A")
+	return command.Poll(ctx, 180*time.Second, 5*time.Second, platform.metricsAvailable)
 }
 
 func (platform Platform) Istio(ctx context.Context) error {
