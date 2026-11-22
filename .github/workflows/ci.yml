@@ -111,7 +111,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        root: [bootstrap, gitops, gitops-apps, observability, storage, vault, vault-server]
+        root: [bootstrap, gitops, gitops-apps, observability, operators, storage, vault, vault-server]
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

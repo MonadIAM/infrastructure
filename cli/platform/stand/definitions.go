@@ -62,7 +62,10 @@ func (platform Platform) phases() []phaseDefinition {
 			Name: "vault",
 			Run:  platform.Vault,
 		},
-		{Name: "gateway", Run: platform.Gateway},
+		{
+			Name: "gateway",
+			Run:  platform.Gateway,
+		},
 		{
 			Name: "operators",
 			Run:  platform.Operators,
@@ -135,30 +138,6 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Values:    "infrastructure/vault-secrets-operator/values.yaml",
 			Arguments: []string{"--values", profile + "/vault-secrets-operator/values.yaml"},
 		},
-		"cnpg": {
-			Name:      "cnpg",
-			Chart:     "cnpg/cloudnative-pg",
-			Version:   environment["CNPG_CHART_VERSION"],
-			Namespace: "cnpg-system",
-			Values:    "infrastructure/postgresql/operator/values.yaml",
-			Arguments: []string{"--values", profile + "/postgresql/operator-values.yaml"},
-		},
-		"strimzi": {
-			Name:      "strimzi",
-			Chart:     "oci://quay.io/strimzi-helm/strimzi-kafka-operator",
-			Version:   environment["STRIMZI_CHART_VERSION"],
-			Namespace: "strimzi-system",
-			Values:    "infrastructure/kafka/operator/values.yaml",
-			Arguments: []string{"--values", profile + "/kafka/operator-values.yaml"},
-		},
-		"clickhouse-operator": {
-			Name:      "clickhouse-operator",
-			Chart:     "altinity/altinity-clickhouse-operator",
-			Version:   environment["CLICKHOUSE_OPERATOR_CHART_VERSION"],
-			Namespace: "clickhouse-operator",
-			Values:    "infrastructure/clickhouse/operator/values.yaml",
-			Arguments: []string{"--values", profile + "/clickhouse/operator-values.yaml"},
-		},
 	}
 
 	for _, cluster := range redisClusters {
@@ -183,13 +162,11 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 func operatorDefinitions() []operatorDefinition {
 	return []operatorDefinition{
 		{
-			Release:    "cnpg",
 			Namespace:  "cnpg-system",
 			Deployment: "cnpg-cloudnative-pg",
 			CRDs:       []string{"clusters.postgresql.cnpg.io"},
 		},
 		{
-			Release:    "strimzi",
 			Namespace:  "strimzi-system",
 			Deployment: "strimzi-cluster-operator",
 			CRDs: []string{
@@ -202,7 +179,6 @@ func operatorDefinitions() []operatorDefinition {
 			},
 		},
 		{
-			Release:    "clickhouse-operator",
 			Namespace:  "clickhouse-operator",
 			Deployment: "clickhouse-operator-altinity-clickhouse-operator",
 			Restart:    true,
@@ -210,141 +186,6 @@ func operatorDefinitions() []operatorDefinition {
 				"clickhouseinstallations.clickhouse.altinity.com",
 				"clickhousekeeperinstallations.clickhouse-keeper.altinity.com",
 			},
-		},
-	}
-}
-
-func secretDefinitions() []secretDefinition {
-	return []secretDefinition{
-		{
-			Namespace:   dataNamespace,
-			Name:        "access-control-postgresql-app",
-			Destination: "access-control-postgresql-app",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "access-control-postgresql-debezium",
-			Destination: "access-control-postgresql-debezium",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "identity-postgresql-app",
-			Destination: "identity-postgresql-app",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "identity-postgresql-debezium",
-			Destination: "identity-postgresql-debezium",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "notification-postgresql-app",
-			Destination: "notification-postgresql-app",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "notification-postgresql-debezium",
-			Destination: "notification-postgresql-debezium",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "organization-postgresql-app",
-			Destination: "organization-postgresql-app",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "organization-postgresql-debezium",
-			Destination: "organization-postgresql-debezium",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "hr-postgresql-app",
-			Destination: "hr-postgresql-app",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "hr-postgresql-debezium",
-			Destination: "hr-postgresql-debezium",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "seaweedfs-main-s3",
-			Destination: "seaweedfs-main-s3",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "seaweedfs-main-admin",
-			Destination: "seaweedfs-main-admin",
-		},
-		{
-			Namespace:   dataNamespace,
-			Name:        "seaweedfs-main-archiver",
-			Destination: "seaweedfs-main-archiver",
-		},
-		{
-			Namespace:   "monadiam-apps",
-			Name:        "monadiam-bootstrap",
-			Destination: "monadiam-bootstrap",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "monadiam-data-bootstrap",
-			Destination: "monadiam-data-bootstrap",
-		},
-		{
-			Namespace:   "monadiam-messaging",
-			Name:        "monadiam-messaging-bootstrap",
-			Destination: "monadiam-messaging-bootstrap",
-		},
-		{
-			Namespace:   "monadiam-observability",
-			Name:        "grafana-admin",
-			Destination: "grafana-admin",
-		},
-		{
-			Namespace:   "monadiam-messaging",
-			Name:        "kafka-main-admin-password",
-			Destination: "kafka-main-admin-password",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "access-control-redis-auth",
-			Destination: "access-control-redis-auth",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "identity-redis-auth",
-			Destination: "identity-redis-auth",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "notification-redis-auth",
-			Destination: "notification-redis-auth",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "organization-redis-auth",
-			Destination: "organization-redis-auth",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "hr-redis-auth",
-			Destination: "hr-redis-auth",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "clickhouse-main-app",
-			Destination: "clickhouse-main-app",
-		},
-		{
-			Namespace:   "monadiam-data",
-			Name:        "clickhouse-main-intercluster",
-			Destination: "clickhouse-main-intercluster",
-		},
-		{
-			Namespace:   "clickhouse-operator",
-			Name:        "clickhouse-operator-credentials",
-			Destination: "clickhouse-operator-altinity-clickhouse-operator",
 		},
 	}
 }

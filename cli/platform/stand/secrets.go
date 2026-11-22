@@ -24,7 +24,7 @@ func (platform Platform) WaitSecret(ctx context.Context, namespace, name, destin
 
 		err := platform.Kubernetes.Get(ctx, namespace, "vaultstaticsecrets.secrets.hashicorp.com/"+name, &secret)
 		if err == nil {
-			return secret.ready(), nil
+			return secret.ready() && secret.Spec.Destination.Name == destination, nil
 		} else {
 			return false, err
 		}

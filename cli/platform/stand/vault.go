@@ -2,6 +2,8 @@ package stand
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
@@ -77,6 +79,50 @@ func (platform Platform) installVaultOperator(ctx context.Context) error {
 }
 
 func (platform Platform) waitVaultSecrets(ctx context.Context) error {
+	err := platform.waitVaultPrerequisites(ctx)
+	if err != nil {
+		return err
+	}
+
+	data, err := platform.Kubernetes.Capture(ctx, "get", "-k", "infrastructure/vault-secrets-operator/base", "-o", "json")
+	if err != nil {
+		return fmt.Errorf("stand.Platform.waitVaultSecrets: get Kustomize resources: %w", err)
+	}
+
+	var objects struct {
+		Items []staticSecret `json:"items"`
+	}
+
+	err = json.Unmarshal(data, &objects)
+	if err != nil {
+		return fmt.Errorf("stand.Platform.waitVaultSecrets: decode Kustomize resources: %w", err)
+	}
+
+	count := 0
+	for _, secret := range objects.Items {
+		if secret.Kind != "VaultStaticSecret" {
+			continue
+		}
+
+		if secret.Metadata.Name == "" || secret.Metadata.Namespace == "" || secret.Spec.Destination.Name == "" {
+			return fmt.Errorf("stand.Platform.waitVaultSecrets: incomplete VaultStaticSecret")
+		}
+
+		count++
+		err = platform.WaitSecret(ctx, secret.Metadata.Namespace, secret.Metadata.Name, secret.Spec.Destination.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	if count == 0 {
+		return fmt.Errorf("stand.Platform.waitVaultSecrets: no VaultStaticSecret resources")
+	}
+
+	return nil
+}
+
+func (platform Platform) waitVaultPrerequisites(ctx context.Context) error {
 	resources := []string{"certificate/vault-server-ca", "vaultconnections.secrets.hashicorp.com/vault"}
 
 	for _, resource := range resources {
@@ -91,13 +137,6 @@ func (platform Platform) waitVaultSecrets(ctx context.Context) error {
 	for _, namespace := range namespaces {
 		resource := "vaultauths.secrets.hashicorp.com/" + namespace
 		err := platform.Kubernetes.Wait(ctx, namespace, resource, "condition=Ready", "180s")
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, secret := range secretDefinitions() {
-		err := platform.WaitSecret(ctx, secret.Namespace, secret.Name, secret.Destination)
 		if err != nil {
 			return err
 		}

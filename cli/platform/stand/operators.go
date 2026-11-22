@@ -2,6 +2,8 @@ package stand
 
 import (
 	"context"
+
+	"github.com/MonadIAM/infrastructure/cli/platform/command"
 )
 
 func (platform Platform) Operators(ctx context.Context) error {
@@ -15,12 +17,7 @@ func (platform Platform) Operators(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Helm.Repo(ctx, "cnpg", platform.Environment["CNPG_HELM_REPO"])
-	if err != nil {
-		return err
-	}
-
-	err = platform.Helm.Repo(ctx, "altinity", platform.Environment["ALTINITY_HELM_REPO"])
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=operators", "terraform-apply"}})
 	if err != nil {
 		return err
 	}
@@ -36,11 +33,6 @@ func (platform Platform) Operators(ctx context.Context) error {
 }
 
 func (platform Platform) installOperator(ctx context.Context, operator operatorDefinition) error {
-	err := platform.install(ctx, operator.Release)
-	if err != nil {
-		return err
-	}
-
 	deployment := "deployment/" + operator.Deployment
 	if operator.Restart {
 		err := platform.Kubernetes.Run(ctx, "rollout", "restart", deployment, "-n", operator.Namespace)
@@ -49,7 +41,7 @@ func (platform Platform) installOperator(ctx context.Context, operator operatorD
 		}
 	}
 
-	err = platform.Kubernetes.Rollout(ctx, operator.Namespace, deployment, "600s")
+	err := platform.Kubernetes.Rollout(ctx, operator.Namespace, deployment, "600s")
 	if err != nil {
 		return err
 	}
