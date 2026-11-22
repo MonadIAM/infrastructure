@@ -1,0 +1,14 @@
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: access-control-http
+  namespace: monadiam-apps
+spec:
+  host: access-control-service.monadiam-apps.svc.cluster.local
+  trafficPolicy:
+    portLevelSettings:
+      - port:
+          number: 4001
+        connectionPool:
+          http:
+            idleTimeout: 60s

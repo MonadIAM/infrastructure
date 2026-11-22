@@ -1,0 +1,14 @@
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: identity-http
+  namespace: monadiam-apps
+spec:
+  host: identity-service.monadiam-apps.svc.cluster.local
+  trafficPolicy:
+    portLevelSettings:
+      - port:
+          number: 4002
+        connectionPool:
+          http:
+            idleTimeout: 60s

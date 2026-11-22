@@ -12,5 +12,6 @@ resources:
   - deployment.yaml
   - authorization-policy.yaml
   - route.yaml
+  - destination-rule.yaml
   - ../kafka
   - external-secrets.yaml
