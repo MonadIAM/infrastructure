@@ -5,6 +5,7 @@ GOLANGCI_LINT := $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lin
 PROFILE ?= dev
 ENV_FILE ?= .env.$(PROFILE)
 COMPONENT ?= all
+OBSERVABILITY_APPS := application/monadiam-prometheus-stack application/monadiam-loki application/monadiam-otel-collector
 
 TERRAFORM_STATE := $(TF_STATE_DIR)/$(PROFILE)/$(KUBE_CONTEXT)/$(ROOT)
 export TF_DATA_DIR = $(TERRAFORM_STATE)/.terraform
@@ -18,7 +19,7 @@ export TF_VAR_vault_chart_version = $(VAULT_CHART_VERSION)
 export TF_VAR_hashicorp_repository = $(HASHICORP_HELM_REPO)
 export TF_VAR_kv_mount = $(VAULT_KV_MOUNT)
 
-.PHONY: env start resume stop restart status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs applications-ready gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
+.PHONY: env start resume stop restart status build lint lint-fix env-check reconcile platform-plan platform-apply vault-status vault-plan vault-apply seaweedfs applications-ready observability-ready ambient-reconcile gitops-credentials gitops-ui terraform-init terraform-plan terraform-apply
 .PHONY: zot-start zot-status zot-logs
 .PHONY: redis-backup redis-backup-status redis-backup-logs
 .PHONY: microk8s-start microk8s-status
@@ -71,10 +72,29 @@ env:
 start: env microk8s-start
 	$(MAKE) zot-start
 	$(MAKE) COMPONENT=storage platform-apply
-	$(MAKE) COMPONENT=all reconcile
+	$(MAKE) COMPONENT=cert-manager reconcile
+	$(MAKE) COMPONENT=metrics-server reconcile
+	$(MAKE) COMPONENT=istio reconcile
+	$(MAKE) ambient-reconcile
+	$(MAKE) COMPONENT=vault reconcile
+	$(MAKE) COMPONENT=gateway reconcile
+	$(MAKE) COMPONENT=operators reconcile
+	$(MAKE) COMPONENT=clusters reconcile
+	$(MAKE) COMPONENT=apicurio reconcile
+	$(MAKE) COMPONENT=seaweedfs reconcile
+	$(MAKE) COMPONENT=observability platform-apply
 	$(MAKE) COMPONENT=gitops platform-apply
 	$(MAKE) COMPONENT=gitops-apps platform-apply
+	$(MAKE) observability-ready
 	$(MAKE) applications-ready
+ambient-reconcile:
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" --context "monadiam-microk8s-$(PROFILE)" -n istio-system rollout restart daemonset/istio-cni-node
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" --context "monadiam-microk8s-$(PROFILE)" -n istio-system rollout status daemonset/istio-cni-node --timeout=300s
+observability-ready:
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" --context "monadiam-microk8s-$(PROFILE)" -n argocd wait --for=create $(OBSERVABILITY_APPS) --timeout=900s
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" --context "monadiam-microk8s-$(PROFILE)" -n argocd wait --for=jsonpath='{.status.sync.status}'=Synced $(OBSERVABILITY_APPS) --timeout=900s
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" --context "monadiam-microk8s-$(PROFILE)" -n argocd wait --for=jsonpath='{.status.operationState.phase}'=Succeeded $(OBSERVABILITY_APPS) --timeout=900s
+	kubectl --kubeconfig "$(HOME)/.kube/monadiam-microk8s-$(PROFILE).yaml" --context "monadiam-microk8s-$(PROFILE)" -n argocd wait --for=jsonpath='{.status.health.status}'=Healthy $(OBSERVABILITY_APPS) --timeout=900s
 applications-ready:
 	@set -a; . "$(abspath $(ENV_FILE))"; set +a; \
 		for service in access-control identity notification organization hr; do \

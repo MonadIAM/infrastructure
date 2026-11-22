@@ -18,6 +18,6 @@ const usage = `Usage:
 
 Options: --env-file=.env.dev, --timeout=60m
 Components: all, cert-manager, metrics-server, istio, gateway, vault,
-            operators, clusters, seaweedfs, observability
+            operators, clusters, seaweedfs
 Run from the stand repository root. Use --env-file= for environment-only configuration.
 `
