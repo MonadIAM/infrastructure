@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - image-updater.yaml
   - projects.yaml
+  - observability-project.yaml
   - external-secrets.yaml
   - reloader.yaml
   - application-secrets.yaml
@@ -12,3 +13,6 @@ resources:
   - organization.yaml
   - hr.yaml
   - shared-schemas.yaml
+  - prometheus-stack.yaml
+  - loki.yaml
+  - otel-collector.yaml

@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monadiam-loki
+  namespace: argocd
+spec:
+  project: monadiam-observability
+  sources:
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: loki
+      targetRevision: 18.11.3
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/infrastructure/loki/values.yaml
+          - $values/clusters/dev/infrastructure/loki/values.yaml
+    - repoURL: https://github.com/MonadIAM/infrastructure.git
+      targetRevision: dev
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monadiam-observability
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - FailOnSharedResource=true

@@ -79,10 +79,6 @@ func (platform Platform) phases() []phaseDefinition {
 			Name: "seaweedfs",
 			Run:  platform.SeaweedFS,
 		},
-		{
-			Name: "observability",
-			Run:  platform.Observability,
-		},
 	}
 
 	return phases
@@ -162,38 +158,6 @@ func releaseDefinitions(environment config.Environment) map[string]helm.Release 
 			Namespace: "clickhouse-operator",
 			Values:    "infrastructure/clickhouse/operator/values.yaml",
 			Arguments: []string{"--values", profile + "/clickhouse/operator-values.yaml"},
-		},
-		"kube-prometheus-stack": {
-			Name:      "kube-prometheus-stack",
-			Chart:     "prometheus-community/kube-prometheus-stack",
-			Version:   environment["KUBE_PROMETHEUS_STACK_CHART_VERSION"],
-			Namespace: observabilityNamespace,
-			Values:    "infrastructure/prometheus-stack/values.yaml",
-			Arguments: []string{"--values", profile + "/prometheus-stack/values.yaml", "--skip-crds", "--timeout", "600s"},
-		},
-		"loki": {
-			Name:      "loki",
-			Chart:     "grafana-community/loki",
-			Version:   environment["LOKI_CHART_VERSION"],
-			Namespace: observabilityNamespace,
-			Values:    "infrastructure/loki/values.yaml",
-			Arguments: []string{"--values", profile + "/loki/values.yaml", "--timeout", "600s"},
-		},
-		"tempo": {
-			Name:      "tempo",
-			Chart:     "grafana-community/tempo",
-			Version:   environment["TEMPO_CHART_VERSION"],
-			Namespace: observabilityNamespace,
-			Values:    "infrastructure/tempo/values.yaml",
-			Arguments: []string{"--values", profile + "/tempo/values.yaml", "--timeout", "600s"},
-		},
-		"otel-collector": {
-			Name:      "otel-collector",
-			Chart:     "open-telemetry/opentelemetry-collector",
-			Version:   environment["OPENTELEMETRY_COLLECTOR_CHART_VERSION"],
-			Namespace: observabilityNamespace,
-			Values:    "infrastructure/otel-collector/values.yaml",
-			Arguments: []string{"--values", profile + "/otel-collector/values.yaml", "--timeout", "600s"},
 		},
 	}
 

@@ -4,6 +4,7 @@ cni:
   ambient:
     dnsCapture: false
     ipv6: false
+    reconcileIptablesOnStartup: true
 
 resources:
   limits:

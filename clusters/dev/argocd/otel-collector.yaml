@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monadiam-otel-collector
+  namespace: argocd
+spec:
+  project: monadiam-observability
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.171.0
+      helm:
+        releaseName: otel-collector
+        valueFiles:
+          - $values/infrastructure/otel-collector/values.yaml
+          - $values/clusters/dev/infrastructure/otel-collector/values.yaml
+    - repoURL: https://github.com/MonadIAM/infrastructure.git
+      targetRevision: dev
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monadiam-observability
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - FailOnSharedResource=true

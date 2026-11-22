@@ -2,3 +2,8 @@ resources:
   limits:
     cpu: 750m
     memory: 256Mi
+istioNamespace: istio-system
+caAddress: istiod.istio-system.svc:15012
+xdsAddress: istiod.istio-system.svc:15012
+env:
+  IPV6_ENABLED: "false"

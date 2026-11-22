@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monadiam-prometheus-stack
+  namespace: argocd
+spec:
+  project: monadiam-observability
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      targetRevision: 87.18.1
+      helm:
+        releaseName: kube-prometheus-stack
+        skipCrds: true
+        valueFiles:
+          - $values/infrastructure/prometheus-stack/values.yaml
+          - $values/clusters/dev/infrastructure/prometheus-stack/values.yaml
+    - repoURL: https://github.com/MonadIAM/infrastructure.git
+      targetRevision: dev
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monadiam-observability
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - FailOnSharedResource=true
