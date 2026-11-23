@@ -1,3 +1,29 @@
+fullnameOverride: access-control-redis
+auth:
+  existingSecret: access-control-redis-auth
+tls:
+  existingSecret: access-control-redis-tls
+sentinel:
+  masterSet: access-control-redis
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 64Mi
+  persistence:
+    size: 100Mi
+metrics:
+  extraArgs:
+    tls-server-name: access-control-redis.monadiam-data.svc.cluster.local
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
 replica:
   configuration: |-
     maxmemory 1024mb
@@ -11,23 +37,3 @@ replica:
       memory: 1536Mi
   persistence:
     size: 1Gi
-
-sentinel:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 32Mi
-    limits:
-      cpu: 200m
-      memory: 64Mi
-  persistence:
-    size: 100Mi
-
-metrics:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 64Mi
-    limits:
-      cpu: 200m
-      memory: 128Mi

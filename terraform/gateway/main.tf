@@ -1,7 +1,7 @@
 resource "helm_release" "gateway" {
   name           = "gateway"
   namespace      = "istio-ingress"
-  chart          = "${path.module}/../../infrastructure/gateway-api/chart"
+  chart          = "${path.module}/../../clusters/${var.profile}/infrastructure/gateway-api/chart"
   take_ownership = true
   set = [
     {

@@ -1,0 +1,18 @@
+watchNamespaces:
+  - monadiam-messaging
+watchAnyNamespace: false
+connectBuildTimeoutMs: 1200000
+annotations:
+  sidecar.istio.io/inject: "false"
+dashboards:
+  enabled: false
+podDisruptionBudget:
+  enabled: false
+replicas: 1
+resources:
+  requests:
+    cpu: 200m
+    memory: 384Mi
+  limits:
+    cpu: "1"
+    memory: 384Mi

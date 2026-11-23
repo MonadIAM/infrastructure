@@ -15,7 +15,7 @@ func (platform Platform) SeaweedFS(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/seaweedfs/base")
+	err = platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/seaweedfs/base")
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func (platform Platform) SeaweedFS(ctx context.Context) error {
 		return err
 	}
 
-	err = platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/seaweedfs/monitoring")
+	err = platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/seaweedfs/monitoring")
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (platform Platform) seaweedFSImage(ctx context.Context) (string, error) {
 
 	_, err := platform.Runner.Run(ctx, command.Request{
 		Name: "docker",
-		Args: []string{"build", "--file", "infrastructure/seaweedfs/Dockerfile", "--tag", tag, "."},
+		Args: []string{"build", "--file", "clusters/" + platform.Environment["PROFILE"] + "/infrastructure/seaweedfs/Dockerfile", "--tag", tag, "."},
 	})
 	if err != nil {
 		return "", err
@@ -90,7 +90,7 @@ func (platform Platform) seaweedFSImage(ctx context.Context) (string, error) {
 }
 
 func (platform Platform) configureSeaweedFS(ctx context.Context, image string) error {
-	data, err := platform.Helm.Execute(ctx, true, "template", "seaweedfs-bootstrap", "infrastructure/seaweedfs/chart",
+	data, err := platform.Helm.Execute(ctx, true, "template", "seaweedfs-bootstrap", "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/seaweedfs/chart",
 		"--namespace", dataNamespace,
 		"--values", "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/seaweedfs/bootstrap-values.yaml",
 		"--set-string", "image="+image)

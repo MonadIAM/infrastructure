@@ -1,3 +1,7 @@
+variable "profile" {
+  type = string
+}
+
 variable "kubeconfig" {
   type = string
 }

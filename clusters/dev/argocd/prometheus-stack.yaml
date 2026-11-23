@@ -13,7 +13,6 @@ spec:
         releaseName: kube-prometheus-stack
         skipCrds: true
         valueFiles:
-          - $values/infrastructure/prometheus-stack/values.yaml
           - $values/clusters/dev/infrastructure/prometheus-stack/values.yaml
     - repoURL: https://github.com/MonadIAM/infrastructure.git
       targetRevision: dev
@@ -23,7 +22,7 @@ spec:
     namespace: monadiam-observability
   syncPolicy:
     automated:
-      prune: false
+      prune: true
       selfHeal: true
     syncOptions:
       - ServerSideApply=true

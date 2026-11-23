@@ -12,7 +12,6 @@ spec:
       helm:
         releaseName: otel-collector
         valueFiles:
-          - $values/infrastructure/otel-collector/values.yaml
           - $values/clusters/dev/infrastructure/otel-collector/values.yaml
     - repoURL: https://github.com/MonadIAM/infrastructure.git
       targetRevision: dev

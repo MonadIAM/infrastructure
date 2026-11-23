@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monadiam-kube-state-metrics
+  namespace: argocd
+spec:
+  project: monadiam-observability
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-state-metrics
+      targetRevision: 8.0.0
+      helm:
+        releaseName: kube-state-metrics
+        valueFiles:
+          - $values/clusters/dev/infrastructure/kube-state-metrics/values.yaml
+    - repoURL: https://github.com/MonadIAM/infrastructure.git
+      targetRevision: dev
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monadiam-observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - FailOnSharedResource=true

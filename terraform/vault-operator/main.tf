@@ -5,8 +5,7 @@ resource "helm_release" "vault_secrets_operator" {
   chart      = "vault-secrets-operator"
   version    = "1.5.0"
   values = [
-    file("${path.module}/../../infrastructure/vault-secrets-operator/values.yaml"),
-    file("${path.module}/../../clusters/${var.profile}/infrastructure/vault-secrets-operator/values.yaml")
+    file("${path.module}/../../clusters/${var.profile}/infrastructure/vault/operator/values.yaml")
   ]
   wait    = true
   timeout = 300

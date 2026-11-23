@@ -14,5 +14,8 @@ resources:
   - hr.yaml
   - shared-schemas.yaml
   - prometheus-stack.yaml
+  - grafana.yaml
+  - kube-state-metrics.yaml
+  - node-exporter.yaml
   - loki.yaml
   - otel-collector.yaml

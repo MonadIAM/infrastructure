@@ -5,7 +5,6 @@ resource "helm_release" "base" {
   chart      = "base"
   version    = "1.30.3"
   values = [
-    file("${path.module}/../../infrastructure/istio/base-values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/istio/values.yaml")
   ]
   wait    = true
@@ -20,7 +19,6 @@ resource "helm_release" "istiod" {
   chart      = "istiod"
   version    = "1.30.3"
   values = [
-    file("${path.module}/../../infrastructure/istio/istiod-values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/istio/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/istio/istiod-values.yaml")
   ]
@@ -37,7 +35,6 @@ resource "helm_release" "cni" {
   chart      = "cni"
   version    = "1.30.3"
   values = [
-    file("${path.module}/../../infrastructure/istio/istio-cni-values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/istio/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/istio/cni-values.yaml")
   ]
@@ -54,7 +51,6 @@ resource "helm_release" "ztunnel" {
   chart      = "ztunnel"
   version    = "1.30.3"
   values = [
-    file("${path.module}/../../infrastructure/istio/ztunnel-values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/istio/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/istio/ztunnel-values.yaml")
   ]

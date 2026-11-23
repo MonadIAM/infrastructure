@@ -1,0 +1,36 @@
+watchNamespaces:
+  - monadiam-data
+secret:
+  create: false
+podAnnotations:
+  sidecar.istio.io/inject: "false"
+crdHook:
+  podAnnotations:
+    sidecar.istio.io/inject: "false"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+serviceMonitor:
+  enabled: true
+dashboards:
+  enabled: false
+operator:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 192Mi
+metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi

@@ -1,14 +1,73 @@
-image:
-  tag: "4.48"
+global:
+  seaweedfs:
+    createClusterRole: false
+    serviceAccountName: seaweedfs-main
+    automountServiceAccountToken: false
+    enableReplication: false
+    monitoring:
+      enabled: true
 master:
+  replicas: 1
+  defaultReplication: "000"
+  volumeSizeLimitMB: 1000
+  data:
+    type: persistentVolumeClaim
+    size: 1Gi
+    storageClass: local-retain
+  logs:
+    type: emptyDir
   resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
     limits:
+      memory: 512Mi
       cpu: 250m
 volume:
+  replicas: 1
+  dataDirs:
+    - name: data
+      type: persistentVolumeClaim
+      size: 20Gi
+      storageClass: local-retain
+      maxVolumes: 20
+  resizeHook:
+    enabled: false
   resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
     limits:
+      memory: 1Gi
       cpu: 500m
 filer:
+  replicas: 1
+  defaultReplicaPlacement: "000"
+  data:
+    type: persistentVolumeClaim
+    size: 2Gi
+    storageClass: local-retain
+  logs:
+    type: emptyDir
+  extraEnvironmentVars:
+    WEED_LEVELDB2_ENABLED: "true"
+    WEED_LEVELDB2_DIR: /data/filerldb2
+  s3:
+    enabled: true
+    enableAuth: true
+    existingConfigSecret: seaweedfs-main-s3
   resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
     limits:
+      memory: 1Gi
       cpu: 500m
+s3:
+  enabled: false
+  service:
+    type: ClusterIP
+admin:
+  enabled: false
+image:
+  tag: "4.48"

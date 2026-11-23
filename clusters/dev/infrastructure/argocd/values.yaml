@@ -1,20 +1,51 @@
+configs:
+  cm:
+    application.resourceTrackingMethod: annotation
+    timeout.reconciliation: 120s
+  params:
+    controller.status.processors: 5
+    controller.operation.processors: 2
+    reposerver.parallelism.limit: 2
 controller:
   resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
     limits:
-      cpu: 500m
       memory: 1Gi
+      cpu: 500m
 repoServer:
   resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
     limits:
+      memory: 512Mi
       cpu: 500m
 server:
+  service:
+    type: ClusterIP
   resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
     limits:
+      memory: 256Mi
       cpu: 250m
 redis:
   resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
     limits:
+      memory: 128Mi
       cpu: 100m
+dex:
+  enabled: false
+applicationSet:
+  replicas: 0
+notifications:
+  enabled: false
 redisSecretInit:
   resources:
     requests:
