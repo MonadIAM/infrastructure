@@ -1,3 +1,29 @@
+fullnameOverride: identity-redis
+auth:
+  existingSecret: identity-redis-auth
+tls:
+  existingSecret: identity-redis-tls
+sentinel:
+  masterSet: identity-redis
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 200m
+      memory: 64Mi
+  persistence:
+    size: 100Mi
+metrics:
+  extraArgs:
+    tls-server-name: identity-redis.monadiam-data.svc.cluster.local
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
 replica:
   configuration: |-
     maxmemory 128mb
@@ -11,23 +37,3 @@ replica:
       memory: 512Mi
   persistence:
     size: 1Gi
-
-sentinel:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 32Mi
-    limits:
-      cpu: 200m
-      memory: 64Mi
-  persistence:
-    size: 100Mi
-
-metrics:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 64Mi
-    limits:
-      cpu: 200m
-      memory: 128Mi

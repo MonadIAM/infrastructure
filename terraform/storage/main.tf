@@ -6,7 +6,6 @@ resource "helm_release" "rawfile" {
   chart            = "rawfile-localpv"
   version          = "0.15.3"
   values = [
-    file("${path.module}/../../infrastructure/rawfile/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/rawfile/values.yaml")
   ]
   wait    = true

@@ -4,8 +4,8 @@ set dotenv-filename := '.env.dev'
 
 # Apply the Zot manifests and wait for the registry Deployment.
 apply:
-    kubectl --kubeconfig "$KUBECONFIG" --context "$KUBE_CONTEXT" apply -k infrastructure/namespaces/base
-    kubectl --kubeconfig "$KUBECONFIG" --context "$KUBE_CONTEXT" apply -k infrastructure/zot/base
+    kubectl --kubeconfig "$KUBECONFIG" --context "$KUBE_CONTEXT" apply -k "clusters/$PROFILE/infrastructure/namespaces"
+    kubectl --kubeconfig "$KUBECONFIG" --context "$KUBE_CONTEXT" apply -k "clusters/$PROFILE/infrastructure/zot/base"
     kubectl --kubeconfig "$KUBECONFIG" --context "$KUBE_CONTEXT" \
         -n monadiam-data rollout status deployment/monadiam-registry \
         --timeout=300s

@@ -5,7 +5,6 @@ resource "helm_release" "seaweedfs_main" {
   chart      = "seaweedfs"
   version    = "4.48.0"
   values = [
-    file("${path.module}/../../infrastructure/seaweedfs/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/seaweedfs/values.yaml")
   ]
   wait    = true

@@ -1,21 +1,23 @@
-controller:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 64Mi
-    limits:
-      cpu: 250m
-      memory: 192Mi
-  externalResizer:
-    resources:
-      requests:
-        cpu: 10m
-        memory: 32Mi
-      limits:
-        cpu: 100m
-        memory: 64Mi
+analytics:
+  enabled: false
+capabilities:
+  snapshots:
+    enabled: false
+  apiServer:
+    enabled: false
+crds:
+  csi:
+    volumeSnapshots:
+      enabled: false
+snapshotClasses: []
 node:
+  kubeletPath: /var/snap/microk8s/common/var/lib/kubelet
+  metadataDirPath: /var/lib/monadiam/microk8s/volume-metadata
   storagePools:
+    default:
+      path: /var/lib/monadiam/microk8s/volumes
+      reservedCapacity: "5%"
+      reservedCapacityMode: plain
     wal:
       path: /var/lib/monadiam/postgresql-wal
       reservedCapacity: "5%"
@@ -36,7 +38,6 @@ node:
       limits:
         cpu: 100m
         memory: 128Mi
-
 storageClasses:
   - name: local-retain
     enabled: true
@@ -57,3 +58,19 @@ storageClasses:
     thinProvision: "false"
     copyOnWrite: "false"
     storagePool: wal
+controller:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 192Mi
+  externalResizer:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 64Mi

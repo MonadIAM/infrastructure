@@ -1,15 +1,97 @@
+commonLabels:
+  app.kubernetes.io/part-of: monadiam
+architecture: replication
+image:
+  registry: docker.io
+  repository: bitnami/redis
+  tag: latest
+  digest: sha256:d75bda00b778ad5e03a639ec36e00f6665a5d7e0f35a6250be5b103fb2117275
+commonConfiguration: |-
+  appendonly yes
+  appendfsync everysec
+  no-appendfsync-on-rewrite no
+  aof-load-truncated no
+  save ""
+  maxmemory-policy noeviction
+auth:
+  enabled: true
+  sentinel: true
+  existingSecretPasswordKey: redis-password
+  usePasswordFiles: true
+  usePasswordFileFromSecret: true
+tls:
+  enabled: true
+  authClients: true
+  certFilename: tls.crt
+  certKeyFilename: tls.key
+  certCAFilename: ca.crt
 replica:
+  resourcesPreset: none
+  persistence:
+    enabled: true
+    storageClass: local-retain
   replicaCount: 1
   podAntiAffinityPreset: soft
   pdb:
     create: true
     minAvailable: ""
     maxUnavailable: 1
-  persistence:
-    storageClass: local-retain
-
 sentinel:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/redis-sentinel
+    tag: latest
+    digest: sha256:fcfca07d8b56cea8e990e51c09c0d03102bde09a2147bd6a669e024a56893a8c
+  downAfterMilliseconds: 10000
+  failoverTimeout: 180000
+  parallelSyncs: 1
+  persistence:
+    enabled: true
+    storageClass: local-retain
+  resourcesPreset: none
+  persistentVolumeClaimRetentionPolicy:
+    enabled: true
+    whenScaled: Retain
+    whenDeleted: Retain
+  service:
+    type: ClusterIP
+    ports:
+      redis: 6379
+      sentinel: 26379
+    createMaster: false
+  masterService:
+    enabled: false
   quorum: 1
   redisShutdownWaitFailover: false
-  persistence:
-    storageClass: local-retain
+metrics:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: bitnami/redis-exporter
+    tag: latest
+    digest: sha256:09233726b19097ccbeb7a90347a7a0975c015de9efafaf2ac90d62dae241ca67
+  resourcesPreset: none
+  extraArgs:
+    redis.addr: rediss://localhost:6379
+    redis.password-file: /secrets/redis-password
+    tls-client-key-file: /opt/bitnami/redis/certs/tls.key
+    tls-client-cert-file: /opt/bitnami/redis/certs/tls.crt
+    tls-ca-cert-file: /opt/bitnami/redis/certs/ca.crt
+    ping-on-connect: true
+    set-client-name: true
+  serviceMonitor:
+    enabled: true
+    namespace: monadiam-data
+    interval: 30s
+    scrapeTimeout: 10s
+    additionalEndpoints:
+      - port: http-metrics
+        path: /scrape
+        params:
+          target:
+            - rediss://localhost:26379
+        interval: 30s
+        scrapeTimeout: 10s
+networkPolicy:
+  enabled: false

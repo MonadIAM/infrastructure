@@ -17,7 +17,6 @@ resource "helm_release" "argocd" {
   chart      = "argo-cd"
   version    = "10.11.6"
   values = [
-    file("${path.module}/../../infrastructure/argocd/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/argocd/values.yaml")
   ]
   wait    = true
@@ -32,7 +31,6 @@ resource "helm_release" "image_updater" {
   chart      = "argocd-image-updater"
   version    = "1.4.0"
   values = [
-    file("${path.module}/../../infrastructure/image-updater/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/image-updater/values.yaml")
   ]
   depends_on = [helm_release.argocd]

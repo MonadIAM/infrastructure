@@ -1,0 +1,75 @@
+admin:
+  existingSecret: grafana-admin
+  userKey: admin-user
+  passwordKey: admin-password
+persistence:
+  enabled: true
+  storageClassName: local-retain
+  accessModes:
+    - ReadWriteOnce
+  size: 1Gi
+serviceMonitor:
+  enabled: true
+sidecar:
+  dashboards:
+    enabled: true
+    label: grafana_dashboard
+    labelValue: "1"
+    searchNamespace: ALL
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        uid: prometheus
+        url: http://kube-prometheus-stack-prometheus.monadiam-observability:9090/
+        access: proxy
+        isDefault: true
+        jsonData:
+          httpMethod: POST
+          timeInterval: 30s
+      - name: Alertmanager
+        type: alertmanager
+        uid: alertmanager
+        url: http://kube-prometheus-stack-alertmanager.monadiam-observability:9093/
+        access: proxy
+        jsonData:
+          handleGrafanaManagedAlerts: false
+          implementation: prometheus
+      - name: Loki
+        type: loki
+        uid: Loki
+        url: http://loki:3100
+        access: proxy
+        orgId: 1
+        editable: false
+      - name: Tempo
+        type: tempo
+        uid: Tempo
+        url: http://tempo:3200
+        access: proxy
+        orgId: 1
+        editable: false
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    memory: 384Mi
+    cpu: 250m
+initChownData:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 16Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi

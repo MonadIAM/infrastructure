@@ -1,48 +1,55 @@
+fullnameOverride: kube-prometheus-stack
+commonLabels:
+  app.kubernetes.io/component: observability
+  app.kubernetes.io/part-of: monadiam
+defaultRules:
+  create: true
 alertmanager:
+  enabled: true
   alertmanagerSpec:
+    retention: 24h
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-retain
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
     resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
       limits:
+        memory: 128Mi
         cpu: 100m
 grafana:
-  resources:
-    limits:
-      cpu: 250m
-      memory: 384Mi
-  sidecar:
-    resources:
-      requests:
-        cpu: 10m
-        memory: 64Mi
-      limits:
-        cpu: 100m
-        memory: 128Mi
-  initChownData:
-    resources:
-      requests:
-        cpu: 10m
-        memory: 16Mi
-      limits:
-        cpu: 100m
-        memory: 64Mi
-kube-state-metrics:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 64Mi
-    limits:
-      cpu: 250m
-      memory: 256Mi
-prometheus-node-exporter:
-  resources:
-    requests:
-      cpu: 10m
-      memory: 32Mi
-    limits:
-      cpu: 200m
-      memory: 64Mi
+  enabled: false
+  forceDeployDashboards: true
+  defaultDashboardsEnabled: true
+kubeApiServer:
+  enabled: true
+kubeControllerManager:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeStateMetrics:
+  enabled: false
+nodeExporter:
+  enabled: false
+  forceDeployDashboards: true
 prometheusOperator:
   resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
     limits:
+      memory: 256Mi
       cpu: 250m
   prometheusConfigReloader:
     resources:
@@ -62,6 +69,35 @@ prometheusOperator:
           cpu: 250m
           memory: 128Mi
 prometheus:
+  enabled: true
+  serviceMonitor:
+    selfMonitor: true
+  prometheusSpec:
+    retention: 24h
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-retain
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1536Mi
+        cpu: 500m
+    retentionSize: 1500MB
   additionalPodMonitors:
     - name: vault-agents
       namespaceSelector:
@@ -93,9 +129,29 @@ prometheus:
           path: /api/v1/metrics
           interval: 15s
           scrapeTimeout: 10s
-  prometheusSpec:
-    retentionSize: 1500MB
-    resources:
-      limits:
-        cpu: 500m
-        memory: 1536Mi
+extraManifests:
+  - apiVersion: monitoring.coreos.com/v1
+    kind: PodMonitor
+    metadata:
+      name: vault
+      namespace: vault
+    spec:
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: vault
+          component: server
+      podMetricsEndpoints:
+        - port: https
+          path: /v1/sys/metrics
+          scheme: https
+          params:
+            format:
+              - prometheus
+          interval: 5s
+          scrapeTimeout: 4s
+          tlsConfig:
+            serverName: vault.vault.svc.cluster.local
+            ca:
+              secret:
+                name: vault-server-tls
+                key: ca.crt

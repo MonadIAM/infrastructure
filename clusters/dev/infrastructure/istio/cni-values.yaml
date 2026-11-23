@@ -1,3 +1,11 @@
+profile: ambient
+resources:
+  requests:
+    cpu: 100m
+    memory: 100Mi
+  limits:
+    memory: 256Mi
+    cpu: 250m
 cni:
   cniBinDir: /var/snap/microk8s/current/opt/cni/bin
   cniConfDir: /var/snap/microk8s/current/args/cni-network
@@ -5,7 +13,3 @@ cni:
     dnsCapture: false
     ipv6: false
     reconcileIptablesOnStartup: true
-
-resources:
-  limits:
-    cpu: 250m

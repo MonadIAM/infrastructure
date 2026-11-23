@@ -33,8 +33,7 @@ resource "helm_release" "cert_manager" {
   chart     = var.cert_manager_chart
   version   = var.cert_manager_version
   values = [
-    file("${path.module}/../../infrastructure/cert-manager/values.yaml"),
-    file("${path.module}/../../clusters/${var.profile}/infrastructure/cert-manager/values.yaml")
+    file("${path.module}/../../clusters/${var.profile}/infrastructure/cert-manager/operator/values.yaml")
   ]
   wait    = true
   timeout = 300

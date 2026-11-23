@@ -70,7 +70,7 @@ func (platform Platform) installVaultOperator(ctx context.Context) error {
 		return err
 	}
 
-	return platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/vault-secrets-operator/base")
+	return platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/vault-secrets/base")
 }
 
 func (platform Platform) waitVaultSecrets(ctx context.Context) error {
@@ -79,7 +79,7 @@ func (platform Platform) waitVaultSecrets(ctx context.Context) error {
 		return err
 	}
 
-	data, err := platform.Kubernetes.Capture(ctx, "get", "-k", "infrastructure/vault-secrets-operator/base", "-o", "json")
+	data, err := platform.Kubernetes.Capture(ctx, "get", "-k", "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/vault-secrets/base", "-o", "json")
 	if err != nil {
 		return fmt.Errorf("stand.Platform.waitVaultSecrets: get Kustomize resources: %w", err)
 	}

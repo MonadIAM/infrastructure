@@ -1,9 +1,0 @@
-replicaCount: 1
-
-podAnnotations:
-  sidecar.istio.io/inject: "false"
-
-monitoring:
-  podMonitorEnabled: false
-  grafanaDashboard:
-    create: false

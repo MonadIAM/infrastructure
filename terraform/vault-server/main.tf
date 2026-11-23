@@ -1,5 +1,5 @@
 locals {
-  issuers = [for document in split("\n---\n", trimspace(file("${path.module}/../../infrastructure/cert-manager/base/issuers.yaml"))) : yamldecode(document)]
+  issuers = [for document in split("\n---\n", trimspace(file("${path.module}/../../clusters/${var.profile}/infrastructure/cert-manager/base/issuers.yaml"))) : yamldecode(document)]
 }
 
 resource "kubernetes_manifest" "selfsigned" {
@@ -47,7 +47,7 @@ resource "kubernetes_manifest" "ca" {
   lifecycle { prevent_destroy = true }
 }
 resource "kubernetes_manifest" "vault_tls" {
-  manifest   = yamldecode(file("${path.module}/../../infrastructure/vault/base/certificate.yaml"))
+  manifest   = yamldecode(file("${path.module}/../../clusters/${var.profile}/infrastructure/vault/base/certificate.yaml"))
   depends_on = [kubernetes_manifest.ca]
   wait {
     condition {
@@ -68,7 +68,6 @@ resource "helm_release" "vault" {
   chart      = "vault"
   version    = var.vault_chart_version
   values = [
-    file("${path.module}/../../infrastructure/vault/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/vault/values.yaml")
   ]
   depends_on = [kubernetes_manifest.vault_tls]

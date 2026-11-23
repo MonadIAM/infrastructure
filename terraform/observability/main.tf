@@ -5,7 +5,6 @@ resource "helm_release" "tempo" {
   chart      = "tempo"
   version    = "2.3.0"
   values = [
-    file("${path.module}/../../infrastructure/tempo/values.yaml"),
     file("${path.module}/../../clusters/${var.profile}/infrastructure/tempo/values.yaml")
   ]
   wait    = true

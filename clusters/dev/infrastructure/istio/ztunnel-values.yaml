@@ -1,9 +1,13 @@
+env:
+  SECRET_TTL: 24h
+  IPV6_ENABLED: "false"
 resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
   limits:
-    cpu: 750m
     memory: 256Mi
+    cpu: 750m
 istioNamespace: istio-system
 caAddress: istiod.istio-system.svc:15012
 xdsAddress: istiod.istio-system.svc:15012
-env:
-  IPV6_ENABLED: "false"

@@ -44,7 +44,7 @@ func (platform Platform) Istio(ctx context.Context) error {
 		}
 	}
 
-	return platform.Kubernetes.ApplyKustomize(ctx, "infrastructure/istio/base")
+	return platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/istio/base")
 }
 
 func (platform Platform) Gateway(ctx context.Context) error {

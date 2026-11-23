@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monadiam-node-exporter
+  namespace: argocd
+spec:
+  project: monadiam-observability
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: prometheus-node-exporter
+      targetRevision: 4.56.1
+      helm:
+        releaseName: node-exporter
+        valueFiles:
+          - $values/clusters/dev/infrastructure/node-exporter/values.yaml
+    - repoURL: https://github.com/MonadIAM/infrastructure.git
+      targetRevision: dev
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monadiam-observability
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - FailOnSharedResource=true

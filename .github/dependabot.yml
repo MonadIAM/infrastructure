@@ -54,7 +54,7 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
   - package-ecosystem: docker
-    directory: /infrastructure/seaweedfs
+    directory: /clusters/dev/infrastructure/seaweedfs
     schedule:
       interval: weekly
     groups:

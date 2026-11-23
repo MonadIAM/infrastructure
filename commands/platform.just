@@ -49,7 +49,7 @@ observability-ready:
 grafana-ui:
     kubectl --kubeconfig '{{ kubeconfig }}' --context '{{ context }}' \
         -n monadiam-observability port-forward \
-        service/kube-prometheus-stack-grafana 3000:80
+        service/grafana 3000:80
 
 # Forward Schema Registry to local port 8081.
 schema-ui:

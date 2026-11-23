@@ -1,7 +1,7 @@
 locals {
   services = toset(["identity", "organization", "hr", "access-control", "notification"])
   policies = merge(
-    { for namespace, binding in var.namespace_bindings : binding.policy => file("${path.module}/../../infrastructure/vault/policies/${namespace}-read.hcl") },
+    { for namespace, binding in var.namespace_bindings : binding.policy => file("${path.module}/../../clusters/${var.profile}/infrastructure/vault/policies/${namespace}-read.hcl") },
     { for name in local.services : "${name}-service" => file("${path.module}/../../applications/${name}/config/policy.hcl") }
   )
   roles = merge(
