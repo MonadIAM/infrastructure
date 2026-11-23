@@ -58,7 +58,7 @@ secrets/terraform/.output/
 secrets/terraform/*.auto.tfvars
 secrets/terraform/*.auto.tfvars.json
 
-# Vault - generated locally on first `make up`, never committed:
+# Vault - generated locally when the stand starts, never committed:
 secrets/tls/
 secrets/init-keys/
 

@@ -28,7 +28,7 @@ func (platform Platform) SeaweedFS(ctx context.Context) error {
 		}
 	}
 
-	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=seaweedfs", "terraform-apply"}})
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "just", Args: []string{"tf::apply", "seaweedfs"}})
 	if err != nil {
 		return err
 	}

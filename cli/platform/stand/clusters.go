@@ -17,7 +17,7 @@ func (platform Platform) Clusters(ctx context.Context) error {
 		return err
 	}
 
-	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=redis", "terraform-apply"}})
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "just", Args: []string{"tf::apply", "redis"}})
 	if err != nil {
 		return err
 	}

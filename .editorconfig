@@ -11,8 +11,16 @@ trim_trailing_whitespace = true
 [*.go]
 indent_size = 4
 
-[Makefile]
-indent_style = tab
+[justfile]
+indent_size = 4
+
+[*.just]
+indent_size = 4
 
 [*.sh]
 indent_size = 4
+tab_width = 4
+
+[.githooks/*]
+indent_size = 4
+tab_width = 4

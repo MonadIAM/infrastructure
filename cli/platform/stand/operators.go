@@ -17,7 +17,7 @@ func (platform Platform) Operators(ctx context.Context) error {
 		return err
 	}
 
-	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=operators", "terraform-apply"}})
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "just", Args: []string{"tf::apply", "operators"}})
 	if err != nil {
 		return err
 	}
