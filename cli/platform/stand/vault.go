@@ -39,7 +39,7 @@ func (platform Platform) Vault(ctx context.Context) error {
 }
 
 func (platform Platform) installVault(ctx context.Context) error {
-	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=vault-server", "terraform-apply"}})
+	_, err := platform.Runner.Run(ctx, command.Request{Name: "just", Args: []string{"tf::apply", "vault-server"}})
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (platform Platform) installVault(ctx context.Context) error {
 }
 
 func (platform Platform) installVaultOperator(ctx context.Context) error {
-	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=vault-operator", "terraform-apply"}})
+	_, err := platform.Runner.Run(ctx, command.Request{Name: "just", Args: []string{"tf::apply", "vault-operator"}})
 	if err != nil {
 		return err
 	}

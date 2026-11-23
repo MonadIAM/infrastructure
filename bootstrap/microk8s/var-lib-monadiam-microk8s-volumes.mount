@@ -1,0 +1,11 @@
+[Unit]
+Description=MonadIAM MicroK8s persistent volume pool
+
+[Mount]
+What=/var/lib/monadiam/microk8s-volumes.ext4
+Where=/var/lib/monadiam/microk8s/volumes
+Type=ext4
+Options=loop,nodev,nosuid
+
+[Install]
+WantedBy=multi-user.target

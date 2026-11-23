@@ -164,7 +164,7 @@ func (client Client) Unseal(ctx context.Context) error {
 }
 
 func (client Client) Bootstrap(ctx context.Context) error {
-	err := client.Execute(ctx, "make", "ROOT=vault", "terraform-apply")
+	err := client.Execute(ctx, "just", "tf::apply", "vault")
 	if err != nil {
 		return err
 	}

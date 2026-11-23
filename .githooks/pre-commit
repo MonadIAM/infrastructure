@@ -2,6 +2,8 @@
 
 source "$(dirname -- "${BASH_SOURCE[0]}")/../scripts/logger.sh"
 
+export PATH="$HOME/.local/bin:$PATH"
+
 OUTPUT_FILE=""
 WORK_DIR=""
 
@@ -50,7 +52,7 @@ step_format() {
 }
 
 step_lint() {
-    if make lint >"$OUTPUT_FILE" 2>&1; then
+    if just cli::lint >"$OUTPUT_FILE" 2>&1; then
         return 0
     fi
 
@@ -59,7 +61,7 @@ step_lint() {
 }
 
 step_terraform() {
-    if bash scripts/terraform.check.sh >"$OUTPUT_FILE" 2>&1; then
+    if just tf::validate >"$OUTPUT_FILE" 2>&1; then
         return 0
     fi
 
@@ -68,7 +70,7 @@ step_terraform() {
 }
 
 step_environment() {
-    if make env-check ENV_FILE=.env.dev.example >"$OUTPUT_FILE" 2>&1; then
+    if just env::check .env.dev.example >"$OUTPUT_FILE" 2>&1; then
         return 0
     fi
 
@@ -77,7 +79,7 @@ step_environment() {
 }
 
 step_manifests() {
-    if bash scripts/manifests.check.sh >"$OUTPUT_FILE" 2>&1; then
+    if just k8::validate >"$OUTPUT_FILE" 2>&1; then
         return 0
     fi
 

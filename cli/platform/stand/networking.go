@@ -8,7 +8,7 @@ import (
 )
 
 func (platform Platform) CertManager(ctx context.Context) error {
-	_, err := platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=bootstrap", "terraform-apply"}})
+	_, err := platform.Runner.Run(ctx, command.Request{Name: "just", Args: []string{"tf::apply", "bootstrap"}})
 	return err
 }
 
@@ -32,7 +32,7 @@ func (platform Platform) Istio(ctx context.Context) error {
 		return err
 	}
 
-	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=istio", "terraform-apply"}})
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "just", Args: []string{"tf::apply", "istio"}})
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (platform Platform) Gateway(ctx context.Context) error {
 		return err
 	}
 
-	_, err = platform.Runner.Run(ctx, command.Request{Name: "make", Args: []string{"ROOT=gateway", "terraform-apply"}})
+	_, err = platform.Runner.Run(ctx, command.Request{Name: "just", Args: []string{"tf::apply", "gateway"}})
 	if err != nil {
 		return err
 	}

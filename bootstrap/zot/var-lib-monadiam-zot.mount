@@ -6,3 +6,6 @@ What=/var/lib/monadiam/zot.ext4
 Where=/var/lib/monadiam/zot
 Type=ext4
 Options=loop,nodev,nosuid,noexec
+
+[Install]
+WantedBy=multi-user.target
