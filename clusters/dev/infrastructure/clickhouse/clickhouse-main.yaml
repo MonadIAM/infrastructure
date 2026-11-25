@@ -31,6 +31,19 @@ spec:
               volumeMounts:
                 - name: clickhouse-storage
                   mountPath: /var/lib/clickhouse
+                - name: kafka-ca
+                  mountPath: /etc/clickhouse-server/kafka-ca
+                  readOnly: true
+              env:
+                - name: KAFKA_ARCHIVE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: kafka-main-archive
+                      key: password
+          volumes:
+            - name: kafka-ca
+              secret:
+                secretName: kafka-main-cluster-ca-cert
     volumeClaimTemplates:
       - name: clickhouse-storage
         reclaimPolicy: Retain
@@ -43,6 +56,20 @@ spec:
               storage: 5Gi
   configuration:
     files:
+      config.d/archive-kafka.xml: |
+        <clickhouse>
+            <named_collections>
+                <archive_kafka>
+                    <kafka>
+                        <security_protocol>SASL_SSL</security_protocol>
+                        <sasl_mechanism>SCRAM-SHA-512</sasl_mechanism>
+                        <sasl_username>kafka-main-archive</sasl_username>
+                        <sasl_password from_env="KAFKA_ARCHIVE_PASSWORD"/>
+                        <ssl_ca_location>/etc/clickhouse-server/kafka-ca/ca.crt</ssl_ca_location>
+                    </kafka>
+                </archive_kafka>
+            </named_collections>
+        </clickhouse>
       config.d/prometheus.xml: |
         <clickhouse>
             <prometheus>
@@ -68,6 +95,24 @@ spec:
         - "::/0"
       app/profile: default
       app/quota: default
+      archive/password:
+        valueFrom:
+          secretKeyRef:
+            name: clickhouse-main-archive
+            key: CLICKHOUSE_PASSWORD
+      archive/networks/ip:
+        - "::/0"
+      archive/profile: default
+      archive/quota: default
+      archive/grants/query:
+        - GRANT CREATE DATABASE ON *.*
+        - GRANT CREATE TABLE, ALTER TABLE, CREATE VIEW, INSERT, SELECT ON audit.*
+        - GRANT SELECT ON system.parts
+        - GRANT READ, WRITE ON S3
+        - GRANT NAMED COLLECTION ON archive_kafka
+        - GRANT TABLE ENGINE ON Kafka
+        - GRANT TABLE ENGINE ON MergeTree
+        - GRANT READ, WRITE ON KAFKA
     clusters:
       - name: main
         secret:

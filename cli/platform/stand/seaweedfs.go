@@ -43,7 +43,12 @@ func (platform Platform) SeaweedFS(ctx context.Context) error {
 		return err
 	}
 
-	return platform.configureSeaweedFS(ctx, image)
+	err = platform.configureSeaweedFS(ctx, image)
+	if err != nil {
+		return err
+	}
+
+	return platform.configureArchive(ctx, image)
 }
 
 func (platform Platform) seaweedFSImage(ctx context.Context) (string, error) {

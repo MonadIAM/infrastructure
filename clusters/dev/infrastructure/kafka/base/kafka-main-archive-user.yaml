@@ -1,0 +1,36 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaUser
+metadata:
+  name: kafka-main-archive
+  namespace: monadiam-messaging
+  labels:
+    strimzi.io/cluster: kafka-main
+    app.kubernetes.io/name: kafka-main-archive
+    app.kubernetes.io/component: analytics
+    app.kubernetes.io/part-of: monadiam
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: audit-log-archive
+          patternType: literal
+        operations: [Describe, Read]
+      - resource:
+          type: topic
+          name: change-log-archive
+          patternType: literal
+        operations: [Describe, Read]
+      - resource:
+          type: group
+          name: clickhouse-audit-log
+          patternType: literal
+        operations: [Describe, Read]
+      - resource:
+          type: group
+          name: clickhouse-change-log
+          patternType: literal
+        operations: [Describe, Read]

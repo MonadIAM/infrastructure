@@ -38,5 +38,6 @@ resources:
   - organization-redis-auth-static-secret.yaml
   - hr-redis-auth-static-secret.yaml
   - clickhouse-main-app-static-secret.yaml
+  - clickhouse-main-archive-static-secret.yaml
   - clickhouse-main-intercluster-static-secret.yaml
   - clickhouse-operator-static-secret.yaml

@@ -1,0 +1,9 @@
+SELECT
+    count()
+FROM
+    s3(
+        {url:String},
+        {access_key:String},
+        {secret_key:String},
+        'Parquet'
+    )
