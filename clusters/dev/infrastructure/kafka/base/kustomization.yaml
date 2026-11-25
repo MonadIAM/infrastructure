@@ -6,6 +6,7 @@ resources:
   - kafka-main-topics.yaml
   - kafka-main-admin-user.yaml
   - kafka-connect-user.yaml
+  - kafka-main-archive-user.yaml
   - kafka-connect-postgresql-secret-reader.yaml
   - kafka-connect.yaml
   - access-control-postgresql-outbox-connector.yaml

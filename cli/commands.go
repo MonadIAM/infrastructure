@@ -7,6 +7,8 @@ import (
 	"io"
 
 	"github.com/MonadIAM/infrastructure/cli/config"
+	"github.com/MonadIAM/infrastructure/cli/jobs/archive"
+	"github.com/MonadIAM/infrastructure/cli/platform/clickhouse"
 	"github.com/MonadIAM/infrastructure/cli/platform/command"
 	"github.com/MonadIAM/infrastructure/cli/platform/seaweedfs"
 	"github.com/MonadIAM/infrastructure/cli/platform/stand"
@@ -19,14 +21,34 @@ type application struct {
 }
 
 var commands = map[string]commandHandler{
-	"config init":         (*application).initializeConfiguration,
-	"config validate":     (*application).validateConfiguration,
-	"cluster status":      (*application).clusterStatus,
-	"platform reconcile":  (*application).reconcilePlatform,
-	"vault exec":          (*application).executeVault,
-	"vault initialize":    (*application).initializeVault,
-	"vault status":        (*application).vaultStatus,
-	"seaweedfs reconcile": (*application).reconcileSeaweedFS,
+	"config init":          (*application).initializeConfiguration,
+	"config validate":      (*application).validateConfiguration,
+	"cluster status":       (*application).clusterStatus,
+	"platform reconcile":   (*application).reconcilePlatform,
+	"vault exec":           (*application).executeVault,
+	"vault initialize":     (*application).initializeVault,
+	"vault status":         (*application).vaultStatus,
+	"seaweedfs reconcile":  (*application).reconcileSeaweedFS,
+	"clickhouse reconcile": (*application).reconcileClickHouse,
+	"archive run":          (*application).runArchive,
+}
+
+func (app *application) reconcileClickHouse(ctx context.Context) error {
+	settings, err := clickhouse.Load(app.environment)
+	if err != nil {
+		return err
+	}
+
+	return clickhouse.New(settings).Reconcile(ctx, app.output)
+}
+
+func (app *application) runArchive(ctx context.Context) error {
+	settings, err := archive.Load(app.environment)
+	if err != nil {
+		return err
+	}
+
+	return archive.New(settings, app.output).Run(ctx)
 }
 
 func (app *application) reconcileSeaweedFS(ctx context.Context) error {

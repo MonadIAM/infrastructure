@@ -32,6 +32,16 @@ func (platform Platform) Clusters(ctx context.Context) error {
 		return err
 	}
 
+	err = platform.copyKafkaArchiveSecrets(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = platform.Kubernetes.ApplyKustomize(ctx, "clusters/"+platform.Environment["PROFILE"]+"/infrastructure/clickhouse")
+	if err != nil {
+		return err
+	}
+
 	return platform.Kubernetes.WaitState(ctx, dataNamespace, "clickhouseinstallations.clickhouse.altinity.com/clickhouse-main", "status", "Completed", 600*time.Second)
 }
 
@@ -44,7 +54,6 @@ func (platform Platform) applyClusterResources(ctx context.Context) error {
 	directories := []string{
 		"clusters/" + platform.Environment["PROFILE"] + "/infrastructure/postgresql",
 		"clusters/" + platform.Environment["PROFILE"] + "/infrastructure/redis/base",
-		"clusters/" + platform.Environment["PROFILE"] + "/infrastructure/clickhouse",
 	}
 
 	for _, directory := range directories {
@@ -81,6 +90,7 @@ func (platform Platform) waitKafka(ctx context.Context) error {
 	resources := []string{
 		"kafkauser.kafka.strimzi.io/kafka-main-admin",
 		"kafkauser.kafka.strimzi.io/kafka-connect",
+		"kafkauser.kafka.strimzi.io/kafka-main-archive",
 	}
 
 	for _, resource := range resources {

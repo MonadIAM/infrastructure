@@ -1,0 +1,19 @@
+schedule: "0 2 * * *"
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+environment:
+  CLICKHOUSE_URL: http://chi-clickhouse-main-main-0-0.monadiam-data.svc:8123
+  CLICKHOUSE_SCHEMA_DIR: /schema
+  CLICKHOUSE_ARCHIVE_QUERY_DIR: /queries
+  INFRA_TIMEOUT: 5m
+  ARCHIVE_TIMEOUT: 25m
+  ARCHIVE_AFTER_DAYS: "120"
+  SEAWEEDFS_ENDPOINT: http://seaweedfs-main-s3.monadiam-data.svc:8333
+  SEAWEEDFS_REGION: us-east-1
+  SEAWEEDFS_AUDIT_LOG_BUCKET: audit-archive
+  SEAWEEDFS_CHANGE_LOG_BUCKET: change-log-archive

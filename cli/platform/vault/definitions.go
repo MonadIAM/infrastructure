@@ -88,6 +88,12 @@ func credentialDefinitions(environment config.Environment) []credentialDefinitio
 			Hash:        true,
 		},
 		{
+			Path:        "monadiam-data/clickhouse/main/archive",
+			UserKey:     "username",
+			User:        "archive",
+			PasswordKey: "password",
+		},
+		{
 			Path:        "monadiam-data/clickhouse/main/intercluster",
 			PasswordKey: "secret",
 		},

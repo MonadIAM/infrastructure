@@ -15,6 +15,8 @@ const usage = `Usage:
   infra vault status [options]
   infra vault exec [options] -- command [arguments]
   infra seaweedfs reconcile [options]
+  infra clickhouse reconcile [options]
+  infra archive run [options]
 
 Options: --env-file=.env.dev, --timeout=60m
 Components: all, cert-manager, metrics-server, istio, gateway, vault,

@@ -21,6 +21,11 @@ indent_size = 4
 indent_size = 4
 tab_width = 4
 
+[*.sql]
+indent_style = space
+indent_size = 4
+tab_width = 4
+
 [.githooks/*]
 indent_size = 4
 tab_width = 4

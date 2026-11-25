@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-archive-config
+  namespace: {{ .Release.Namespace }}
+data:
+{{ .Values.environment | toYaml | indent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-archive-schema
+  namespace: {{ .Release.Namespace }}
+data:
+{{ (.Files.Glob "files/*.sql").AsConfig | indent 2 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clickhouse-archive-queries
+  namespace: {{ .Release.Namespace }}
+data:
+{{ (.Files.Glob "files/queries/*.sql").AsConfig | indent 2 }}

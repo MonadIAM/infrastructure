@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: clickhouse-archive
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: clickhouse-archive
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: archive
+              image: {{ .Values.image | quote }}
+              imagePullPolicy: IfNotPresent
+              args:
+                - archive
+                - run
+                - --env-file=
+              envFrom:
+                - configMapRef:
+                    name: clickhouse-archive-config
+                - secretRef:
+                    name: clickhouse-main-archive
+                - secretRef:
+                    name: seaweedfs-main-archiver
+              volumeMounts:
+                - name: queries
+                  mountPath: /queries
+                  readOnly: true
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+          volumes:
+            - name: queries
+              configMap:
+                name: clickhouse-archive-queries
